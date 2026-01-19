@@ -3,3 +3,4 @@ pyautogui
 pygetwindow
 pillow
 opencv-python
+psutil

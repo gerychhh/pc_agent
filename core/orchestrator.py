@@ -16,8 +16,12 @@ SYSTEM_PROMPT = (
     "Если пользователь просит открыть сервис (Яндекс Музыка, Telegram, Discord, Spotify и т.п.), "
     "сначала попытайся открыть установленное приложение (open_app / find_start_apps + open_start_app). "
     "Только если приложение не найдено или запуск не удался — предложи открыть веб-версию в браузере. "
+    "URL открывай только через open_url. "
     "Если пользователь просит открыть сайт/страницу, используй open_url ОДИН раз. "
+    "Если open_url вернул ok=true и done=true — сразу заверши задачу. "
     "Если ok=true — сразу заверши задачу и дай финальный ответ без дополнительных действий. "
+    "Если действие вернуло ok=false — остановись и объясни почему, не повторяй тот же способ. "
+    "Учитывай verified: если verified=false, объясни, что действие выполнено, но результат не подтвержден. "
     "Перед опасными действиями спрашивай подтверждение (инструменты сами спрашивают, но ты тоже предупреждай). "
     "Если действие не получилось: объясни причину и предложи шаги исправления. "
     "Никогда не повторяй одно и то же действие больше 2 раз; если не получается — остановись и объясни причину. "
@@ -207,7 +211,10 @@ TOOLS_SCHEMA = [
             "description": "Open a Start menu app by AppID.",
             "parameters": {
                 "type": "object",
-                "properties": {"app_id": {"type": "string"}},
+                "properties": {
+                    "app_id": {"type": "string"},
+                    "display_name": {"type": "string"},
+                },
                 "required": ["app_id"],
             },
         },
@@ -479,11 +486,50 @@ class Orchestrator:
                         parsed_result = json.loads(tool_result)
                     except json.JSONDecodeError:
                         parsed_result = {}
+                    if "verified" in parsed_result:
+                        self.logger.log(
+                            "verification",
+                            {
+                                "tool_name": tool_name,
+                                "verified": parsed_result.get("verified"),
+                                "verify_reason": parsed_result.get("verify_reason"),
+                            },
+                        )
+                    if parsed_result.get("ok") is False:
+                        tool_repeat_counts[repeat_key] = 2
                     if parsed_result.get("ok") is False and parsed_result.get("error") == "app_not_found":
                         hint = parsed_result.get("user_hint") or "Не могу найти приложение."
                         self.messages.append({"role": "assistant", "content": hint})
                         self.logger.log("assistant_response", {"content": hint})
                         return hint
+                    if parsed_result.get("ok") is False and parsed_result.get("error") == "use_open_url_tool":
+                        self.messages.append(
+                            {
+                                "role": "system",
+                                "content": "Запрос похож на URL. Используй open_url для открытия сайта.",
+                            }
+                        )
+                        total_tool_calls += 1
+                        continue
+                    if parsed_result.get("ok") is False:
+                        self.messages.append(
+                            {
+                                "role": "system",
+                                "content": (
+                                    "Действие не выполнено (ok=false). "
+                                    "Дай финальный ответ и НЕ вызывай инструменты."
+                                ),
+                            }
+                        )
+                        final_response = self.client.chat(
+                            self.messages,
+                            TOOLS_SCHEMA,
+                            tool_choice="none",
+                        )
+                        assistant_content = final_response.choices[0].message.content or ""
+                        self.messages.append({"role": "assistant", "content": assistant_content})
+                        self.logger.log("assistant_response", {"content": assistant_content})
+                        return assistant_content
                     if parsed_result.get("ok") is True and parsed_result.get("done") is True:
                         self.messages.append(
                             {
