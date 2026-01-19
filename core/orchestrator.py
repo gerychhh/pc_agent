@@ -314,7 +314,68 @@ class Orchestrator:
 
         return "https://" + domain
 
+    @staticmethod
+    def _extract_exe_path(user_input: str) -> str | None:
+        if not user_input:
+            return None
+        match = re.search(r"([A-Za-z]:\\\\[^\"'\n]+?\\.exe)", user_input)
+        if not match:
+            return None
+        return match.group(1)
+
     def run(self, user_input: str) -> str:
+        exe_path = self._extract_exe_path(user_input)
+        if exe_path:
+            level = risk_level("open_app", {"app": exe_path})
+            approved = confirm_action("open_app", {"app": exe_path}, level)
+            self.logger.log(
+                "confirmation",
+                {
+                    "tool_name": "open_app",
+                    "tool_args": {"app": exe_path},
+                    "risk": level.value,
+                    "approved": approved,
+                },
+            )
+
+            if not approved:
+                assistant_content = "Ок, отменено пользователем."
+                self.messages.append({"role": "assistant", "content": assistant_content})
+                self.logger.log("assistant_response", {"content": assistant_content})
+                return assistant_content
+
+            tool_result = process.open_app(exe_path)
+            self.logger.log(
+                "tool_call",
+                {
+                    "tool_name": "open_app",
+                    "tool_args": {"app": exe_path},
+                    "tool_result": tool_result,
+                },
+            )
+
+            self.messages.append({"role": "user", "content": user_input})
+            self.messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": "direct_open_app",
+                    "name": "open_app",
+                    "content": tool_result,
+                }
+            )
+            self.messages.append(
+                {
+                    "role": "system",
+                    "content": "Приложение открыто (если ok=true). Дай финальный ответ и НЕ вызывай инструменты.",
+                }
+            )
+
+            final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
+            assistant_content = final_response.choices[0].message.content or ""
+            self.messages.append({"role": "assistant", "content": assistant_content})
+            self.logger.log("assistant_response", {"content": assistant_content})
+            return assistant_content
+
         # Fast-path: if the user explicitly asked to open a single URL/page,
         # do it deterministically once to avoid LLM "multiple strategy" loops.
         url = self._extract_single_url_intent(user_input)
