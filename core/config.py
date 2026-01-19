@@ -7,6 +7,11 @@ BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
 API_KEY = os.getenv("LMSTUDIO_API_KEY", "not-needed")
 MODEL_NAME = os.getenv("MODEL_NAME", "local-model")
 
+MODE = "script"
+DEBUG = os.getenv("DEBUG") == "1"
+MAX_RETRIES = 2
+TIMEOUT_SEC = 30
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOG_DIR = PROJECT_ROOT / "logs"
 SCREENSHOT_DIR = PROJECT_ROOT / "screenshots"

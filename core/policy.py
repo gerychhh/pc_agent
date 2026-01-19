@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import json
 from enum import Enum
-from pathlib import Path
-from typing import Any
-
-from .config import PROJECT_ROOT
 
 
 class RiskLevel(str, Enum):
@@ -14,69 +9,54 @@ class RiskLevel(str, Enum):
     HIGH = "HIGH"
 
 
-PROCESS_ACTIONS = {
-    "open_app",
-    "open_url",
-    "run_cmd",
-    "run_powershell",
-    "run_python_script",
-}
-FILE_WRITE_ACTIONS = {
-    "write_text_file_lines",
-    "create_docx",
-    "append_docx",
-    "replace_in_docx",
-    "create_xlsx",
-    "write_xlsx_cell",
-    "create_pptx",
-    "append_pptx_slide",
+_POWERSHELL_HIGH_RISK = {
+    "remove-item",
+    "del ",
+    "rd ",
+    "format",
+    "diskpart",
+    "bcdedit",
+    "shutdown",
+    "reg delete",
 }
 
+_PYTHON_MED_RISK = {
+    "os.remove",
+    "os.rmdir",
+    "shutil.rmtree",
+    "subprocess",
+}
 
-def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:
-    if tool_name in PROCESS_ACTIONS or tool_name in FILE_WRITE_ACTIONS:
-        return RiskLevel.MEDIUM
 
-    if tool_name == "write_file":
-        path = str(args.get("path", ""))
-        lower_path = path.lower()
-        if "windows" in lower_path or "program files" in lower_path:
+def _summarize_script(script_text: str, max_lines: int = 10) -> str:
+    lines = script_text.strip().splitlines()
+    return "\n".join(lines[:max_lines])
+
+
+def _assess_risk(language: str, script_text: str) -> RiskLevel:
+    lowered = script_text.lower()
+    if language == "powershell":
+        if any(token in lowered for token in _POWERSHELL_HIGH_RISK):
             return RiskLevel.HIGH
-        try:
-            target = Path(path).resolve()
-            if PROJECT_ROOT not in target.parents and target != PROJECT_ROOT:
-                return RiskLevel.MEDIUM
-        except OSError:
+        return RiskLevel.MEDIUM
+    if language == "python":
+        if any(token in lowered for token in _PYTHON_MED_RISK):
             return RiskLevel.MEDIUM
-
+        return RiskLevel.LOW
     return RiskLevel.LOW
 
 
-def risk_reason(tool_name: str, args: dict[str, Any], level: RiskLevel) -> str:
-    if tool_name in PROCESS_ACTIONS:
-        return "process_action"
-    if tool_name in FILE_WRITE_ACTIONS:
-        return "file_write"
-    if tool_name == "write_file":
-        path = str(args.get("path", ""))
-        lower_path = path.lower()
-        if "windows" in lower_path or "program files" in lower_path:
-            return "system_path_write"
-        return "write_file_outside_project"
-    if level == RiskLevel.LOW:
-        return "low_risk"
-    return "unclassified"
-
-
-def confirm_action(tool_name: str, args: dict[str, Any], level: RiskLevel) -> bool:
-    if level == RiskLevel.LOW:
-        return True
-
-    pretty_args = json.dumps(args, ensure_ascii=False)
+def confirm_if_needed(language: str, script_text: str) -> bool:
+    level = _assess_risk(language, script_text)
+    summary = _summarize_script(script_text)
     print("\n⚠️  Action confirmation required")
-    print(f"Action requested: {tool_name} {pretty_args}")
+    print(f"Language: {language}")
+    print("Script preview:")
+    print(summary if summary else "(empty script)")
     if level == RiskLevel.HIGH:
-        print("Warning: this action is high risk and may impact system files.")
+        print("Warning: high risk script detected.")
+    elif level == RiskLevel.MEDIUM:
+        print("Warning: potentially risky operations detected.")
     print("Confirm? (y/n): ", end="", flush=True)
     response = input().strip().lower()
     return response == "y"

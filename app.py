@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from core.app_search_paths import (
     default_search_paths,
@@ -83,7 +82,10 @@ def main() -> None:
             continue
 
         response = orchestrator.run(user_input)
-        print(f"Agent> {sanitize_assistant_text(response)}")
+        output = sanitize_assistant_text(response)
+        if not output:
+            output = "(no output)"
+        print(f"Agent> {output}")
 
 
 if __name__ == "__main__":
