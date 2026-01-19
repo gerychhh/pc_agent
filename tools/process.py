@@ -204,8 +204,9 @@ def open_start_app(app_id: str, display_name: str | None = None) -> str:
         subprocess.Popen(["explorer.exe", f"shell:AppsFolder\\{app_id}"])
         shot = _take_screenshot("after open_start_app")
         verification = _verify_launch(None, display_name)
+        ok = verification["verified"]
         return _result(
-            True,
+            ok,
             screenshot_path=shot["path"],
             method="startapp",
             launch_type="startapp",
@@ -214,6 +215,7 @@ def open_start_app(app_id: str, display_name: str | None = None) -> str:
             verify_reason=verification["verify_reason"],
             verify_details=verification["verify_details"],
             details={"display_name": display_name},
+            error=None if ok else "not_verified",
         )
     except Exception as exc:  # pragma: no cover - system dependent
         return _result(False, error=str(exc), verified=False)
@@ -287,6 +289,19 @@ def open_app(app: str) -> str:
                     )
                 if cached and not verification["verified"]:
                     invalidate_cached_launch(app)
+                    return _result(
+                        False,
+                        app=app,
+                        error="not_verified",
+                        method="cache",
+                        launch_type=launch_type,
+                        target=target,
+                        pid=pid,
+                        screenshot_path=shot,
+                        verified=False,
+                        verify_reason=verification["verify_reason"],
+                        verify_details=verification["verify_details"],
+                    )
             except Exception:
                 invalidate_cached_launch(app)
 
@@ -305,7 +320,7 @@ def open_app(app: str) -> str:
                 }
                 update_cached_launch(app, record)
             return _result(
-                True,
+                verification["verified"],
                 app=app,
                 method="discovered",
                 launch_type="exe",
@@ -315,6 +330,7 @@ def open_app(app: str) -> str:
                 verified=verification["verified"],
                 verify_reason=verification["verify_reason"],
                 verify_details=verification["verify_details"],
+                error=None if verification["verified"] else "not_verified",
             )
 
         start_apps_raw = find_start_apps(app)
@@ -342,7 +358,7 @@ def open_app(app: str) -> str:
                         }
                         update_cached_launch(app, record)
                     return _result(
-                        True,
+                        verification["verified"],
                         app=app,
                         method="discovered",
                         launch_type="startapp",
@@ -352,6 +368,7 @@ def open_app(app: str) -> str:
                         verified=verification["verified"],
                         verify_reason=verification["verify_reason"],
                         verify_details=verification["verify_details"],
+                        error=None if verification["verified"] else "not_verified",
                     )
 
         shortcuts_raw = find_start_menu_shortcuts(app, limit=3)
@@ -372,7 +389,7 @@ def open_app(app: str) -> str:
                 }
                 update_cached_launch(app, record)
             return _result(
-                True,
+                verification["verified"],
                 app=app,
                 method="discovered",
                 launch_type="shortcut",
@@ -382,6 +399,7 @@ def open_app(app: str) -> str:
                 verified=verification["verified"],
                 verify_reason=verification["verify_reason"],
                 verify_details=verification["verify_details"],
+                error=None if verification["verified"] else "not_verified",
             )
 
         return _result(
