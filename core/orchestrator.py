@@ -203,6 +203,18 @@ class Orchestrator:
         self.logger = SessionLogger()
         self.pending_app_name: str | None = None
         self._no_arg_tools = {"get_known_paths"}
+        self._tool_arg_allowlist = {
+            "open_app": {"app", "alias"},
+            "open_url": {"url"},
+            "run_powershell": {"command", "timeout_sec"},
+            "run_cmd": {"command", "timeout_sec"},
+            "run_python_script": {"code", "timeout_sec"},
+            "get_known_paths": set(),
+            "write_text_file_lines": {"path", "line_template", "count", "add_newline"},
+            "create_docx": {"path", "title", "paragraphs"},
+            "read_file": {"path", "max_chars"},
+            "write_file": {"path", "content"},
+        }
         self.reset()
 
     def reset(self) -> None:
@@ -265,6 +277,14 @@ class Orchestrator:
             parsed.get("ok") if isinstance(parsed, dict) else None,
             parsed.get("verified") if isinstance(parsed, dict) else None,
         )
+
+    def _normalize_tool_args(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        if tool_name in self._no_arg_tools:
+            return {}
+        allowlist = self._tool_arg_allowlist.get(tool_name)
+        if not allowlist:
+            return args
+        return {key: value for key, value in args.items() if key in allowlist}
 
     @staticmethod
     def _tool_calls_summary(tool_calls: list[Any]) -> list[dict[str, Any]]:
@@ -481,6 +501,7 @@ class Orchestrator:
                         args = {}
                     if tool_name in self._no_arg_tools:
                         args = {}
+                    args = self._normalize_tool_args(tool_name, args)
                     normalized_args = json.dumps(args, ensure_ascii=False, sort_keys=True)
                     repeat_key = f"{tool_name}:{normalized_args}"
                     repeats = tool_repeat_counts.get(repeat_key, 0) + 1
@@ -652,6 +673,7 @@ class Orchestrator:
                 tool_name, args = fallback_tool
                 if tool_name in self._no_arg_tools:
                     args = {}
+                args = self._normalize_tool_args(tool_name, args)
                 level = risk_level(tool_name, args)
                 reason = risk_reason(tool_name, args, level)
                 approved = confirm_action(tool_name, args, level)
