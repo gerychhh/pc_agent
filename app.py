@@ -10,7 +10,7 @@ from core.app_search_paths import (
     save_search_paths,
 )
 from core.config import SCREENSHOT_DIR
-from core.orchestrator import Orchestrator
+from core.orchestrator import Orchestrator, sanitize_assistant_text
 
 
 HELP_TEXT = """
@@ -83,7 +83,7 @@ def main() -> None:
             continue
 
         response = orchestrator.run(user_input)
-        print(f"Agent> {response}")
+        print(f"Agent> {sanitize_assistant_text(response)}")
 
 
 if __name__ == "__main__":

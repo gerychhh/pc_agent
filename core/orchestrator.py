@@ -7,13 +7,14 @@ from typing import Any
 from .llm_client import LLMClient
 from .logger import SessionLogger
 from .policy import confirm_action, risk_level, risk_reason
-from tools import commands, filesystem, process
+from tools import commands, filesystem, office, process
 
 
 SYSTEM_PROMPT = (
     "Ты локальный ассистент управления ПК. "
     "НИКОГДА не используй управление мышью, клики или ввод с клавиатуры. "
     "Все действия выполняй только через инструменты open_app/open_url/run_powershell/run_cmd/run_python_script. "
+    "Запросы про Word/Excel/PowerPoint выполняй через tools/office.py, а не через запуск приложений. "
     "Для создания txt/docx используй специализированные инструменты write_text_file_lines/create_docx, "
     "а не run_python_script. "
     "Перед созданием файлов на рабочем столе сначала вызывай get_known_paths, "
@@ -45,6 +46,14 @@ TOOL_REGISTRY = {
     "get_known_paths": filesystem.get_known_paths,
     "write_text_file_lines": filesystem.write_text_file_lines,
     "create_docx": filesystem.create_docx,
+    "read_docx": office.read_docx,
+    "append_docx": office.append_docx,
+    "replace_in_docx": office.replace_in_docx,
+    "create_xlsx": office.create_xlsx,
+    "read_xlsx": office.read_xlsx,
+    "write_xlsx_cell": office.write_xlsx_cell,
+    "create_pptx": office.create_pptx,
+    "append_pptx_slide": office.append_pptx_slide,
     "read_file": filesystem.read_file,
     "write_file": filesystem.write_file,
 }
@@ -167,6 +176,152 @@ TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
+            "name": "read_docx",
+            "description": "Read text from a .docx document.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "max_paragraphs": {"type": "integer", "default": 200},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "append_docx",
+            "description": "Append paragraphs to a .docx document.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "paragraphs": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["path", "paragraphs"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "replace_in_docx",
+            "description": "Replace text in a .docx document.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "find_text": {"type": "string"},
+                    "replace_text": {"type": "string"},
+                },
+                "required": ["path", "find_text", "replace_text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_xlsx",
+            "description": "Create an Excel workbook with sheets and rows.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "sheets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "rows": {"type": "array", "items": {"type": "array"}},
+                            },
+                            "required": ["name", "rows"],
+                        },
+                    },
+                },
+                "required": ["path", "sheets"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_xlsx",
+            "description": "Read rows from an Excel worksheet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "sheet": {"type": "string"},
+                    "max_rows": {"type": "integer", "default": 200},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_xlsx_cell",
+            "description": "Write a single Excel cell value.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "sheet": {"type": "string"},
+                    "cell": {"type": "string"},
+                    "value": {},
+                },
+                "required": ["path", "sheet", "cell", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_pptx",
+            "description": "Create a PowerPoint presentation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "title": {"type": "string"},
+                    "slides": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {"type": "string"},
+                                "bullets": {"type": "array", "items": {"type": "string"}},
+                            },
+                            "required": ["title", "bullets"],
+                        },
+                    },
+                },
+                "required": ["path", "slides"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "append_pptx_slide",
+            "description": "Append a slide to an existing PowerPoint file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "title": {"type": "string"},
+                    "bullets": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["path", "title", "bullets"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "read_file",
             "description": "Read text file.",
             "parameters": {
@@ -197,6 +352,30 @@ TOOLS_SCHEMA = [
 ]
 
 
+def sanitize_assistant_text(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = text.replace("[TOOL_RESULT]", "").replace("[END_TOOL_RESULT]", "")
+    filtered_lines: list[str] = []
+    for line in cleaned.splitlines():
+        if any(marker in line for marker in ("<|channel|>", "<|constrain|>", "<|message|>")):
+            continue
+        trimmed = line.strip()
+        if trimmed.startswith("{") and trimmed.endswith("}"):
+            continue
+        if trimmed.startswith("[") and trimmed.endswith("]"):
+            continue
+        filtered_lines.append(line)
+    cleaned = "\n".join(filtered_lines)
+    cleaned = re.sub(r"```.*?```", "", cleaned, flags=re.DOTALL)
+    if re.search(r"\"(name|arguments)\"", cleaned):
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            cleaned = cleaned[:start] + cleaned[end + 1 :]
+    return cleaned.strip()
+
+
 class Orchestrator:
     def __init__(self) -> None:
         self.client = LLMClient()
@@ -212,6 +391,14 @@ class Orchestrator:
             "get_known_paths": set(),
             "write_text_file_lines": {"path", "line_template", "count", "add_newline"},
             "create_docx": {"path", "title", "paragraphs"},
+            "read_docx": {"path", "max_paragraphs"},
+            "append_docx": {"path", "paragraphs"},
+            "replace_in_docx": {"path", "find_text", "replace_text"},
+            "create_xlsx": {"path", "sheets"},
+            "read_xlsx": {"path", "sheet", "max_rows"},
+            "write_xlsx_cell": {"path", "sheet", "cell", "value"},
+            "create_pptx": {"path", "title", "slides"},
+            "append_pptx_slide": {"path", "title", "bullets"},
             "read_file": {"path", "max_chars"},
             "write_file": {"path", "content"},
         }
@@ -276,6 +463,14 @@ class Orchestrator:
             parsed.get("stderr") if isinstance(parsed, dict) else None,
             parsed.get("ok") if isinstance(parsed, dict) else None,
             parsed.get("verified") if isinstance(parsed, dict) else None,
+        )
+        self.logger.log_tool_summary(
+            tool_name,
+            args,
+            parsed.get("ok") if isinstance(parsed, dict) else None,
+            parsed.get("verified") if isinstance(parsed, dict) else None,
+            parsed.get("stdout") if isinstance(parsed, dict) else None,
+            parsed.get("stderr") if isinstance(parsed, dict) else None,
         )
 
     def _normalize_tool_args(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -388,11 +583,12 @@ class Orchestrator:
             )
 
             final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
-            assistant_content = final_response.choices[0].message.content or ""
+            assistant_raw = final_response.choices[0].message.content or ""
             self.logger.log_llm_response(
-                assistant_content,
+                assistant_raw,
                 self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
             )
+            assistant_content = sanitize_assistant_text(assistant_raw)
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
             self.logger.log_final(assistant_content)
@@ -451,11 +647,12 @@ class Orchestrator:
             )
 
             final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
-            assistant_content = final_response.choices[0].message.content or ""
+            assistant_raw = final_response.choices[0].message.content or ""
             self.logger.log_llm_response(
-                assistant_content,
+                assistant_raw,
                 self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
             )
+            assistant_content = sanitize_assistant_text(assistant_raw)
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
             self.logger.log_final(assistant_content)
@@ -469,8 +666,9 @@ class Orchestrator:
             response = self.client.chat(self.messages, TOOLS_SCHEMA)
             message = response.choices[0].message
             tool_calls = getattr(message, "tool_calls", None)
+            message_content = message.content or ""
             self.logger.log_llm_response(
-                message.content or "",
+                message_content,
                 self._tool_calls_summary(tool_calls or []),
             )
 
@@ -631,11 +829,12 @@ class Orchestrator:
                             TOOLS_SCHEMA,
                             tool_choice="none",
                         )
-                        assistant_content = final_response.choices[0].message.content or ""
+                        assistant_raw = final_response.choices[0].message.content or ""
                         self.logger.log_llm_response(
-                            assistant_content,
+                            assistant_raw,
                             self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
                         )
+                        assistant_content = sanitize_assistant_text(assistant_raw)
                         self.messages.append({"role": "assistant", "content": assistant_content})
                         self.logger.log("assistant_response", {"content": assistant_content})
                         self.logger.log_final(assistant_content)
@@ -655,11 +854,12 @@ class Orchestrator:
                             TOOLS_SCHEMA,
                             tool_choice="none",
                         )
-                        assistant_content = final_response.choices[0].message.content or ""
+                        assistant_raw = final_response.choices[0].message.content or ""
                         self.logger.log_llm_response(
-                            assistant_content,
+                            assistant_raw,
                             self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
                         )
+                        assistant_content = sanitize_assistant_text(assistant_raw)
                         self.messages.append({"role": "assistant", "content": assistant_content})
                         self.logger.log("assistant_response", {"content": assistant_content})
                         self.logger.log_final(assistant_content)
@@ -667,8 +867,9 @@ class Orchestrator:
                     total_tool_calls += 1
                 continue
 
-            assistant_content = message.content or ""
-            fallback_tool = self._extract_tool_call_from_content(assistant_content)
+            assistant_raw = message.content or ""
+            assistant_content = sanitize_assistant_text(assistant_raw)
+            fallback_tool = self._extract_tool_call_from_content(assistant_raw)
             if fallback_tool:
                 tool_name, args = fallback_tool
                 if tool_name in self._no_arg_tools:
@@ -748,11 +949,12 @@ class Orchestrator:
                     TOOLS_SCHEMA,
                     tool_choice="none",
                 )
-                final_content = final_response.choices[0].message.content or ""
+                final_raw = final_response.choices[0].message.content or ""
                 self.logger.log_llm_response(
-                    final_content,
+                    final_raw,
                     self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
                 )
+                final_content = sanitize_assistant_text(final_raw)
                 self.messages.append({"role": "assistant", "content": final_content})
                 self.logger.log("assistant_response", {"content": final_content})
                 self.logger.log_final(final_content)

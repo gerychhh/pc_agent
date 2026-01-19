@@ -5,3 +5,5 @@ pillow
 opencv-python
 psutil
 python-docx
+openpyxl
+python-pptx

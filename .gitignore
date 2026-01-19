@@ -10,6 +10,7 @@ venv/
 logs/
 screenshots/
 *.log
+scripts/tmp_*.py
 
 # OS
 .DS_Store

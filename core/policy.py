@@ -24,6 +24,12 @@ PROCESS_ACTIONS = {
 FILE_WRITE_ACTIONS = {
     "write_text_file_lines",
     "create_docx",
+    "append_docx",
+    "replace_in_docx",
+    "create_xlsx",
+    "write_xlsx_cell",
+    "create_pptx",
+    "append_pptx_slide",
 }
 
 

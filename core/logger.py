@@ -53,7 +53,8 @@ class SessionLogger:
 
     def log_llm_response(self, content: str, tool_calls: list[dict[str, Any]]) -> None:
         snippet = self._truncate(content or "", 400)
-        self._emit(LogLevel.DEBUG, f"[LLM] {snippet}")
+        if snippet:
+            self._emit(LogLevel.DEBUG, f"[LLM] {snippet}")
         self._emit(LogLevel.DEBUG, f"[LLM] tool_calls {json.dumps(tool_calls, ensure_ascii=False)}")
 
     def log_policy(self, level: str, reason: str, approved: bool) -> None:
@@ -78,11 +79,27 @@ class SessionLogger:
         if duration_ms is not None:
             self._emit(LogLevel.DEBUG, f"[TIME] {duration_ms}")
         if stdout:
-            self._emit(LogLevel.DEBUG, f"[STDOUT] {self._truncate(stdout, 1000)}")
+            self._emit(LogLevel.DEBUG, f"[STDOUT] {self._truncate(stdout, 500)}")
         if stderr:
-            self._emit(LogLevel.DEBUG, f"[STDERR] {self._truncate(stderr, 1000)}")
+            self._emit(LogLevel.DEBUG, f"[STDERR] {self._truncate(stderr, 500)}")
         if ok is not None or verified is not None:
             self._emit(LogLevel.DEBUG, f"[RESULT] ok={ok} verified={verified}")
+
+    def log_tool_summary(
+        self,
+        name: str,
+        args: dict[str, Any],
+        ok: bool | None,
+        verified: bool | None,
+        stdout: str | None,
+        stderr: str | None,
+    ) -> None:
+        self._emit(LogLevel.DEBUG, f"[TOOL] {name} args={json.dumps(args, ensure_ascii=False)}")
+        self._emit(LogLevel.DEBUG, f"[TOOL] ok={ok} verified={verified}")
+        if stdout:
+            self._emit(LogLevel.DEBUG, f"[TOOL] stdout={self._truncate(stdout, 500)}")
+        if stderr:
+            self._emit(LogLevel.DEBUG, f"[TOOL] stderr={self._truncate(stderr, 500)}")
 
     def log_final(self, content: str) -> None:
         self._emit(LogLevel.DEBUG, f"[FINAL] {content}")
