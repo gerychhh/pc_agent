@@ -1,0 +1,1 @@
+Start-Process -FilePath "C:\Program Files\Google\Chrome\Application\chrome.exe" -ArgumentList "--start-fullscreen --new-window https://www.youtube.com"

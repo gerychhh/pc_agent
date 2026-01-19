@@ -1,0 +1,9 @@
+{
+  "notepad": {
+    "display_name": "notepad",
+    "launch_type": "exe",
+    "target": "C:\\Users\\ger-2\\AppData\\Local\\Microsoft\\WindowsApps\\notepad.exe",
+    "last_verified_utc": "2026-01-19T17:34:33.294153Z",
+    "confidence": 0.85
+  }
+}
