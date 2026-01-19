@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+import subprocess
 
 from core.app_search_paths import (
     default_search_paths,
@@ -9,8 +9,15 @@ from core.app_search_paths import (
     normalize_search_paths,
     save_search_paths,
 )
-from core.config import SCREENSHOT_DIR
-from core.orchestrator import Orchestrator
+from core.config import (
+    SCREENSHOT_DIR,
+    VOICE_DEFAULT_ENABLED,
+    VOICE_NAME,
+    VOICE_RATE,
+    VOICE_VOLUME,
+)
+from core.orchestrator import Orchestrator, sanitize_assistant_text
+from core.voice import VoiceInput
 
 
 HELP_TEXT = """
@@ -30,6 +37,39 @@ def list_screenshots() -> None:
     print("Recent screenshots:")
     for shot in screenshots[:10]:
         print(f" - {shot}")
+
+
+def _escape_powershell(text: str) -> str:
+    return text.replace("'", "''")
+
+
+def _should_speak(response: str) -> bool:
+    if not response:
+        return False
+    if "returncode=" in response:
+        return False
+    if response.startswith(("✅", "❌")):
+        return False
+    return True
+
+
+def speak_text(text: str) -> None:
+    safe_text = _escape_powershell(text)
+    command = (
+        "Add-Type -AssemblyName System.Speech; "
+        "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+        f"try {{ $synth.SelectVoice('{VOICE_NAME}') }} catch {{}}; "
+        f"$synth.Rate = {VOICE_RATE}; "
+        f"$synth.Volume = {VOICE_VOLUME}; "
+        "$synth.Speak("
+        f"'{safe_text}')"
+    )
+    subprocess.run(
+        ["powershell", "-NoProfile", "-Command", command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def ensure_app_search_paths() -> None:
@@ -57,13 +97,38 @@ def main() -> None:
     print("PC Agent CLI. Type /help for commands.")
     ensure_app_search_paths()
     orchestrator = Orchestrator()
+    voice_enabled = VOICE_DEFAULT_ENABLED
+    voice_input: VoiceInput | None = None
 
     while True:
-        try:
-            user_input = input("You> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nExiting.")
-            break
+        if voice_enabled:
+            print('🎤 Voice mode: speak your command (say "стоп" to exit voice mode)...')
+            try:
+                if voice_input is None:
+                    voice_input = VoiceInput()
+                voice_text = voice_input.listen_once()
+            except (EOFError, KeyboardInterrupt):
+                print("\nExiting.")
+                break
+            except Exception as exc:
+                print(f"Voice error: {exc}")
+                voice_enabled = False
+                continue
+            if not voice_text:
+                continue
+            normalized = voice_text.strip().lower()
+            if normalized in {"стоп", "выключи голос", "stop"}:
+                voice_enabled = False
+                print("Voice mode disabled.")
+                continue
+            print(f"You(voice)> {voice_text}")
+            user_input = voice_text
+        else:
+            try:
+                user_input = input("You> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nExiting.")
+                break
 
         if not user_input:
             continue
@@ -81,9 +146,27 @@ def main() -> None:
         if user_input == "/screens":
             list_screenshots()
             continue
+        if user_input.startswith("/voice"):
+            if user_input == "/voice" or user_input.endswith("on"):
+                voice_enabled = True
+                print("Voice mode enabled.")
+            elif user_input.endswith("off"):
+                voice_enabled = False
+                print("Voice mode disabled.")
+            else:
+                print("Usage: /voice [on|off]")
+            continue
 
         response = orchestrator.run(user_input)
-        print(f"Agent> {response}")
+        output = sanitize_assistant_text(response)
+        if not output:
+            output = "(no output)"
+        print(f"Agent> {output}")
+        if voice_enabled and _should_speak(output):
+            try:
+                speak_text(output)
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
