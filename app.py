@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 
 from core.app_search_paths import (
     default_search_paths,
@@ -30,6 +31,35 @@ def list_screenshots() -> None:
     print("Recent screenshots:")
     for shot in screenshots[:10]:
         print(f" - {shot}")
+
+
+def _escape_powershell(text: str) -> str:
+    return text.replace("'", "''")
+
+
+def _should_speak(response: str) -> bool:
+    if not response:
+        return False
+    if "returncode=" in response:
+        return False
+    if response.startswith(("✅", "❌")):
+        return False
+    return True
+
+
+def speak_text(text: str) -> None:
+    safe_text = _escape_powershell(text)
+    command = (
+        "Add-Type -AssemblyName System.Speech; "
+        "(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("
+        f"'{safe_text}')"
+    )
+    subprocess.run(
+        ["powershell", "-NoProfile", "-Command", command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def ensure_app_search_paths() -> None:
@@ -122,6 +152,11 @@ def main() -> None:
         if not output:
             output = "(no output)"
         print(f"Agent> {output}")
+        if voice_enabled and _should_speak(output):
+            try:
+                speak_text(output)
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
