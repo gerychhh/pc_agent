@@ -33,7 +33,7 @@ def _summarize_script(script_text: str, max_lines: int = 10) -> str:
     return "\n".join(lines[:max_lines])
 
 
-def _assess_risk(language: str, script_text: str) -> RiskLevel:
+def assess_risk(language: str, script_text: str) -> RiskLevel:
     lowered = script_text.lower()
     if language == "powershell":
         if any(token in lowered for token in _POWERSHELL_HIGH_RISK):
@@ -47,7 +47,7 @@ def _assess_risk(language: str, script_text: str) -> RiskLevel:
 
 
 def confirm_if_needed(language: str, script_text: str) -> bool:
-    level = _assess_risk(language, script_text)
+    level = assess_risk(language, script_text)
     summary = _summarize_script(script_text)
     print("\n⚠️  Action confirmation required")
     print(f"Language: {language}")

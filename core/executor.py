@@ -81,3 +81,12 @@ def run_powershell(code: str, timeout_sec: int) -> dict[str, Any]:
         script_path,
         timeout_sec,
     )
+
+
+def run_pip_install(package: str, timeout_sec: int) -> dict[str, Any]:
+    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = int(time.time() * 1000)
+    script_path = SCRIPTS_DIR / f"tmp_{timestamp}.cmd"
+    command = ["python", "-m", "pip", "install", package]
+    script_path.write_text(" ".join(command), encoding="utf-8")
+    return _run_command(command, script_path, timeout_sec)
