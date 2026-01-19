@@ -111,6 +111,29 @@ def open_app(app: str) -> str:
         return _result(False, error=str(exc), method="fallback")
 
 
+def open_url(url: str) -> str:
+    try:
+        os.startfile(url)  # type: ignore[attr-defined]
+        method = "startfile"
+    except OSError:
+        subprocess.Popen(["cmd", "/c", "start", "", url])
+        method = "cmd_start"
+    except Exception as exc:  # pragma: no cover - system dependent
+        return _result(False, error=str(exc), url=url, done=True)
+
+    try:
+        shot = _take_screenshot("after open_url")
+        return _result(
+            True,
+            url=url,
+            done=True,
+            method=method,
+            screenshot_path=shot["path"],
+        )
+    except Exception as exc:  # pragma: no cover - system dependent
+        return _result(False, error=str(exc), url=url, done=True, method=method)
+
+
 def run_cmd(cmd: str, timeout_sec: int = 15) -> str:
     lowered = cmd.lower()
     if any(blocked in lowered for blocked in BLOCKLIST):

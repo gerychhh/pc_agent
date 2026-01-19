@@ -22,7 +22,7 @@ DESKTOP_ACTIONS = {
     "hotkey",
 }
 
-PROCESS_ACTIONS = {"open_app", "run_cmd"}
+PROCESS_ACTIONS = {"open_app", "open_url", "run_cmd"}
 
 
 def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:

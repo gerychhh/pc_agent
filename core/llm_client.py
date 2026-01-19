@@ -12,9 +12,20 @@ class LLMClient:
         self.client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
         self.model = MODEL_NAME
 
-    def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> Any:
+    def chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        tool_choice: str = "auto",
+    ) -> Any:
+        if tool_choice == "none":
+            return self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+            )
         return self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             tools=tools,
+            tool_choice=tool_choice,
         )

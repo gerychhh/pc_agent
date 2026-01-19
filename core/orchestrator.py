@@ -15,6 +15,8 @@ SYSTEM_PROMPT = (
     "Если пользователь просит открыть сервис (Яндекс Музыка, Telegram, Discord, Spotify и т.п.), "
     "сначала попытайся открыть установленное приложение (open_app / find_start_apps + open_start_app). "
     "Только если приложение не найдено или запуск не удался — предложи открыть веб-версию в браузере. "
+    "Если пользователь просит открыть сайт/страницу, используй open_url ОДИН раз. "
+    "Если ok=true — сразу заверши задачу и дай финальный ответ без дополнительных действий. "
     "Перед опасными действиями спрашивай подтверждение (инструменты сами спрашивают, но ты тоже предупреждай). "
     "Если действие не получилось: объясни причину и предложи шаги исправления. "
     "Никогда не повторяй одно и то же действие больше 2 раз; если не получается — остановись и объясни причину. "
@@ -32,6 +34,7 @@ TOOL_REGISTRY = {
     "hotkey": desktop.hotkey,
     "locate_on_screen": desktop.locate_on_screen,
     "open_app": process.open_app,
+    "open_url": process.open_url,
     "find_start_apps": process.find_start_apps,
     "open_start_app": process.open_start_app,
     "run_cmd": process.run_cmd,
@@ -150,6 +153,18 @@ TOOLS_SCHEMA = [
                 "type": "object",
                 "properties": {"app": {"type": "string"}},
                 "required": ["app"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_url",
+            "description": "Open a URL in the default browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {"url": {"type": "string"}},
+                "required": ["url"],
             },
         },
     },
@@ -351,6 +366,29 @@ class Orchestrator:
                             "content": tool_result,
                         }
                     )
+                    try:
+                        parsed_result = json.loads(tool_result)
+                    except json.JSONDecodeError:
+                        parsed_result = {}
+                    if parsed_result.get("ok") is True and parsed_result.get("done") is True:
+                        self.messages.append(
+                            {
+                                "role": "system",
+                                "content": (
+                                    "Задача выполнена (done=true). Не вызывай больше tools. "
+                                    "Дай финальный ответ пользователю."
+                                ),
+                            }
+                        )
+                        final_response = self.client.chat(
+                            self.messages,
+                            TOOLS_SCHEMA,
+                            tool_choice="none",
+                        )
+                        assistant_content = final_response.choices[0].message.content or ""
+                        self.messages.append({"role": "assistant", "content": assistant_content})
+                        self.logger.log("assistant_response", {"content": assistant_content})
+                        return assistant_content
                     total_tool_calls += 1
                 continue
 
