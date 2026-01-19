@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import difflib
+import re
 from typing import Any
+from urllib.parse import urlparse
 
-from tools.desktop import _take_screenshot
-
-
-BLOCKLIST = ["del", "erase", "format", "diskpart", "rm -rf", "shutdown", "bcdedit"]
+from tools import commands
 
 
 def _result(ok: bool, **kwargs: Any) -> str:
@@ -18,6 +15,10 @@ def _result(ok: bool, **kwargs: Any) -> str:
         payload.setdefault("error", None)
     if not ok and "error" not in payload:
         payload["error"] = "unknown_error"
+    if "verified" not in payload:
+        payload["verified"] = ok
+    payload.setdefault("verify_reason", None)
+    payload.setdefault("details", {})
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -25,207 +26,142 @@ def _looks_like_path(app: str) -> bool:
     return any(sep in app for sep in ("/", "\\")) or app.lower().endswith(".exe")
 
 
-def _parse_start_apps(output: str) -> list[dict[str, str]]:
-    items: list[dict[str, str]] = []
-    lines = [line.rstrip() for line in output.splitlines() if line.strip()]
-    if not lines:
-        return items
-    for line in lines[1:]:
-        if line.startswith("-"):
-            continue
-        parts = line.split()
-        if len(parts) < 2:
-            continue
-        app_id = parts[-1]
-        name = " ".join(parts[:-1]).strip()
-        if name and app_id:
-            items.append({"name": name, "app_id": app_id})
-    return items
+def _clean_query_name(text: str) -> str:
+    cleaned = (text or "").strip().strip('"').strip("'")
+    if not cleaned:
+        return ""
+    if "\\" in cleaned or "/" in cleaned:
+        cleaned = os.path.basename(cleaned)
+    if cleaned.lower().endswith(".exe"):
+        cleaned = cleaned[:-4]
+    return cleaned.strip()
 
 
-def find_start_apps(query: str, limit: int = 10) -> str:
-    try:
-        completed = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", "Get-StartApps"],
-            capture_output=True,
-            text=True,
-        )
-        if completed.returncode != 0:
-            return _result(False, error=completed.stderr.strip() or "powershell failed")
-        items = _parse_start_apps(completed.stdout)
-
-        # Intelligent matching:
-        # 1) substring match
-        # 2) fuzzy match via stdlib difflib
-        if query:
-            q = query.strip().lower()
-            substring = [item for item in items if q in item["name"].lower()]
-            if substring:
-                items = substring
-            else:
-                names = [item["name"] for item in items]
-                close = difflib.get_close_matches(query, names, n=limit, cutoff=0.55)
-                if close:
-                    close_set = {c.lower() for c in close}
-                    items = [item for item in items if item["name"].lower() in close_set]
-
-        return _result(True, items=items[:limit])
-    except FileNotFoundError as exc:
-        return _result(False, error=str(exc))
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc))
+def _looks_like_url(text: str) -> bool:
+    if not text:
+        return False
+    if re.match(r"^https?://", text, re.IGNORECASE):
+        return True
+    parsed = urlparse(text)
+    if parsed.scheme and parsed.netloc:
+        return True
+    return bool(re.search(r"\bwww\.[^\s]+", text, re.IGNORECASE))
 
 
-def find_start_menu_shortcuts(query: str, limit: int = 10) -> str:
-    """Find Start Menu shortcuts (.lnk) matching query (helps with apps not in Get-StartApps)."""
-    try:
-        q = query.replace('"', "")
-        ps = (
-            "$q=\"" + q + "\"; "
-            "$paths=@($env:APPDATA+'\\Microsoft\\Windows\\Start Menu\\Programs',"
-            "$env:ProgramData+'\\Microsoft\\Windows\\Start Menu\\Programs'); "
-            "$items=Get-ChildItem $paths -Recurse -Filter *.lnk -ErrorAction SilentlyContinue "
-            "| Where-Object { $_.BaseName -like ('*'+$q+'*') } "
-            "| Select-Object -First " + str(max(limit, 1)) + " @{'n'='name';'e'={$_.BaseName}},@{'n'='path';'e'={$_.FullName}}; "
-            "$items | ConvertTo-Json -Compress"
-        )
-        completed = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", ps],
-            capture_output=True,
-            text=True,
-        )
-        if completed.returncode != 0:
-            return _result(False, error=completed.stderr.strip() or "powershell failed")
-
-        out = completed.stdout.strip()
-        if not out:
-            return _result(True, items=[])
-
-        parsed = json.loads(out)
-        # PowerShell returns object or array depending on count
-        if isinstance(parsed, dict):
-            items = [parsed]
-        elif isinstance(parsed, list):
-            items = parsed
-        else:
-            items = []
-
-        normalized = []
-        for it in items:
-            name = str(it.get("name", "")).strip()
-            path = str(it.get("path", "")).strip()
-            if name and path:
-                normalized.append({"name": name, "path": path})
-
-        return _result(True, items=normalized[:limit])
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc))
+def _verify_process(process_name: str) -> dict[str, Any]:
+    if not process_name:
+        return {
+            "verified": False,
+            "verify_reason": "missing_process_name",
+            "verify_details": {},
+            "verify_exec": None,
+        }
+    ps_command = (
+        f"Get-Process -Name \"{process_name}\" -ErrorAction SilentlyContinue | Select-Object -First 1"
+    )
+    raw = commands.run_powershell(ps_command)
+    parsed = json.loads(raw)
+    stdout = (parsed.get("stdout") or "").strip()
+    verified = bool(stdout)
+    return {
+        "verified": verified,
+        "verify_reason": "process_detected" if verified else "process_not_found",
+        "verify_details": {"process_name": process_name},
+        "verify_exec": parsed.get("details", {}).get("exec"),
+    }
 
 
-def open_start_app(app_id: str) -> str:
-    try:
-        subprocess.Popen(["explorer.exe", f"shell:AppsFolder\\{app_id}"])
-        shot = _take_screenshot("after open_start_app")
-        return _result(True, screenshot_path=shot["path"], method="startapp")
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc))
+def open_app(app: str, alias: str | None = None) -> str:
+    target = app
+    clean_name = _clean_query_name(app)
 
-
-def open_app(app: str) -> str:
-    try:
-        if _looks_like_path(app):
-            process = subprocess.Popen([app])
-            shot = _take_screenshot(f"after open_app {app}")
-            return _result(
-                True,
-                pid=getattr(process, "pid", None),
-                screenshot_path=shot["path"],
-                method="exe_path",
-            )
-
-        start_apps_raw = find_start_apps(app)
-        start_apps = json.loads(start_apps_raw)
-        if start_apps.get("ok") and start_apps.get("items"):
-            items = start_apps["items"]
-            lowered = app.lower()
-            exact = next((item for item in items if item["name"].lower() == lowered), None)
-            selection = exact or (items[0] if len(items) == 1 else None)
-            if selection:
-                opened = json.loads(open_start_app(selection["app_id"]))
-                return json.dumps(opened, ensure_ascii=False)
-
-        # Fallback: search Start Menu shortcuts (.lnk)
-        shortcuts_raw = find_start_menu_shortcuts(app, limit=3)
-        shortcuts = json.loads(shortcuts_raw)
-        if shortcuts.get("ok") and shortcuts.get("items"):
-            path = shortcuts["items"][0]["path"]
-            try:
-                os.startfile(path)  # type: ignore[attr-defined]
-                shot = _take_screenshot(f"after open_shortcut {path}")
-                return _result(True, pid=None, screenshot_path=shot["path"], method="startmenu_shortcut")
-            except Exception as exc:
-                # continue to final fallback
-                pass
-
-        try:
-            os.startfile(app)  # type: ignore[attr-defined]
-            process = None
-        except OSError:
-            process = subprocess.Popen([app])
-        shot = _take_screenshot(f"after open_app {app}")
+    if _looks_like_url(app):
         return _result(
-            True,
-            pid=getattr(process, "pid", None),
-            screenshot_path=shot["path"],
-            method="fallback",
+            False,
+            app=alias or app,
+            error="use_open_url",
+            method="start-process",
+            target=target,
+            verified=False,
+            verify_reason="url_detected",
         )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), method="fallback")
+
+    launch_result: dict[str, Any] | None = None
+    method = "start-process"
+
+    if _looks_like_path(app) and app.lower().endswith(".exe") and os.path.exists(app):
+        launch_raw = commands.run_powershell(f'Start-Process -FilePath "{app}"')
+        launch_result = json.loads(launch_raw)
+        method = "path"
+    else:
+        launch_raw = commands.run_powershell(f'Start-Process "{app}"')
+        launch_result = json.loads(launch_raw)
+        if not launch_result.get("ok"):
+            query = clean_name or app
+            ps = (
+                "$q=\"" + query.replace('"', '') + "\"; "
+                "Get-StartApps | Where-Object { $_.Name -like ('*'+$q+'*') } "
+                "| Select-Object -First 1 Name, AppID | ConvertTo-Json -Compress"
+            )
+            search_raw = commands.run_powershell(ps)
+            search_parsed = json.loads(search_raw)
+            try:
+                app_entry = json.loads((search_parsed.get("stdout") or "").strip() or "null")
+            except json.JSONDecodeError:
+                app_entry = None
+            if app_entry and app_entry.get("AppID"):
+                app_id = app_entry["AppID"]
+                launch_raw = commands.run_cmd(f'explorer.exe "shell:AppsFolder\\{app_id}"')
+                launch_result = json.loads(launch_raw)
+                method = "appsfolder"
+                target = app_id
+
+    if not launch_result:
+        return _result(
+            False,
+            app=alias or app,
+            error="launch_failed",
+            method=method,
+            target=target,
+            verified=False,
+            verify_reason="launch_not_attempted",
+        )
+
+    ok = bool(launch_result.get("ok"))
+    verify = _verify_process(clean_name)
+
+    return _result(
+        ok,
+        app=alias or app,
+        error=None if ok else (launch_result.get("stderr") or "launch_failed"),
+        method=method,
+        target=target,
+        verified=verify["verified"],
+        verify_reason=verify["verify_reason"],
+        verify_details=verify["verify_details"],
+        stdout=launch_result.get("stdout"),
+        stderr=launch_result.get("stderr"),
+        duration_ms=launch_result.get("duration_ms"),
+        details={
+            "exec": launch_result.get("details", {}).get("exec"),
+            "verify_exec": verify.get("verify_exec"),
+        },
+    )
 
 
 def open_url(url: str) -> str:
-    try:
-        os.startfile(url)  # type: ignore[attr-defined]
-        method = "startfile"
-    except OSError:
-        subprocess.Popen(["cmd", "/c", "start", "", url])
-        method = "cmd_start"
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), url=url, done=True)
-
-    try:
-        shot = _take_screenshot("after open_url")
-        return _result(
-            True,
-            url=url,
-            done=True,
-            method=method,
-            screenshot_path=shot["path"],
-        )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), url=url, done=True, method=method)
-
-
-def run_cmd(cmd: str, timeout_sec: int = 15) -> str:
-    lowered = cmd.lower()
-    if any(blocked in lowered for blocked in BLOCKLIST):
-        return _result(False, error="blocked by policy")
-
-    try:
-        completed = subprocess.run(
-            cmd,
-            shell=True,
-            timeout=timeout_sec,
-            capture_output=True,
-            text=True,
-        )
-        shot = _take_screenshot(f"after run_cmd {cmd}")
-        return _result(
-            completed.returncode == 0,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
-            returncode=completed.returncode,
-            screenshot_path=shot["path"],
-        )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc))
+    launch_raw = commands.run_powershell(f'Start-Process "{url}"')
+    launch_result = json.loads(launch_raw)
+    ok = bool(launch_result.get("ok"))
+    return _result(
+        ok,
+        url=url,
+        done=True,
+        method="start-process",
+        verified=ok,
+        verify_reason="returncode_zero" if ok else "nonzero_returncode",
+        stdout=launch_result.get("stdout"),
+        stderr=launch_result.get("stderr"),
+        duration_ms=launch_result.get("duration_ms"),
+        details={"exec": launch_result.get("details", {}).get("exec")},
+    )

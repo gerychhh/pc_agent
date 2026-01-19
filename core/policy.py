@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import json
 from enum import Enum
-from pathlib import Path
-from typing import Any
-
-from .config import PROJECT_ROOT
 
 
 class RiskLevel(str, Enum):
@@ -14,45 +9,54 @@ class RiskLevel(str, Enum):
     HIGH = "HIGH"
 
 
-DESKTOP_ACTIONS = {
-    "move_mouse",
-    "click",
-    "type_text",
-    "press_key",
-    "hotkey",
+_POWERSHELL_HIGH_RISK = {
+    "remove-item",
+    "del ",
+    "rd ",
+    "format",
+    "diskpart",
+    "bcdedit",
+    "shutdown",
+    "reg delete",
 }
 
-PROCESS_ACTIONS = {"open_app", "open_url", "run_cmd"}
+_PYTHON_MED_RISK = {
+    "os.remove",
+    "os.rmdir",
+    "shutil.rmtree",
+    "subprocess",
+}
 
 
-def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:
-    if tool_name in DESKTOP_ACTIONS or tool_name in PROCESS_ACTIONS:
-        return RiskLevel.MEDIUM
+def _summarize_script(script_text: str, max_lines: int = 10) -> str:
+    lines = script_text.strip().splitlines()
+    return "\n".join(lines[:max_lines])
 
-    if tool_name == "write_file":
-        path = str(args.get("path", ""))
-        lower_path = path.lower()
-        if "windows" in lower_path or "program files" in lower_path:
+
+def assess_risk(language: str, script_text: str) -> RiskLevel:
+    lowered = script_text.lower()
+    if language == "powershell":
+        if any(token in lowered for token in _POWERSHELL_HIGH_RISK):
             return RiskLevel.HIGH
-        try:
-            target = Path(path).resolve()
-            if PROJECT_ROOT not in target.parents and target != PROJECT_ROOT:
-                return RiskLevel.MEDIUM
-        except OSError:
+        return RiskLevel.MEDIUM
+    if language == "python":
+        if any(token in lowered for token in _PYTHON_MED_RISK):
             return RiskLevel.MEDIUM
-
+        return RiskLevel.LOW
     return RiskLevel.LOW
 
 
-def confirm_action(tool_name: str, args: dict[str, Any], level: RiskLevel) -> bool:
-    if level == RiskLevel.LOW:
-        return True
-
-    pretty_args = json.dumps(args, ensure_ascii=False)
+def confirm_if_needed(language: str, script_text: str) -> bool:
+    level = assess_risk(language, script_text)
+    summary = _summarize_script(script_text)
     print("\n⚠️  Action confirmation required")
-    print(f"Action requested: {tool_name} {pretty_args}")
+    print(f"Language: {language}")
+    print("Script preview:")
+    print(summary if summary else "(empty script)")
     if level == RiskLevel.HIGH:
-        print("Warning: this action is high risk and may impact system files.")
+        print("Warning: high risk script detected.")
+    elif level == RiskLevel.MEDIUM:
+        print("Warning: potentially risky operations detected.")
     print("Confirm? (y/n): ", end="", flush=True)
     response = input().strip().lower()
     return response == "y"

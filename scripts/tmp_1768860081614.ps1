@@ -1,0 +1,1 @@
+notepad -noexit $([System.IO.Path]::Combine($env:USERPROFILE, "Desktop", "две тысячи.txt"))

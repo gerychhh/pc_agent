@@ -1,263 +1,94 @@
 from __future__ import annotations
 
-import json
+import hashlib
 import re
 from typing import Any
 
+from .config import DEBUG, MAX_RETRIES, TIMEOUT_SEC
+from .executor import run_pip_install, run_powershell, run_python
 from .llm_client import LLMClient
 from .logger import SessionLogger
-from .policy import RiskLevel, confirm_action, risk_level
-from tools import desktop, filesystem, process
+from .policy import RiskLevel, assess_risk, confirm_if_needed
 
 
-SYSTEM_PROMPT = (
-    "Ты локальный ассистент управления ПК. "
-    "Всегда используй инструменты для действий. "
-    "Если пользователь просит открыть сервис (Яндекс Музыка, Telegram, Discord, Spotify и т.п.), "
-    "сначала попытайся открыть установленное приложение (open_app / find_start_apps + open_start_app). "
-    "Только если приложение не найдено или запуск не удался — предложи открыть веб-версию в браузере. "
-    "Если пользователь просит открыть сайт/страницу, используй open_url ОДИН раз. "
-    "Если ok=true — сразу заверши задачу и дай финальный ответ без дополнительных действий. "
-    "Перед опасными действиями спрашивай подтверждение (инструменты сами спрашивают, но ты тоже предупреждай). "
-    "Если действие не получилось: объясни причину и предложи шаги исправления. "
-    "Никогда не повторяй одно и то же действие больше 2 раз; если не получается — остановись и объясни причину. "
-    "После каждого действия смотри на tool result: если ok=false — не повторяй автоматически, а меняй стратегию. "
-    "После каждого действия используй screenshot результаты, если они доступны."
-)
+SYSTEM_PROMPT = """
+Ты — локальный ассистент управления Windows-ПК через PowerShell и Python.
+
+Отвечай КРАТКО.
+
+ГЛАВНОЕ ПРАВИЛО:
+Если пользователь просит СДЕЛАТЬ действие на компьютере (открыть/запустить/перейти/создать/скачать/найти/настроить/закрыть) —
+ТЫ ОБЯЗАН вернуть КОД ДЛЯ ВЫПОЛНЕНИЯ.
+Не спорь, не объясняй, не “я не это”, а просто делай.
+
+ФОРМАТ ОТВЕТА:
+1) Если действие НЕ нужно (вопрос/объяснение) — 1–3 предложения, БЕЗ кода.
+2) Если действие НУЖНО — верни РОВНО ОДИН блок кода и НИЧЕГО больше:
+   - либо ```powershell ... ```
+   - либо ```python ... ```
+Вне code block не пиши ни одного символа.
+
+ПРАВИЛА ДЛЯ ДЕЙСТВИЙ:
+- По умолчанию используй PowerShell.
+- Скрипт должен быть ПОЛНЫМ и ИСПОЛНЯЕМЫМ.
+- Если нужно открыть сайт — используй:
+  Start-Process "https://...."
+- Если пользователь пишет "ютуб / youtube" — открывай https://www.youtube.com/
+
+ОКРУЖЕНИЕ:
+- ОС: Windows, shell: PowerShell.
+- Python доступен как `python`.
+- Для Desktop:
+  - PowerShell: `$desktop = [Environment]::GetFolderPath('Desktop')`
+  - Python: `from pathlib import Path; desktop = Path.home() / "Desktop"`
+  
+ФАЙЛЫ И ФОРМАТЫ (ОЧЕНЬ ВАЖНО):
+Если пользователь просит создать файл определённого типа (docx, xlsx, pdf, png, mp3 и т.д.) —
+файл должен быть РЕАЛЬНОГО ФОРМАТА, а не просто текстом с таким расширением.
+
+Запрещено делать так:
+- open("file.docx","w").write("...")  # это НЕ docx
+- open("file.pdf","w").write("...")   # это НЕ pdf
+
+Делай правильно:
+- .docx → только через библиотеку python-docx:
+  from docx import Document; doc = Document(); doc.add_paragraph(...); doc.save("file.docx")
+- .xlsx → только через openpyxl или pandas ExcelWriter
+- .pdf  → только через reportlab (или другой генератор PDF)
+- .json/.txt/.md/.csv → можно через обычный open(...,"w") (это текстовые форматы)
+- картинки (.png/.jpg) → генерируй/сохраняй как изображение, не текст
+
+ВЫБОР ЯЗЫКА ДЛЯ ФАЙЛОВ:
+- .docx / .xlsx / .pdf → всегда Python (правильные библиотеки)
+- открыть сайт / запустить программу / команды ОС → PowerShell
+
+Если библиотека недоступна или формат неясен — задай 1 уточняющий вопрос или предложи правильный способ.
+
+ВАЖНО ПРО ЯЗЫК СКРИПТА:
+Если в решении используется Python-код или Python-библиотеки (например python-docx, openpyxl, reportlab и т.д.) —
+ТОГДА скрипт обязан быть в формате ```python``` и выполняться как Python.
+Никогда не вставляй Python-код внутрь PowerShell.
+
+PowerShell используй только для команд Windows (Start-Process, cd, dir, New-Item и т.д.).
+
+БЕЗОПАСНОСТЬ:
+- Не делай разрушительные действия.
+- Если запрос опасный или неясный — задай 1 короткий уточняющий вопрос.
+""".strip()
 
 
-TOOL_REGISTRY = {
-    "screenshot": desktop.screenshot,
-    "move_mouse": desktop.move_mouse,
-    "click": desktop.click,
-    "type_text": desktop.type_text,
-    "press_key": desktop.press_key,
-    "hotkey": desktop.hotkey,
-    "locate_on_screen": desktop.locate_on_screen,
-    "open_app": process.open_app,
-    "open_url": process.open_url,
-    "find_start_apps": process.find_start_apps,
-    "find_start_menu_shortcuts": process.find_start_menu_shortcuts,
-    "open_start_app": process.open_start_app,
-    "run_cmd": process.run_cmd,
-    "read_file": filesystem.read_file,
-    "write_file": filesystem.write_file,
-}
 
 
-TOOLS_SCHEMA = [
-    {
-        "type": "function",
-        "function": {
-            "name": "screenshot",
-            "description": "Capture screenshot and save to screenshots directory.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "note": {"type": "string"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "move_mouse",
-            "description": "Move mouse to coordinates.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "x": {"type": "integer"},
-                    "y": {"type": "integer"},
-                },
-                "required": ["x", "y"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "click",
-            "description": "Click at coordinates.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "x": {"type": "integer"},
-                    "y": {"type": "integer"},
-                    "button": {"type": "string", "default": "left"},
-                    "clicks": {"type": "integer", "default": 1},
-                    "interval": {"type": "number", "default": 0.1},
-                },
-                "required": ["x", "y"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "type_text",
-            "description": "Type text using keyboard.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "text": {"type": "string"},
-                    "interval": {"type": "number", "default": 0.02},
-                },
-                "required": ["text"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "press_key",
-            "description": "Press a single key.",
-            "parameters": {
-                "type": "object",
-                "properties": {"key": {"type": "string"}},
-                "required": ["key"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "hotkey",
-            "description": "Press multiple keys as a hotkey.",
-            "parameters": {
-                "type": "object",
-                "properties": {"keys": {"type": "array", "items": {"type": "string"}}},
-                "required": ["keys"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "locate_on_screen",
-            "description": "Locate image on screen.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "image_path": {"type": "string"},
-                    "confidence": {"type": "number", "default": 0.8},
-                },
-                "required": ["image_path"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "open_app",
-            "description": "Open a Windows application.",
-            "parameters": {
-                "type": "object",
-                "properties": {"app": {"type": "string"}},
-                "required": ["app"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "open_url",
-            "description": "Open a URL in the default browser.",
-            "parameters": {
-                "type": "object",
-                "properties": {"url": {"type": "string"}},
-                "required": ["url"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "find_start_apps",
-            "description": "Search installed Start menu applications.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "integer", "default": 10},
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "find_start_menu_shortcuts",
-            "description": "Search Start Menu .lnk shortcuts by name (useful when app isn't visible in Get-StartApps).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "integer", "default": 10},
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "open_start_app",
-            "description": "Open a Start menu app by AppID.",
-            "parameters": {
-                "type": "object",
-                "properties": {"app_id": {"type": "string"}},
-                "required": ["app_id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "run_cmd",
-            "description": "Run a shell command with safeguards.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "cmd": {"type": "string"},
-                    "timeout_sec": {"type": "integer", "default": 15},
-                },
-                "required": ["cmd"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read text file.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "max_chars": {"type": "integer", "default": 20000},
-                },
-                "required": ["path"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "Write text file.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "content": {"type": "string"},
-                },
-                "required": ["path", "content"],
-            },
-        },
-    },
-]
+def sanitize_assistant_text(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = text.replace("[TOOL_RESULT]", "").replace("[END_TOOL_RESULT]", "")
+    filtered_lines: list[str] = []
+    for line in cleaned.splitlines():
+        if any(marker in line for marker in ("<|channel|>", "<|constrain|>", "<|message|>")):
+            continue
+        filtered_lines.append(line)
+    return "\n".join(filtered_lines).strip()
 
 
 class Orchestrator:
@@ -272,270 +103,204 @@ class Orchestrator:
         ]
 
     @staticmethod
-    def _extract_single_url_intent(user_input: str) -> str | None:
-        """Heuristic router for the common 'open a website' intent.
-
-        We intentionally bypass the LLM for this intent to prevent repeated
-        attempts using different strategies (browser open loops).
-        """
-        text = user_input.strip()
-        lower = text.lower()
-
-        # Must look like an 'open site/page' request.
-        if not any(k in lower for k in ("открой", "открыть", "open")):
-            return None
-        if not any(k in lower for k in ("сайт", "страниц", "url", "http", "www", ".ru", ".com", ".net", ".org")):
-            return None
-
-        # Extract first URL-like token.
-        m = re.search(r"(https?://[^\s]+)", text, re.IGNORECASE)
-        if m:
-            return m.group(1).rstrip('.,;')
-
-        # Domain without scheme (e.g. music.yandex.ru)
-        m2 = re.search(r"\b([a-z0-9\-]+(?:\.[a-z0-9\-]+)+)\b", text, re.IGNORECASE)
-        if not m2:
-            return None
-
-        domain = m2.group(1).rstrip('.,;')
-
-        # If the request is obviously more complex than "just open site", don't fast-path.
-        # This keeps multi-step tasks under LLM control.
-        extra_intent_words = ("введи", "набери", "найди", "зарегистр", "войти", "логин", "пароль", "скачай", "поиск")
-        if any(w in lower for w in extra_intent_words):
-            return None
-
-        return "https://" + domain
-
-    def run(self, user_input: str) -> str:
-        # Fast-path: if the user explicitly asked to open a single URL/page,
-        # do it deterministically once to avoid LLM "multiple strategy" loops.
-        url = self._extract_single_url_intent(user_input)
-        if url:
-            # Ask for confirmation via policy
-            level = risk_level("open_url", {"url": url})
-            approved = confirm_action("open_url", {"url": url}, level)
-            self.logger.log(
-                "confirmation",
-                {
-                    "tool_name": "open_url",
-                    "tool_args": {"url": url},
-                    "risk": level.value,
-                    "approved": approved,
-                },
-            )
-
-            if not approved:
-                assistant_content = "Ок, отменено пользователем."
-                self.messages.append({"role": "assistant", "content": assistant_content})
-                self.logger.log("assistant_response", {"content": assistant_content})
-                return assistant_content
-
-            tool_result = process.open_url(url)
-            self.logger.log(
-                "tool_call",
-                {
-                    "tool_name": "open_url",
-                    "tool_args": {"url": url},
-                    "tool_result": tool_result,
-                },
-            )
-
-            # Provide tool result to the model and force a final response without more tools.
-            self.messages.append({"role": "user", "content": user_input})
-            self.messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": "direct_open_url",
-                    "name": "open_url",
-                    "content": tool_result,
-                }
-            )
-            self.messages.append(
-                {
-                    "role": "system",
-                    "content": "URL открыт (если ok=true). Дай финальный ответ и НЕ вызывай инструменты.",
-                }
-            )
-
-            final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
-            assistant_content = final_response.choices[0].message.content or ""
-            self.messages.append({"role": "assistant", "content": assistant_content})
-            self.logger.log("assistant_response", {"content": assistant_content})
-            return assistant_content
-
-        self.messages.append({"role": "user", "content": user_input})
-        self.logger.log("user_input", {"content": user_input})
-        tool_repeat_counts: dict[str, int] = {}
-        total_tool_calls = 0
-
-        for _ in range(10):
-            response = self.client.chat(self.messages, TOOLS_SCHEMA)
-            message = response.choices[0].message
-
-            if getattr(message, "tool_calls", None):
-                for tool_call in message.tool_calls:
-                    if total_tool_calls >= 8:
-                        reason = "Превышен лимит инструментов (8). Пожалуйста, уточните задачу."
-                        self.logger.log(
-                            "loop_guard_triggered",
-                            {
-                                "reason": "tool_call_limit",
-                                "limit": 8,
-                                "total_tool_calls": total_tool_calls,
-                            },
-                        )
-                        self.messages.append({"role": "assistant", "content": reason})
-                        self.logger.log("assistant_response", {"content": reason})
-                        return reason
-
-                    tool_name = tool_call.function.name
-                    args = json.loads(tool_call.function.arguments or "{}")
-                    normalized_args = json.dumps(args, ensure_ascii=False, sort_keys=True)
-                    repeat_key = f"{tool_name}:{normalized_args}"
-                    repeats = tool_repeat_counts.get(repeat_key, 0) + 1
-                    tool_repeat_counts[repeat_key] = repeats
-                    if repeats > 2:
-                        tool_result = json.dumps(
-                            {
-                                "ok": False,
-                                "error": "loop_guard_triggered",
-                                "details": {
-                                    "tool_name": tool_name,
-                                    "args": args,
-                                    "repeats": repeats,
-                                },
-                            },
-                            ensure_ascii=False,
-                        )
-                        self.logger.log(
-                            "loop_guard_triggered",
-                            {
-                                "reason": "repeated_tool_call",
-                                "tool_name": tool_name,
-                                "tool_args": args,
-                                "repeats": repeats,
-                            },
-                        )
-                        self.messages.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "name": tool_name,
-                                "content": tool_result,
-                            }
-                        )
-                        assistant_content = (
-                            f"Я зациклился на повторяющемся действии {tool_name}. "
-                            "Останавливаюсь. Возможная причина: модель не видит изменений "
-                            "на экране или не получает ожидаемый результат."
-                        )
-                        self.messages.append({"role": "assistant", "content": assistant_content})
-                        self.logger.log("assistant_response", {"content": assistant_content})
-                        return assistant_content
-
-                    level = risk_level(tool_name, args)
-                    approved = confirm_action(tool_name, args, level)
-                    self.logger.log(
-                        "confirmation",
-                        {
-                            "tool_name": tool_name,
-                            "tool_args": args,
-                            "risk": level.value,
-                            "approved": approved,
-                        },
-                    )
-                    if not approved:
-                        tool_result = json.dumps(
-                            {"ok": False, "error": "user_denied"},
-                            ensure_ascii=False,
-                        )
-                    else:
-                        tool_fn = TOOL_REGISTRY.get(tool_name)
-                        if not tool_fn:
-                            tool_result = json.dumps(
-                                {"ok": False, "error": "tool_not_found"},
-                                ensure_ascii=False,
-                            )
-                        else:
-                            tool_result = tool_fn(**args)
-                    self.logger.log(
-                        "tool_call",
-                        {
-                            "tool_name": tool_name,
-                            "tool_args": args,
-                            "tool_result": tool_result,
-                        },
-                    )
-                    self.messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": tool_name,
-                            "content": tool_result,
-                        }
-                    )
-                    try:
-                        parsed_result = json.loads(tool_result)
-                    except json.JSONDecodeError:
-                        parsed_result = {}
-                    if parsed_result.get("ok") is True and parsed_result.get("done") is True:
-                        self.messages.append(
-                            {
-                                "role": "system",
-                                "content": (
-                                    "Задача выполнена (done=true). Не вызывай больше tools. "
-                                    "Дай финальный ответ пользователю."
-                                ),
-                            }
-                        )
-                        final_response = self.client.chat(
-                            self.messages,
-                            TOOLS_SCHEMA,
-                            tool_choice="none",
-                        )
-                        assistant_content = final_response.choices[0].message.content or ""
-                        self.messages.append({"role": "assistant", "content": assistant_content})
-                        self.logger.log("assistant_response", {"content": assistant_content})
-                        return assistant_content
-                    total_tool_calls += 1
-                continue
-
-            assistant_content = message.content or ""
-            self.messages.append({"role": "assistant", "content": assistant_content})
-            self.logger.log("assistant_response", {"content": assistant_content})
-            return assistant_content
-
-        fallback = "Reached tool execution limit without a final response."
-        self.logger.log("assistant_response", {"content": fallback})
-        return fallback
+    def _extract_script(content: str) -> tuple[str | None, str | None]:
+        if not content:
+            return None, None
+        python_match = re.search(r"```python\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        if python_match:
+            return "python", python_match.group(1).strip()
+        ps_match = re.search(r"```powershell\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        if ps_match:
+            return "powershell", ps_match.group(1).strip()
+        return None, None
 
     @staticmethod
-    def _extract_single_url_intent(text: str) -> str | None:
-        """Return URL if request looks like 'open this site/page' and nothing more."""
-        t = (text or "").strip()
-        if not t:
-            return None
+    def _is_command_text(content: str) -> bool:
+        if not content:
+            return False
+        trimmed = content.strip()
+        command_prefixes = (
+            "get-",
+            "set-",
+            "start-",
+            "new-",
+            "remove-",
+            "copy-",
+            "move-",
+            "invoke-",
+            "add-",
+            "python ",
+            "pip ",
+            "dir",
+            "cd ",
+            "echo ",
+            "notepad",
+            "start ",
+        )
+        lowered = trimmed.lower()
+        return lowered.startswith(command_prefixes)
 
-        # Only trigger for explicit "open website/page" intent in RU/EN.
-        intent = re.search(r"\b(открой|открыть|open)\b", t, flags=re.IGNORECASE)
-        if not intent:
-            return None
+    def _run_script(self, language: str, script: str) -> dict[str, Any]:
+        if language == "python":
+            return run_python(script, TIMEOUT_SEC)
+        return run_powershell(script, TIMEOUT_SEC)
 
-        # Find first URL-like token
-        m = re.search(r"(https?://\S+|www\.[^\s]+|[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s]*)", t)
-        if not m:
-            return None
+    def _log_debug(self, label: str, value: str) -> None:
+        if DEBUG:
+            print(f"[{label}] {value}")
 
-        # If user asks a complex task (and/then, type, click, search), don't short-circuit.
-        complex_markers = ["и ", " затем", " потом", "напечат", "клик", "введ", "найди", "search", "type", "click"]
-        lowered = t.lower()
-        if any(marker in lowered for marker in complex_markers):
-            return None
+    @staticmethod
+    def _script_hash(script: str) -> str:
+        return hashlib.sha256(script.encode("utf-8")).hexdigest()[:8]
 
-        url = m.group(1).strip().strip('"\'')
-        if url.startswith("www."):
-            url = "https://" + url
-        elif not re.match(r"^https?://", url, flags=re.IGNORECASE):
-            url = "https://" + url
-        return url
+    @staticmethod
+    def _extract_missing_module(stderr: str) -> str | None:
+        match = re.search(r"No module named ['\"]([^'\"]+)['\"]", stderr)
+        if match:
+            return match.group(1)
+        return None
+
+    @staticmethod
+    def _map_package(module_name: str) -> str | None:
+        mapping = {
+            "docx": "python-docx",
+            "win32com": "pywin32",
+        }
+        return mapping.get(module_name)
+
+    @staticmethod
+    def _powershell_script_incomplete(script: str) -> bool:
+        stripped = script.strip()
+        if not stripped:
+            return True
+        if stripped.endswith("{") or stripped.endswith("`") or stripped.endswith("if") or stripped.endswith("try"):
+            return True
+        return False
+
+    def _log_exec_result(self, result: dict[str, Any]) -> None:
+        if not DEBUG:
+            return
+        stdout = (result.get("stdout") or "")[:1000]
+        stderr = (result.get("stderr") or "")[:400]
+        self._log_debug("SCRIPT_PATH", str(result.get("script_path")))
+        self._log_debug("EXEC", str(result.get("exec_cmd")))
+        if stdout:
+            self._log_debug("STDOUT", stdout)
+        if stderr:
+            self._log_debug("STDERR_HEAD", stderr)
+        self._log_debug("RC", f"{result.get('returncode')}")
+        self._log_debug("DURATION_MS", f"{result.get('duration_ms')}")
+
+    def run(self, user_input: str) -> str:
+        self.logger.log_user_input(user_input, len(self.messages))
+        self.logger.log("user_input", {"content": user_input})
+        self.messages.append({"role": "user", "content": user_input})
+        request_confirmed = False
+        last_language: str | None = None
+        last_risk: RiskLevel | None = None
+        risk_rank = {
+            RiskLevel.LOW: 0,
+            RiskLevel.MEDIUM: 1,
+            RiskLevel.HIGH: 2,
+        }
+
+        for attempt in range(MAX_RETRIES + 1):
+            response = self.client.chat(self.messages, tools=[], tool_choice="none")
+            raw_content = response.choices[0].message.content or ""
+            self._log_debug("LLM_RAW", sanitize_assistant_text(raw_content)[:300])
+            language, script = self._extract_script(raw_content)
+            if not language or not script:
+                if self._is_command_text(raw_content):
+                    language = "powershell"
+                    script = raw_content.strip()
+                else:
+                    return sanitize_assistant_text(raw_content)
+            self._log_debug("SCRIPT_LANG", language)
+            self._log_debug("SCRIPT_HASH", self._script_hash(script))
+
+            if language == "python":
+                try:
+                    compile(script, "<agent>", "exec")
+                except SyntaxError as exc:
+                    self.messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Скрипт синтаксически неверный: {exc}. "
+                                "Верни исправленный полный python-код одним блоком."
+                            ),
+                        }
+                    )
+                    continue
+            if language == "powershell" and self._powershell_script_incomplete(script):
+                self.messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Скрипт PowerShell выглядит неполным или пустым. "
+                            "Верни исправленный полный powershell-код одним блоком."
+                        ),
+                    }
+                )
+                continue
+
+            current_risk = assess_risk(language, script)
+            need_confirm = True
+            if request_confirmed and last_language == language and last_risk:
+                if risk_rank[current_risk] <= risk_rank[last_risk]:
+                    need_confirm = False
+            self._log_debug("CONFIRM", "repeat" if need_confirm else "reuse")
+
+            if need_confirm:
+                approved = confirm_if_needed(language, script)
+                self.logger.log_policy("SCRIPT", "script_execution", approved)
+                if not approved:
+                    return "Ок, отменено пользователем."
+                request_confirmed = True
+                last_language = language
+                last_risk = current_risk
+
+            result = self._run_script(language, script)
+            self._log_exec_result(result)
+            stdout = (result.get("stdout") or "")[:2000]
+            stderr = (result.get("stderr") or "")[:2000]
+            ok = bool(result.get("ok"))
+            returncode = result.get("returncode")
+
+            if language == "python" and not ok:
+                missing_module = self._extract_missing_module(stderr)
+                if missing_module:
+                    package = self._map_package(missing_module)
+                    if package:
+                        self._log_debug("MISSING_DEP", f"{missing_module} -> {package}")
+                        install = input(f"Не установлен пакет {package}. Установить? (y/n): ").strip().lower()
+                        if install == "y":
+                            install_result = run_pip_install(package, TIMEOUT_SEC)
+                            self._log_exec_result(install_result)
+                            if install_result.get("ok"):
+                                self.messages.append({"role": "user", "content": user_input})
+                                continue
+
+            if ok:
+                summary = "✅ Готово"
+                if stdout or stderr:
+                    return f"{summary}\nreturncode={returncode}\nstdout=\n{stdout}\nstderr=\n{stderr}"
+                return f"{summary}\nreturncode={returncode}"
+
+            if attempt < MAX_RETRIES:
+                error_message = (
+                    "Скрипт упал. Вот результат выполнения:\n"
+                    f"returncode={returncode}\n"
+                    f"stdout=\n{stdout}\n"
+                    f"stderr=\n{stderr}\n"
+                    "Исправь скрипт и верни ТОЛЬКО новый код-блок."
+                )
+                self.messages.append({"role": "user", "content": error_message})
+                continue
+
+            return (
+                "❌ Ошибка выполнения\n"
+                f"returncode={returncode}\nstdout=\n{stdout}\nstderr=\n{stderr}"
+            )
+
+        return ""

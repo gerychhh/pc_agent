@@ -3,3 +3,10 @@ pyautogui
 pygetwindow
 pillow
 opencv-python
+psutil
+python-docx
+openpyxl
+python-pptx
+vosk
+sounddevice
+numpy
