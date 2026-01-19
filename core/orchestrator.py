@@ -27,6 +27,8 @@ TOOL_REGISTRY = {
     "hotkey": desktop.hotkey,
     "locate_on_screen": desktop.locate_on_screen,
     "open_app": process.open_app,
+    "find_start_apps": process.find_start_apps,
+    "open_start_app": process.open_start_app,
     "run_cmd": process.run_cmd,
     "read_file": filesystem.read_file,
     "write_file": filesystem.write_file,
@@ -143,6 +145,33 @@ TOOLS_SCHEMA = [
                 "type": "object",
                 "properties": {"app": {"type": "string"}},
                 "required": ["app"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_start_apps",
+            "description": "Search installed Start menu applications.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 10},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_start_app",
+            "description": "Open a Start menu app by AppID.",
+            "parameters": {
+                "type": "object",
+                "properties": {"app_id": {"type": "string"}},
+                "required": ["app_id"],
             },
         },
     },
