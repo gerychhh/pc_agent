@@ -13,8 +13,9 @@ from .policy import RiskLevel, assess_risk, confirm_if_needed
 
 SYSTEM_PROMPT = (
     "Ты локальный ассистент управления ПК. "
-    "Всегда отвечай ТОЛЬКО одним код-блоком (python или powershell). "
-    "Не пиши объяснений вне блока. "
+    "Если запрос не требует выполнения действий, отвечай обычным текстом без кода. "
+    "Если нужно выполнить действие, отвечай ТОЛЬКО одним код-блоком (python или powershell). "
+    "Не пиши объяснений вне блока, когда приводишь код. "
     "Возвращай ТОЛЬКО один полный code block. "
     "Код должен быть завершённым и исполняемым. Никаких обрывков вроде 'except ImportError:' без тела. "
     "Если нужна операция с файлами — используй абсолютные пути и сначала получи Desktop путь "
@@ -132,7 +133,7 @@ class Orchestrator:
             self._log_debug("LLM_RAW", sanitize_assistant_text(raw_content)[:300])
             language, script = self._extract_script(raw_content)
             if not language or not script:
-                return "LLM не дал скрипт"
+                return sanitize_assistant_text(raw_content)
             self._log_debug("SCRIPT_LANG", language)
             self._log_debug("SCRIPT_HASH", self._script_hash(script))
 
