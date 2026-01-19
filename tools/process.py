@@ -78,6 +78,7 @@ def open_app(app: str) -> str:
             shot = _take_screenshot(f"after open_app {app}")
             return _result(
                 True,
+                done=True,
                 pid=getattr(process, "pid", None),
                 screenshot_path=shot["path"],
                 method="exe_path",
@@ -92,6 +93,7 @@ def open_app(app: str) -> str:
             selection = exact or (items[0] if len(items) == 1 else None)
             if selection:
                 opened = json.loads(open_start_app(selection["app_id"]))
+                opened["done"] = True
                 opened["method"] = "startapp"
                 return json.dumps(opened, ensure_ascii=False)
 
@@ -103,12 +105,13 @@ def open_app(app: str) -> str:
         shot = _take_screenshot(f"after open_app {app}")
         return _result(
             True,
+            done=True,
             pid=getattr(process, "pid", None),
             screenshot_path=shot["path"],
             method="fallback",
         )
     except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), method="fallback")
+        return _result(False, error=str(exc), method="fallback", done=True)
 
 
 def open_url(url: str) -> str:
