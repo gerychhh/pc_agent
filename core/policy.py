@@ -14,19 +14,17 @@ class RiskLevel(str, Enum):
     HIGH = "HIGH"
 
 
-DESKTOP_ACTIONS = {
-    "move_mouse",
-    "click",
-    "type_text",
-    "press_key",
-    "hotkey",
+PROCESS_ACTIONS = {
+    "open_app",
+    "open_url",
+    "run_cmd",
+    "run_powershell",
+    "run_python_script",
 }
-
-PROCESS_ACTIONS = {"open_app", "open_url", "run_cmd"}
 
 
 def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:
-    if tool_name in DESKTOP_ACTIONS or tool_name in PROCESS_ACTIONS:
+    if tool_name in PROCESS_ACTIONS:
         return RiskLevel.MEDIUM
 
     if tool_name == "write_file":
@@ -42,6 +40,20 @@ def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:
             return RiskLevel.MEDIUM
 
     return RiskLevel.LOW
+
+
+def risk_reason(tool_name: str, args: dict[str, Any], level: RiskLevel) -> str:
+    if tool_name in PROCESS_ACTIONS:
+        return "process_action"
+    if tool_name == "write_file":
+        path = str(args.get("path", ""))
+        lower_path = path.lower()
+        if "windows" in lower_path or "program files" in lower_path:
+            return "system_path_write"
+        return "write_file_outside_project"
+    if level == RiskLevel.LOW:
+        return "low_risk"
+    return "unclassified"
 
 
 def confirm_action(tool_name: str, args: dict[str, Any], level: RiskLevel) -> bool:

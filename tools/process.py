@@ -1,22 +1,12 @@
 from __future__ import annotations
 
-import difflib
 import json
 import os
 import re
-import shutil
-import subprocess
-from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
-from core.app_cache import get_cached_launch, invalidate_cached_launch, update_cached_launch
-from core.app_search_paths import load_search_paths
-from tools import verify
-from tools.desktop import _take_screenshot
-
-
-BLOCKLIST = ["del", "erase", "format", "diskpart", "rm -rf", "shutdown", "bcdedit"]
+from tools import commands
 
 
 def _result(ok: bool, **kwargs: Any) -> str:
@@ -28,7 +18,6 @@ def _result(ok: bool, **kwargs: Any) -> str:
     if "verified" not in payload:
         payload["verified"] = ok
     payload.setdefault("verify_reason", None)
-    payload.setdefault("verify_details", {})
     payload.setdefault("details", {})
     return json.dumps(payload, ensure_ascii=False)
 
@@ -45,7 +34,7 @@ def _clean_query_name(text: str) -> str:
         cleaned = os.path.basename(cleaned)
     if cleaned.lower().endswith(".exe"):
         cleaned = cleaned[:-4]
-    return cleaned.strip().lower()
+    return cleaned.strip()
 
 
 def _looks_like_url(text: str) -> bool:
@@ -59,576 +48,120 @@ def _looks_like_url(text: str) -> bool:
     return bool(re.search(r"\bwww\.[^\s]+", text, re.IGNORECASE))
 
 
-def _parse_start_apps(output: str) -> list[dict[str, str]]:
-    items: list[dict[str, str]] = []
-    lines = [line.rstrip() for line in output.splitlines() if line.strip()]
-    if not lines:
-        return items
-    for line in lines[1:]:
-        if line.startswith("-"):
-            continue
-        parts = line.split()
-        if len(parts) < 2:
-            continue
-        app_id = parts[-1]
-        name = " ".join(parts[:-1]).strip()
-        if name and app_id:
-            items.append({"name": name, "app_id": app_id})
-    return items
-
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def _is_valid_cached_launch(record: dict[str, Any]) -> bool:
-    launch_type = record.get("launch_type")
-    target = record.get("target")
-    if not isinstance(target, str) or not target:
-        return False
-    if launch_type == "exe":
-        return target.lower().endswith(".exe") and os.path.exists(target)
-    if launch_type == "shortcut":
-        return target.lower().endswith(".lnk") and os.path.exists(target)
-    if launch_type == "startapp":
-        return True
-    return False
-
-
-def _normalize_shortcut_items(parsed: Any) -> list[dict[str, str]]:
-    items: list[dict[str, str]] = []
-    if isinstance(parsed, dict):
-        parsed_items = [parsed]
-    elif isinstance(parsed, list):
-        parsed_items = parsed
-    else:
-        parsed_items = []
-    for it in parsed_items:
-        name = str(it.get("name", "")).strip()
-        path = str(it.get("path", "")).strip()
-        if name and path:
-            items.append({"name": name, "path": path})
-    return items
-
-
-def _find_shortcuts_in_paths(query: str, paths: list[str], limit: int = 10) -> list[dict[str, str]]:
-    if not query or not paths:
-        return []
-    existing_paths = [p for p in paths if p and os.path.isdir(p)]
-    if not existing_paths:
-        return []
-    q = query.replace('"', "")
-    ps_paths = ",".join(f'"{p}"' for p in existing_paths)
-    ps = (
-        "$q=\"" + q + "\"; "
-        f"$paths=@({ps_paths}); "
-        "$items=Get-ChildItem $paths -Recurse -Filter *.lnk -ErrorAction SilentlyContinue "
-        "| Where-Object { $_.BaseName -like ('*'+$q+'*') } "
-        "| Select-Object -First " + str(max(limit, 1)) + " @{'n'='name';'e'={$_.BaseName}},@{'n'='path';'e'={$_.FullName}}; "
-        "$items | ConvertTo-Json -Compress"
-    )
-    completed = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", ps],
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode != 0:
-        return []
-    out = completed.stdout.strip()
-    if not out:
-        return []
-    try:
-        parsed = json.loads(out)
-    except json.JSONDecodeError:
-        return []
-    return _normalize_shortcut_items(parsed)[:limit]
-
-
-def _find_exe_in_paths(query: str, paths: list[str], limit: int = 5) -> list[dict[str, str]]:
-    if not query or not paths:
-        return []
-    existing_paths = [p for p in paths if p and os.path.isdir(p)]
-    if not existing_paths:
-        return []
-    q = query.replace('"', "")
-    ps_paths = ",".join(f'"{p}"' for p in existing_paths)
-    ps = (
-        "$q=\"" + q + "\"; "
-        f"$paths=@({ps_paths}); "
-        "$items=Get-ChildItem $paths -Recurse -Filter *.exe -ErrorAction SilentlyContinue "
-        "| Where-Object { $_.BaseName -like ('*'+$q+'*') } "
-        "| Select-Object -First " + str(max(limit, 1)) + " @{'n'='name';'e'={$_.BaseName}},@{'n'='path';'e'={$_.FullName}}; "
-        "$items | ConvertTo-Json -Compress"
-    )
-    completed = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", ps],
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode != 0:
-        return []
-    out = completed.stdout.strip()
-    if not out:
-        return []
-    try:
-        parsed = json.loads(out)
-    except json.JSONDecodeError:
-        return []
-    return _normalize_shortcut_items(parsed)[:limit]
-
-
-def _verify_launch(pid: int | None, window_title: str | None) -> dict[str, Any]:
-    if pid is not None:
-        verified = verify.wait_for_process(pid)
+def _verify_process(process_name: str) -> dict[str, Any]:
+    if not process_name:
         return {
-            "verified": verified,
-            "verify_reason": "process_detected" if verified else "process_not_found",
-            "verify_details": {"pid": pid},
+            "verified": False,
+            "verify_reason": "missing_process_name",
+            "verify_details": {},
+            "verify_exec": None,
         }
-    if window_title:
-        verified = verify.wait_for_window_title(window_title)
-        return {
-            "verified": verified,
-            "verify_reason": "window_title_match" if verified else "window_not_found",
-            "verify_details": {"window_title": window_title},
-        }
+    ps_command = (
+        f"Get-Process -Name \"{process_name}\" -ErrorAction SilentlyContinue | Select-Object -First 1"
+    )
+    raw = commands.run_powershell(ps_command)
+    parsed = json.loads(raw)
+    stdout = (parsed.get("stdout") or "").strip()
+    verified = bool(stdout)
     return {
-        "verified": False,
-        "verify_reason": "missing_verification_target",
-        "verify_details": {},
+        "verified": verified,
+        "verify_reason": "process_detected" if verified else "process_not_found",
+        "verify_details": {"process_name": process_name},
+        "verify_exec": parsed.get("details", {}).get("exec"),
     }
 
 
-def find_start_apps(query: str, limit: int = 10) -> str:
-    try:
-        completed = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", "Get-StartApps"],
-            capture_output=True,
-            text=True,
-        )
-        if completed.returncode != 0:
-            return _result(False, error=completed.stderr.strip() or "powershell failed", verified=False)
-        items = _parse_start_apps(completed.stdout)
-
-        # Intelligent matching:
-        # 1) substring match
-        # 2) fuzzy match via stdlib difflib
-        if query:
-            q = query.strip().lower()
-            substring = [item for item in items if q in item["name"].lower()]
-            if substring:
-                items = substring
-            else:
-                names = [item["name"] for item in items]
-                close = difflib.get_close_matches(query, names, n=limit, cutoff=0.55)
-                if close:
-                    close_set = {c.lower() for c in close}
-                    items = [item for item in items if item["name"].lower() in close_set]
-
-        return _result(True, items=items[:limit], verified=True)
-    except FileNotFoundError as exc:
-        return _result(False, error=str(exc), verified=False)
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), verified=False)
-
-
-def find_start_menu_shortcuts(query: str, limit: int = 10) -> str:
-    """Find Start Menu shortcuts (.lnk) matching query (helps with apps not in Get-StartApps)."""
-    try:
-        paths = [
-            os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
-            os.path.join(os.environ.get("ProgramData", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
-        ]
-        items = _find_shortcuts_in_paths(query, paths, limit=limit)
-        return _result(True, items=items, verified=True)
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), verified=False)
-
-
-def open_start_app(app_id: str, display_name: str | None = None) -> str:
-    try:
-        subprocess.Popen(["explorer.exe", f"shell:AppsFolder\\{app_id}"])
-        shot = _take_screenshot("after open_start_app")
-        verification = _verify_launch(None, display_name)
-        ok = verification["verified"]
-        return _result(
-            ok,
-            screenshot_path=shot["path"],
-            method="startapp",
-            launch_type="startapp",
-            target=app_id,
-            verified=verification["verified"],
-            verify_reason=verification["verify_reason"],
-            verify_details=verification["verify_details"],
-            details={"display_name": display_name},
-            error=None if ok else "not_verified",
-        )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), verified=False)
-
-
 def open_app(app: str, alias: str | None = None) -> str:
-    try:
-        original_app = app
-        search_name = _clean_query_name(app)
-        if _looks_like_url(app):
-            return _result(
-                False,
-                app=alias or app,
-                error="use_open_url_tool",
-                verified=False,
-                verify_reason="url_detected",
-                details={"hint": "Use open_url for URLs"},
-            )
+    target = app
+    clean_name = _clean_query_name(app)
 
-        cache_key = alias or search_name or app
-        cached = get_cached_launch(cache_key)
-        if cached and not _is_valid_cached_launch(cached):
-            invalidate_cached_launch(cache_key)
-            cached = None
-        if cached:
-            launch_type = cached.get("launch_type")
-            target = cached.get("target")
-            display_name = cached.get("display_name") or cache_key
+    if _looks_like_url(app):
+        return _result(
+            False,
+            app=alias or app,
+            error="use_open_url",
+            method="start-process",
+            target=target,
+            verified=False,
+            verify_reason="url_detected",
+        )
+
+    launch_result: dict[str, Any] | None = None
+    method = "start-process"
+
+    if _looks_like_path(app) and app.lower().endswith(".exe") and os.path.exists(app):
+        launch_raw = commands.run_powershell(f'Start-Process -FilePath "{app}"')
+        launch_result = json.loads(launch_raw)
+        method = "path"
+    else:
+        launch_raw = commands.run_powershell(f'Start-Process "{app}"')
+        launch_result = json.loads(launch_raw)
+        if not launch_result.get("ok"):
+            query = clean_name or app
+            ps = (
+                "$q=\"" + query.replace('"', '') + "\"; "
+                "Get-StartApps | Where-Object { $_.Name -like ('*'+$q+'*') } "
+                "| Select-Object -First 1 Name, AppID | ConvertTo-Json -Compress"
+            )
+            search_raw = commands.run_powershell(ps)
+            search_parsed = json.loads(search_raw)
             try:
-                if launch_type == "exe":
-                    process = subprocess.Popen([target])
-                    pid = getattr(process, "pid", None)
-                    shot = _take_screenshot(f"after open_app cache {cache_key}")
-                    verification = _verify_launch(pid, display_name)
-                elif launch_type == "shortcut":
-                    os.startfile(target)  # type: ignore[attr-defined]
-                    pid = None
-                    shot = _take_screenshot(f"after open_app cache {cache_key}")
-                    verification = _verify_launch(None, display_name)
-                elif launch_type == "startapp":
-                    opened = json.loads(open_start_app(target, display_name))
-                    if not opened.get("ok"):
-                        invalidate_cached_launch(cache_key)
-                        cached = None
-                    else:
-                        verification = {
-                            "verified": opened.get("verified"),
-                            "verify_reason": opened.get("verify_reason"),
-                            "verify_details": opened.get("verify_details"),
-                        }
-                        shot = opened.get("screenshot_path")
-                        pid = None
-                else:
-                    cached = None
-                    verification = {"verified": False, "verify_reason": "invalid_cache", "verify_details": {}}
-                    pid = None
-                    shot = None
+                app_entry = json.loads((search_parsed.get("stdout") or "").strip() or "null")
+            except json.JSONDecodeError:
+                app_entry = None
+            if app_entry and app_entry.get("AppID"):
+                app_id = app_entry["AppID"]
+                launch_raw = commands.run_cmd(f'explorer.exe "shell:AppsFolder\\{app_id}"')
+                launch_result = json.loads(launch_raw)
+                method = "appsfolder"
+                target = app_id
 
-                if cached and verification["verified"]:
-                    refreshed = dict(cached)
-                    refreshed["last_verified_utc"] = _utc_now()
-                    update_cached_launch(cache_key, refreshed)
-                    return _result(
-                        True,
-                        app=cache_key,
-                        method="cache",
-                        launch_type=launch_type,
-                        target=target,
-                        pid=pid,
-                        screenshot_path=shot,
-                        verified=True,
-                        verify_reason=verification["verify_reason"],
-                        verify_details=verification["verify_details"],
-                    )
-                if cached and not verification["verified"]:
-                    invalidate_cached_launch(cache_key)
-                    return _result(
-                        False,
-                        app=cache_key,
-                        error="not_verified",
-                        method="cache",
-                        launch_type=launch_type,
-                        target=target,
-                        pid=pid,
-                        screenshot_path=shot,
-                        verified=False,
-                        verify_reason=verification["verify_reason"],
-                        verify_details=verification["verify_details"],
-                    )
-            except Exception:
-                invalidate_cached_launch(cache_key)
-
-        if _looks_like_path(original_app) and original_app.lower().endswith(".exe") and os.path.exists(original_app):
-            process = subprocess.Popen([original_app])
-            pid = getattr(process, "pid", None)
-            shot = _take_screenshot(f"after open_app {original_app}")
-            verification = _verify_launch(pid, os.path.basename(original_app))
-            if verification["verified"]:
-                display_name = alias or os.path.splitext(os.path.basename(original_app))[0]
-                record = {
-                    "display_name": display_name,
-                    "launch_type": "exe",
-                    "target": original_app,
-                    "last_verified_utc": _utc_now(),
-                    "confidence": 1.0,
-                }
-                update_cached_launch(cache_key, record)
-            return _result(
-                verification["verified"],
-                app=cache_key,
-                method="discovered",
-                launch_type="exe",
-                target=original_app,
-                pid=pid,
-                screenshot_path=shot["path"],
-                verified=verification["verified"],
-                verify_reason=verification["verify_reason"],
-                verify_details=verification["verify_details"],
-                error=None if verification["verified"] else "not_verified",
-            )
-
-        if _looks_like_path(original_app) and original_app.lower().endswith(".lnk") and os.path.exists(original_app):
-            os.startfile(original_app)  # type: ignore[attr-defined]
-            shot = _take_screenshot(f"after open_app {original_app}")
-            display_name = alias or os.path.splitext(os.path.basename(original_app))[0]
-            verification = _verify_launch(None, display_name)
-            if verification["verified"]:
-                record = {
-                    "display_name": display_name,
-                    "launch_type": "shortcut",
-                    "target": original_app,
-                    "last_verified_utc": _utc_now(),
-                    "confidence": 1.0,
-                }
-                update_cached_launch(cache_key, record)
-            return _result(
-                verification["verified"],
-                app=cache_key,
-                method="discovered",
-                launch_type="shortcut",
-                target=original_app,
-                pid=None,
-                screenshot_path=shot["path"],
-                verified=verification["verified"],
-                verify_reason=verification["verify_reason"],
-                verify_details=verification["verify_details"],
-                error=None if verification["verified"] else "not_verified",
-            )
-
-        if search_name.endswith(".exe"):
-            search_name = search_name[:-4]
-
-        if app.lower().endswith(".exe") and not _looks_like_path(app):
-            resolved = shutil.which(app)
-            if resolved:
-                process = subprocess.Popen([resolved])
-                pid = getattr(process, "pid", None)
-                shot = _take_screenshot(f"after open_app {resolved}")
-                verification = _verify_launch(pid, os.path.basename(resolved))
-                if verification["verified"]:
-                    display_name = alias or os.path.splitext(os.path.basename(resolved))[0]
-                    record = {
-                        "display_name": display_name,
-                        "launch_type": "exe",
-                        "target": resolved,
-                        "last_verified_utc": _utc_now(),
-                        "confidence": 0.9,
-                    }
-                    update_cached_launch(cache_key, record)
-                return _result(
-                    verification["verified"],
-                    app=cache_key,
-                    method="discovered",
-                    launch_type="exe",
-                    target=resolved,
-                    pid=pid,
-                    screenshot_path=shot["path"],
-                    verified=verification["verified"],
-                    verify_reason=verification["verify_reason"],
-                    verify_details=verification["verify_details"],
-                    error=None if verification["verified"] else "not_verified",
-                )
-
-        search_paths = load_search_paths()
-        exe_matches = _find_exe_in_paths(search_name or app, search_paths, limit=5)
-        if exe_matches:
-            lowered = (search_name or app).lower()
-            exact = next((item for item in exe_matches if item["name"].lower() == lowered), None)
-            selection = exact or exe_matches[0]
-            exe_path = selection["path"]
-            process = subprocess.Popen([exe_path])
-            pid = getattr(process, "pid", None)
-            shot = _take_screenshot(f"after open_app {exe_path}")
-            verification = _verify_launch(pid, selection["name"])
-            if verification["verified"]:
-                record = {
-                    "display_name": selection["name"],
-                    "launch_type": "exe",
-                    "target": exe_path,
-                    "last_verified_utc": _utc_now(),
-                    "confidence": 0.85 if exact else 0.7,
-                }
-                update_cached_launch(cache_key, record)
-            return _result(
-                verification["verified"],
-                app=cache_key,
-                method="discovered",
-                launch_type="exe",
-                target=exe_path,
-                pid=pid,
-                screenshot_path=shot["path"],
-                verified=verification["verified"],
-                verify_reason=verification["verify_reason"],
-                verify_details=verification["verify_details"],
-                error=None if verification["verified"] else "not_verified",
-            )
-
-        start_apps_raw = find_start_apps(search_name or app)
-        start_apps = json.loads(start_apps_raw)
-        if start_apps.get("ok") and start_apps.get("items"):
-            items = start_apps["items"]
-            lowered = app.lower()
-            exact = next((item for item in items if item["name"].lower() == lowered), None)
-            selection = exact or (items[0] if len(items) == 1 else None)
-            if selection:
-                opened = json.loads(open_start_app(selection["app_id"], selection["name"]))
-                if opened.get("ok"):
-                    verification = {
-                        "verified": opened.get("verified"),
-                        "verify_reason": opened.get("verify_reason"),
-                        "verify_details": opened.get("verify_details"),
-                    }
-                    if verification["verified"]:
-                        record = {
-                            "display_name": selection["name"],
-                            "launch_type": "startapp",
-                            "target": selection["app_id"],
-                            "last_verified_utc": _utc_now(),
-                            "confidence": 1.0 if exact else 0.8,
-                        }
-                        update_cached_launch(cache_key, record)
-                    return _result(
-                        verification["verified"],
-                        app=cache_key,
-                        method="discovered",
-                        launch_type="startapp",
-                        target=selection["app_id"],
-                        pid=None,
-                        screenshot_path=opened.get("screenshot_path"),
-                        verified=verification["verified"],
-                        verify_reason=verification["verify_reason"],
-                        verify_details=verification["verify_details"],
-                        error=None if verification["verified"] else "not_verified",
-                    )
-
-        shortcuts_raw = find_start_menu_shortcuts(search_name or app, limit=3)
-        shortcuts = json.loads(shortcuts_raw)
-        if shortcuts.get("ok") and shortcuts.get("items"):
-            path = shortcuts["items"][0]["path"]
-            display_name = shortcuts["items"][0]["name"]
-            os.startfile(path)  # type: ignore[attr-defined]
-            shot = _take_screenshot(f"after open_shortcut {path}")
-            verification = _verify_launch(None, display_name)
-            if verification["verified"]:
-                record = {
-                    "display_name": display_name,
-                    "launch_type": "shortcut",
-                    "target": path,
-                    "last_verified_utc": _utc_now(),
-                    "confidence": 0.7,
-                }
-                update_cached_launch(cache_key, record)
-            return _result(
-                verification["verified"],
-                app=cache_key,
-                method="discovered",
-                launch_type="shortcut",
-                target=path,
-                pid=None,
-                screenshot_path=shot["path"],
-                verified=verification["verified"],
-                verify_reason=verification["verify_reason"],
-                verify_details=verification["verify_details"],
-                error=None if verification["verified"] else "not_verified",
-            )
-
+    if not launch_result:
         return _result(
             False,
-            app=cache_key,
-            error="app_not_found",
-            method="fallback",
+            app=alias or app,
+            error="launch_failed",
+            method=method,
+            target=target,
             verified=False,
-            verify_reason="not_found",
-            user_hint=(
-                f"Не могу найти приложение '{cache_key}'. Укажи путь к .exe/.lnk или точное название как в меню Пуск."
-            ),
+            verify_reason="launch_not_attempted",
         )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(
-            False,
-            app=app,
-            error=str(exc),
-            method="fallback",
-            verified=False,
-            verify_reason="exception",
-        )
+
+    ok = bool(launch_result.get("ok"))
+    verify = _verify_process(clean_name)
+
+    return _result(
+        ok,
+        app=alias or app,
+        error=None if ok else (launch_result.get("stderr") or "launch_failed"),
+        method=method,
+        target=target,
+        verified=verify["verified"],
+        verify_reason=verify["verify_reason"],
+        verify_details=verify["verify_details"],
+        stdout=launch_result.get("stdout"),
+        stderr=launch_result.get("stderr"),
+        duration_ms=launch_result.get("duration_ms"),
+        details={
+            "exec": launch_result.get("details", {}).get("exec"),
+            "verify_exec": verify.get("verify_exec"),
+        },
+    )
 
 
 def open_url(url: str) -> str:
-    try:
-        os.startfile(url)  # type: ignore[attr-defined]
-        method = "startfile"
-    except OSError:
-        subprocess.Popen(["cmd", "/c", "start", "", url])
-        method = "cmd_start"
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), url=url, done=True, verified=False, verify_reason="exception")
-
-    try:
-        shot = _take_screenshot("after open_url")
-        verification = verify.verify_open_url(url)
-        return _result(
-            True,
-            url=url,
-            done=True,
-            method=method,
-            screenshot_path=shot["path"],
-            verified=verification["verified"],
-            verify_reason=verification["reason"],
-            verify_details=verification["details"],
-        )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(
-            False,
-            error=str(exc),
-            url=url,
-            done=True,
-            method=method,
-            verified=False,
-            verify_reason="exception",
-        )
-
-
-def run_cmd(cmd: str, timeout_sec: int = 15) -> str:
-    lowered = cmd.lower()
-    if any(blocked in lowered for blocked in BLOCKLIST):
-        return _result(False, error="blocked by policy", verified=False, verify_reason="blocked")
-
-    try:
-        completed = subprocess.run(
-            cmd,
-            shell=True,
-            timeout=timeout_sec,
-            capture_output=True,
-            text=True,
-        )
-        shot = _take_screenshot(f"after run_cmd {cmd}")
-        ok = completed.returncode == 0
-        return _result(
-            ok,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
-            returncode=completed.returncode,
-            screenshot_path=shot["path"],
-            verified=ok,
-            verify_reason="returncode_zero" if ok else "nonzero_returncode",
-            details={"returncode": completed.returncode},
-        )
-    except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), verified=False, verify_reason="exception")
+    launch_raw = commands.run_powershell(f'Start-Process "{url}"')
+    launch_result = json.loads(launch_raw)
+    ok = bool(launch_result.get("ok"))
+    return _result(
+        ok,
+        url=url,
+        done=True,
+        method="start-process",
+        verified=ok,
+        verify_reason="returncode_zero" if ok else "nonzero_returncode",
+        stdout=launch_result.get("stdout"),
+        stderr=launch_result.get("stderr"),
+        duration_ms=launch_result.get("duration_ms"),
+        details={"exec": launch_result.get("details", {}).get("exec")},
+    )

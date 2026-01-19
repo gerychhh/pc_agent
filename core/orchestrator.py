@@ -6,16 +6,18 @@ from typing import Any
 
 from .llm_client import LLMClient
 from .logger import SessionLogger
-from .policy import RiskLevel, confirm_action, risk_level
-from tools import desktop, filesystem, process
+from .policy import confirm_action, risk_level, risk_reason
+from tools import commands, filesystem, process
 
 
 SYSTEM_PROMPT = (
     "Ты локальный ассистент управления ПК. "
-    "Всегда используй инструменты для действий. "
+    "НИКОГДА не используй управление мышью, клики или ввод с клавиатуры. "
+    "Все действия выполняй только через инструменты open_app/open_url/run_powershell/run_cmd/run_python_script. "
+    "Если нужен вывод о результате — используй поля verified/verify_reason. "
     "Если пользователь дал точный путь к .exe, используй open_app с этим путем, не заменяй на другое имя. "
     "Если пользователь просит открыть сервис (Яндекс Музыка, Telegram, Discord, Spotify и т.п.), "
-    "сначала попытайся открыть установленное приложение (open_app / find_start_apps + open_start_app). "
+    "сначала попытайся открыть установленное приложение через open_app. "
     "Только если приложение не найдено или запуск не удался — предложи открыть веб-версию в браузере. "
     "URL открывай только через open_url. "
     "Если пользователь просит открыть сайт/страницу, используй open_url ОДИН раз. "
@@ -26,131 +28,22 @@ SYSTEM_PROMPT = (
     "Перед опасными действиями спрашивай подтверждение (инструменты сами спрашивают, но ты тоже предупреждай). "
     "Если действие не получилось: объясни причину и предложи шаги исправления. "
     "Никогда не повторяй одно и то же действие больше 2 раз; если не получается — остановись и объясни причину. "
-    "После каждого действия смотри на tool result: если ok=false — не повторяй автоматически, а меняй стратегию. "
-    "После каждого действия используй screenshot результаты, если они доступны."
+    "После каждого действия смотри на tool result: если ok=false — не повторяй автоматически, а меняй стратегию."
 )
 
 
 TOOL_REGISTRY = {
-    "screenshot": desktop.screenshot,
-    "move_mouse": desktop.move_mouse,
-    "click": desktop.click,
-    "type_text": desktop.type_text,
-    "press_key": desktop.press_key,
-    "hotkey": desktop.hotkey,
-    "locate_on_screen": desktop.locate_on_screen,
     "open_app": process.open_app,
     "open_url": process.open_url,
-    "find_start_apps": process.find_start_apps,
-    "find_start_menu_shortcuts": process.find_start_menu_shortcuts,
-    "open_start_app": process.open_start_app,
-    "run_cmd": process.run_cmd,
+    "run_powershell": commands.run_powershell,
+    "run_cmd": commands.run_cmd,
+    "run_python_script": commands.run_python_script,
     "read_file": filesystem.read_file,
     "write_file": filesystem.write_file,
 }
 
 
 TOOLS_SCHEMA = [
-    {
-        "type": "function",
-        "function": {
-            "name": "screenshot",
-            "description": "Capture screenshot and save to screenshots directory.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "note": {"type": "string"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "move_mouse",
-            "description": "Move mouse to coordinates.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "x": {"type": "integer"},
-                    "y": {"type": "integer"},
-                },
-                "required": ["x", "y"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "click",
-            "description": "Click at coordinates.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "x": {"type": "integer"},
-                    "y": {"type": "integer"},
-                    "button": {"type": "string", "default": "left"},
-                    "clicks": {"type": "integer", "default": 1},
-                    "interval": {"type": "number", "default": 0.1},
-                },
-                "required": ["x", "y"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "type_text",
-            "description": "Type text using keyboard.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "text": {"type": "string"},
-                    "interval": {"type": "number", "default": 0.02},
-                },
-                "required": ["text"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "press_key",
-            "description": "Press a single key.",
-            "parameters": {
-                "type": "object",
-                "properties": {"key": {"type": "string"}},
-                "required": ["key"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "hotkey",
-            "description": "Press multiple keys as a hotkey.",
-            "parameters": {
-                "type": "object",
-                "properties": {"keys": {"type": "array", "items": {"type": "string"}}},
-                "required": ["keys"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "locate_on_screen",
-            "description": "Locate image on screen.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "image_path": {"type": "string"},
-                    "confidence": {"type": "number", "default": 0.8},
-                },
-                "required": ["image_path"],
-            },
-        },
-    },
     {
         "type": "function",
         "function": {
@@ -181,45 +74,15 @@ TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
-            "name": "find_start_apps",
-            "description": "Search installed Start menu applications.",
+            "name": "run_powershell",
+            "description": "Run a PowerShell command.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "integer", "default": 10},
+                    "command": {"type": "string"},
+                    "timeout_sec": {"type": "integer", "default": 20},
                 },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "find_start_menu_shortcuts",
-            "description": "Search Start Menu .lnk shortcuts by name (useful when app isn't visible in Get-StartApps).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "integer", "default": 10},
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "open_start_app",
-            "description": "Open a Start menu app by AppID.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "app_id": {"type": "string"},
-                    "display_name": {"type": "string"},
-                },
-                "required": ["app_id"],
+                "required": ["command"],
             },
         },
     },
@@ -227,14 +90,29 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "run_cmd",
-            "description": "Run a shell command with safeguards.",
+            "description": "Run a CMD command.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cmd": {"type": "string"},
-                    "timeout_sec": {"type": "integer", "default": 15},
+                    "command": {"type": "string"},
+                    "timeout_sec": {"type": "integer", "default": 20},
                 },
-                "required": ["cmd"],
+                "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_python_script",
+            "description": "Run a short Python script via file execution.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string"},
+                    "timeout_sec": {"type": "integer", "default": 20},
+                },
+                "required": ["code"],
             },
         },
     },
@@ -286,34 +164,24 @@ class Orchestrator:
 
     @staticmethod
     def _extract_single_url_intent(user_input: str) -> str | None:
-        """Heuristic router for the common 'open a website' intent.
-
-        We intentionally bypass the LLM for this intent to prevent repeated
-        attempts using different strategies (browser open loops).
-        """
+        """Heuristic router for the common 'open a website' intent."""
         text = user_input.strip()
         lower = text.lower()
 
-        # Must look like an 'open site/page' request.
         if not any(k in lower for k in ("открой", "открыть", "open")):
             return None
         if not any(k in lower for k in ("сайт", "страниц", "url", "http", "www", ".ru", ".com", ".net", ".org")):
             return None
 
-        # Extract first URL-like token.
         m = re.search(r"(https?://[^\s]+)", text, re.IGNORECASE)
         if m:
-            return m.group(1).rstrip('.,;')
+            return m.group(1).rstrip(".,;")
 
-        # Domain without scheme (e.g. music.yandex.ru)
         m2 = re.search(r"\b([a-z0-9\-]+(?:\.[a-z0-9\-]+)+)\b", text, re.IGNORECASE)
         if not m2:
             return None
 
-        domain = m2.group(1).rstrip('.,;')
-
-        # If the request is obviously more complex than "just open site", don't fast-path.
-        # This keeps multi-step tasks under LLM control.
+        domain = m2.group(1).rstrip(".,;")
         extra_intent_words = ("введи", "набери", "найди", "зарегистр", "войти", "логин", "пароль", "скачай", "поиск")
         if any(w in lower for w in extra_intent_words):
             return None
@@ -329,29 +197,56 @@ class Orchestrator:
             return None
         return match.group(1)
 
+    def _log_tool_debug(self, tool_name: str, args: dict[str, Any], tool_result: str) -> None:
+        try:
+            parsed = json.loads(tool_result)
+        except json.JSONDecodeError:
+            parsed = {}
+        exec_cmd = None
+        details = parsed.get("details") if isinstance(parsed, dict) else None
+        if isinstance(details, dict):
+            exec_cmd = details.get("exec")
+        self.logger.log_tool_run(
+            tool_name,
+            args,
+            exec_cmd,
+            parsed.get("duration_ms") if isinstance(parsed, dict) else None,
+            parsed.get("stdout") if isinstance(parsed, dict) else None,
+            parsed.get("stderr") if isinstance(parsed, dict) else None,
+            parsed.get("ok") if isinstance(parsed, dict) else None,
+            parsed.get("verified") if isinstance(parsed, dict) else None,
+        )
+
     @staticmethod
-    def _extract_lnk_path(user_input: str) -> str | None:
-        if not user_input:
-            return None
-        match = re.search(r"([A-Za-z]:\\\\[^\"'\n]+?\\.lnk)", user_input, re.IGNORECASE)
-        if not match:
-            return None
-        return match.group(1)
+    def _tool_calls_summary(tool_calls: list[Any]) -> list[dict[str, Any]]:
+        summary: list[dict[str, Any]] = []
+        for call in tool_calls:
+            name = call.function.name
+            try:
+                args = json.loads(call.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = {"_raw": call.function.arguments}
+            summary.append({"tool": name, "args": args})
+        return summary
 
     def run(self, user_input: str) -> str:
+        self.logger.log_user_input(user_input, len(self.messages))
+        self.logger.log("user_input", {"content": user_input})
+
         exe_path = self._extract_exe_path(user_input)
-        lnk_path = self._extract_lnk_path(user_input)
-        direct_path = exe_path or lnk_path
-        if direct_path:
+        if exe_path:
             app_alias = self.pending_app_name
-            level = risk_level("open_app", {"app": direct_path})
-            approved = confirm_action("open_app", {"app": direct_path}, level)
+            level = risk_level("open_app", {"app": exe_path})
+            reason = risk_reason("open_app", {"app": exe_path}, level)
+            approved = confirm_action("open_app", {"app": exe_path}, level)
+            self.logger.log_policy(level.value, reason, approved)
             self.logger.log(
                 "confirmation",
                 {
                     "tool_name": "open_app",
-                    "tool_args": {"app": direct_path, "alias": app_alias},
+                    "tool_args": {"app": exe_path, "alias": app_alias},
                     "risk": level.value,
+                    "risk_reason": reason,
                     "approved": approved,
                 },
             )
@@ -360,14 +255,16 @@ class Orchestrator:
                 assistant_content = "Ок, отменено пользователем."
                 self.messages.append({"role": "assistant", "content": assistant_content})
                 self.logger.log("assistant_response", {"content": assistant_content})
+                self.logger.log_final(assistant_content)
                 return assistant_content
 
-            tool_result = process.open_app(direct_path, alias=app_alias)
+            tool_result = process.open_app(exe_path, alias=app_alias)
+            self._log_tool_debug("open_app", {"app": exe_path, "alias": app_alias}, tool_result)
             self.logger.log(
                 "tool_call",
                 {
                     "tool_name": "open_app",
-                    "tool_args": {"app": direct_path, "alias": app_alias},
+                    "tool_args": {"app": exe_path, "alias": app_alias},
                     "tool_result": tool_result,
                 },
             )
@@ -390,24 +287,29 @@ class Orchestrator:
 
             final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
             assistant_content = final_response.choices[0].message.content or ""
+            self.logger.log_llm_response(
+                assistant_content,
+                self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
+            )
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
+            self.logger.log_final(assistant_content)
             self.pending_app_name = None
             return assistant_content
 
-        # Fast-path: if the user explicitly asked to open a single URL/page,
-        # do it deterministically once to avoid LLM "multiple strategy" loops.
         url = self._extract_single_url_intent(user_input)
         if url:
-            # Ask for confirmation via policy
             level = risk_level("open_url", {"url": url})
+            reason = risk_reason("open_url", {"url": url}, level)
             approved = confirm_action("open_url", {"url": url}, level)
+            self.logger.log_policy(level.value, reason, approved)
             self.logger.log(
                 "confirmation",
                 {
                     "tool_name": "open_url",
                     "tool_args": {"url": url},
                     "risk": level.value,
+                    "risk_reason": reason,
                     "approved": approved,
                 },
             )
@@ -416,9 +318,11 @@ class Orchestrator:
                 assistant_content = "Ок, отменено пользователем."
                 self.messages.append({"role": "assistant", "content": assistant_content})
                 self.logger.log("assistant_response", {"content": assistant_content})
+                self.logger.log_final(assistant_content)
                 return assistant_content
 
             tool_result = process.open_url(url)
+            self._log_tool_debug("open_url", {"url": url}, tool_result)
             self.logger.log(
                 "tool_call",
                 {
@@ -428,7 +332,6 @@ class Orchestrator:
                 },
             )
 
-            # Provide tool result to the model and force a final response without more tools.
             self.messages.append({"role": "user", "content": user_input})
             self.messages.append(
                 {
@@ -447,23 +350,33 @@ class Orchestrator:
 
             final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
             assistant_content = final_response.choices[0].message.content or ""
+            self.logger.log_llm_response(
+                assistant_content,
+                self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
+            )
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
+            self.logger.log_final(assistant_content)
             return assistant_content
 
         self.messages.append({"role": "user", "content": user_input})
-        self.logger.log("user_input", {"content": user_input})
         tool_repeat_counts: dict[str, int] = {}
         total_tool_calls = 0
 
         for _ in range(10):
             response = self.client.chat(self.messages, TOOLS_SCHEMA)
             message = response.choices[0].message
+            tool_calls = getattr(message, "tool_calls", None)
+            self.logger.log_llm_response(
+                message.content or "",
+                self._tool_calls_summary(tool_calls or []),
+            )
 
-            if getattr(message, "tool_calls", None):
-                for tool_call in message.tool_calls:
+            if tool_calls:
+                for tool_call in tool_calls:
                     if total_tool_calls >= 8:
                         reason = "Превышен лимит инструментов (8). Пожалуйста, уточните задачу."
+                        self.logger.warn("loop_guard: tool_call_limit")
                         self.logger.log(
                             "loop_guard_triggered",
                             {
@@ -474,6 +387,7 @@ class Orchestrator:
                         )
                         self.messages.append({"role": "assistant", "content": reason})
                         self.logger.log("assistant_response", {"content": reason})
+                        self.logger.log_final(reason)
                         return reason
 
                     tool_name = tool_call.function.name
@@ -495,6 +409,7 @@ class Orchestrator:
                             },
                             ensure_ascii=False,
                         )
+                        self.logger.warn("loop_guard: repeated_tool_call")
                         self.logger.log(
                             "loop_guard_triggered",
                             {
@@ -519,16 +434,20 @@ class Orchestrator:
                         )
                         self.messages.append({"role": "assistant", "content": assistant_content})
                         self.logger.log("assistant_response", {"content": assistant_content})
+                        self.logger.log_final(assistant_content)
                         return assistant_content
 
                     level = risk_level(tool_name, args)
+                    reason = risk_reason(tool_name, args, level)
                     approved = confirm_action(tool_name, args, level)
+                    self.logger.log_policy(level.value, reason, approved)
                     self.logger.log(
                         "confirmation",
                         {
                             "tool_name": tool_name,
                             "tool_args": args,
                             "risk": level.value,
+                            "risk_reason": reason,
                             "approved": approved,
                         },
                     )
@@ -546,6 +465,7 @@ class Orchestrator:
                             )
                         else:
                             tool_result = tool_fn(**args)
+                    self._log_tool_debug(tool_name, args, tool_result)
                     self.logger.log(
                         "tool_call",
                         {
@@ -577,13 +497,7 @@ class Orchestrator:
                         )
                     if parsed_result.get("ok") is False:
                         tool_repeat_counts[repeat_key] = 2
-                    if parsed_result.get("ok") is False and parsed_result.get("error") == "app_not_found":
-                        hint = parsed_result.get("user_hint") or "Не могу найти приложение."
-                        self.pending_app_name = parsed_result.get("app")
-                        self.messages.append({"role": "assistant", "content": hint})
-                        self.logger.log("assistant_response", {"content": hint})
-                        return hint
-                    if parsed_result.get("ok") is False and parsed_result.get("error") == "use_open_url_tool":
+                    if parsed_result.get("ok") is False and parsed_result.get("error") == "use_open_url":
                         self.messages.append(
                             {
                                 "role": "system",
@@ -608,8 +522,13 @@ class Orchestrator:
                             tool_choice="none",
                         )
                         assistant_content = final_response.choices[0].message.content or ""
+                        self.logger.log_llm_response(
+                            assistant_content,
+                            self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
+                        )
                         self.messages.append({"role": "assistant", "content": assistant_content})
                         self.logger.log("assistant_response", {"content": assistant_content})
+                        self.logger.log_final(assistant_content)
                         return assistant_content
                     if parsed_result.get("ok") is True and parsed_result.get("done") is True:
                         self.messages.append(
@@ -627,8 +546,13 @@ class Orchestrator:
                             tool_choice="none",
                         )
                         assistant_content = final_response.choices[0].message.content or ""
+                        self.logger.log_llm_response(
+                            assistant_content,
+                            self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
+                        )
                         self.messages.append({"role": "assistant", "content": assistant_content})
                         self.logger.log("assistant_response", {"content": assistant_content})
+                        self.logger.log_final(assistant_content)
                         return assistant_content
                     total_tool_calls += 1
                 continue
@@ -636,38 +560,10 @@ class Orchestrator:
             assistant_content = message.content or ""
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
+            self.logger.log_final(assistant_content)
             return assistant_content
 
         fallback = "Reached tool execution limit without a final response."
         self.logger.log("assistant_response", {"content": fallback})
+        self.logger.log_final(fallback)
         return fallback
-
-    @staticmethod
-    def _extract_single_url_intent(text: str) -> str | None:
-        """Return URL if request looks like 'open this site/page' and nothing more."""
-        t = (text or "").strip()
-        if not t:
-            return None
-
-        # Only trigger for explicit "open website/page" intent in RU/EN.
-        intent = re.search(r"\b(открой|открыть|open)\b", t, flags=re.IGNORECASE)
-        if not intent:
-            return None
-
-        # Find first URL-like token
-        m = re.search(r"(https?://\S+|www\.[^\s]+|[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s]*)", t)
-        if not m:
-            return None
-
-        # If user asks a complex task (and/then, type, click, search), don't short-circuit.
-        complex_markers = ["и ", " затем", " потом", "напечат", "клик", "введ", "найди", "search", "type", "click"]
-        lowered = t.lower()
-        if any(marker in lowered for marker in complex_markers):
-            return None
-
-        url = m.group(1).strip().strip('"\'')
-        if url.startswith("www."):
-            url = "https://" + url
-        elif not re.match(r"^https?://", url, flags=re.IGNORECASE):
-            url = "https://" + url
-        return url
