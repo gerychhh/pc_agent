@@ -8,8 +8,9 @@ from core.app_search_paths import (
     normalize_search_paths,
     save_search_paths,
 )
-from core.config import SCREENSHOT_DIR
+from core.config import SCREENSHOT_DIR, VOICE_DEFAULT_ENABLED
 from core.orchestrator import Orchestrator, sanitize_assistant_text
+from core.voice import VoiceInput
 
 
 HELP_TEXT = """
@@ -56,13 +57,38 @@ def main() -> None:
     print("PC Agent CLI. Type /help for commands.")
     ensure_app_search_paths()
     orchestrator = Orchestrator()
+    voice_enabled = VOICE_DEFAULT_ENABLED
+    voice_input: VoiceInput | None = None
 
     while True:
-        try:
-            user_input = input("You> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nExiting.")
-            break
+        if voice_enabled:
+            print('🎤 Voice mode: speak your command (say "стоп" to exit voice mode)...')
+            try:
+                if voice_input is None:
+                    voice_input = VoiceInput()
+                voice_text = voice_input.listen_once()
+            except (EOFError, KeyboardInterrupt):
+                print("\nExiting.")
+                break
+            except Exception as exc:
+                print(f"Voice error: {exc}")
+                voice_enabled = False
+                continue
+            if not voice_text:
+                continue
+            normalized = voice_text.strip().lower()
+            if normalized in {"стоп", "выключи голос", "stop"}:
+                voice_enabled = False
+                print("Voice mode disabled.")
+                continue
+            print(f"You(voice)> {voice_text}")
+            user_input = voice_text
+        else:
+            try:
+                user_input = input("You> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nExiting.")
+                break
 
         if not user_input:
             continue
@@ -79,6 +105,16 @@ def main() -> None:
             continue
         if user_input == "/screens":
             list_screenshots()
+            continue
+        if user_input.startswith("/voice"):
+            if user_input == "/voice" or user_input.endswith("on"):
+                voice_enabled = True
+                print("Voice mode enabled.")
+            elif user_input.endswith("off"):
+                voice_enabled = False
+                print("Voice mode disabled.")
+            else:
+                print("Usage: /voice [on|off]")
             continue
 
         response = orchestrator.run(user_input)

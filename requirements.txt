@@ -7,3 +7,6 @@ psutil
 python-docx
 openpyxl
 python-pptx
+vosk
+sounddevice
+numpy

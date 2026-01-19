@@ -6,7 +6,10 @@ from typing import Any
 import subprocess
 
 
-SCRIPTS_DIR = Path("scripts")
+from .config import PROJECT_ROOT
+
+
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
 
 def _result(ok: bool, **kwargs: Any) -> dict[str, Any]:

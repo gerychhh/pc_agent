@@ -35,6 +35,28 @@ python app.py
 DEBUG=1 python app.py
 ```
 
+## Voice control
+
+Установите зависимости голосового ввода:
+
+```bash
+pip install vosk sounddevice numpy
+```
+
+Скачайте русскую модель Vosk:
+
+```bash
+python scripts/download_vosk_ru.py
+```
+
+Запуск в голосовом режиме:
+
+```bash
+VOICE=1 python app.py
+```
+
+Либо включите в рантайме командой `/voice` (и отключите `/voice off`).
+
 ## Примеры запросов
 1. "Открой блокнот"
 2. "Открой Яндекс Музыку"
