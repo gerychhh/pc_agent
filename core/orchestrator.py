@@ -9,6 +9,7 @@ from .executor import run_pip_install, run_powershell, run_python
 from .llm_client import LLMClient
 from .logger import SessionLogger
 from .policy import RiskLevel, assess_risk, confirm_if_needed
+from .state import load_state
 
 
 SYSTEM_PROMPT = """
@@ -71,6 +72,13 @@ SYSTEM_PROMPT = """
 
 PowerShell используй только для команд Windows (Start-Process, cd, dir, New-Item и т.д.).
 
+АКТИВНЫЙ ФАЙЛ (ACTIVE_FILE):
+- Если ACTIVE_FILE указан и это .docx, то для изменения шрифта используй python-docx.
+- Открывай существующий документ: Document(active_file)
+- Применяй шрифт стилю Normal и всем runs
+- Сохраняй в тот же файл
+- Запрещено создавать новый Document() при наличии ACTIVE_FILE
+
 ПРАВИЛА ДЛЯ PYTHON:
 - Запрещены однострочники с ';'
 - Скрипт Python должен начинаться с нужных импортов (первая непустая строка — import/from)
@@ -98,7 +106,7 @@ def sanitize_assistant_text(text: str) -> str:
 
 
 class Orchestrator:
-    def __init__(self, history_limit: int = 2) -> None:
+    def __init__(self, history_limit: int = 4) -> None:
         self.client = LLMClient()
         self.logger = SessionLogger()
         self.history_limit = history_limit
@@ -146,6 +154,35 @@ class Orchestrator:
             messages.extend(self.history[-self.history_limit :])
         messages.append({"role": "user", "content": user_input})
         return messages
+
+    @staticmethod
+    def _is_file_operation(user_input: str) -> bool:
+        triggers = (
+            "измени",
+            "поменяй",
+            "сделай",
+            "шрифт",
+            "формат",
+            "добавь",
+            "вставь",
+            "удали",
+            "перепиши",
+            "переведи",
+            "сохрани",
+            "экспорт",
+        )
+        lowered = user_input.lower()
+        return any(trigger in lowered for trigger in triggers)
+
+    @staticmethod
+    def _has_explicit_file(user_input: str) -> bool:
+        lowered = user_input.lower()
+        return any(ext in lowered for ext in (".docx", ".txt", ".xlsx", ".pdf", ".png", ".jpg"))
+
+    @staticmethod
+    def _format_active_context(active_file: str, active_type: str | None) -> str:
+        type_value = active_type or ""
+        return f"[CONTEXT]\nACTIVE_FILE: {active_file}\nACTIVE_TYPE: {type_value}\n[/CONTEXT]\n"
 
     @staticmethod
     def _extract_script(content: str) -> tuple[str | None, str | None]:
@@ -255,7 +292,30 @@ class Orchestrator:
         self._log_debug("DURATION_MS", f"{result.get('duration_ms')}")
 
     def run(self, user_input: str, stateless: bool = False) -> str:
+        state = load_state()
+        active_file = state.get("active_file")
+        active_type = state.get("active_type")
+        is_file_op = self._is_file_operation(user_input)
+        has_explicit_file = self._has_explicit_file(user_input)
+
+        if is_file_op and not has_explicit_file:
+            if not active_file:
+                response = "Какой файл изменить? Скажи /files и выбери /use 1 или напиши путь."
+                if not stateless:
+                    self.history.extend(
+                        [
+                            {"role": "user", "content": user_input},
+                            {"role": "assistant", "content": response},
+                        ]
+                    )
+                    self.history = self.history[-self.history_limit :]
+                return response
+            user_input = f"{self._format_active_context(active_file, active_type)}{user_input}"
+
         intent, forced_language = self._route_intent(user_input)
+        if is_file_op and not has_explicit_file:
+            forced_language = "python"
+            intent = "file"
         if intent == "unknown":
             response = "Уточни, что именно нужно сделать на компьютере?"
             if not stateless:

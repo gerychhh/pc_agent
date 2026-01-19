@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -7,9 +8,63 @@ import subprocess
 
 
 from .config import PROJECT_ROOT
+from .state import add_recent_file, add_recent_url, set_active_file
 
 
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+DESKTOP_PATH = Path.home() / "Desktop"
+
+
+def _extract_url_from_powershell(code: str) -> str | None:
+    match = re.search(r"Start-Process\s+['\"](https?://[^'\"]+)['\"]", code, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return None
+
+
+def _extract_printed_path(stdout: str) -> str | None:
+    if not stdout:
+        return None
+    for line in stdout.splitlines()[::-1]:
+        match = re.match(r"^(OK|SAVED):\s*(.+)$", line.strip(), re.IGNORECASE)
+        if match:
+            value = match.group(2).strip().strip('"').strip("'")
+            return value or None
+    return None
+
+
+def _extract_desktop_path_from_python(code: str) -> str | None:
+    pattern = re.compile(
+        r'Path\.home\(\)\s*/\s*["\']Desktop["\']\s*/\s*["\']([^"\']+\.(?:docx|txt|xlsx|pdf|png|jpg))["\']',
+        re.IGNORECASE,
+    )
+    match = pattern.search(code)
+    if match:
+        return str(DESKTOP_PATH / match.group(1))
+    return None
+
+
+def _track_result(language: str, code: str, result: dict[str, Any]) -> None:
+    if not result.get("ok"):
+        return
+    stdout = result.get("stdout") or ""
+    if language == "powershell":
+        url = _extract_url_from_powershell(code)
+        if url:
+            add_recent_url(url)
+        return
+
+    if language == "python":
+        printed_path = _extract_printed_path(stdout)
+        if printed_path:
+            add_recent_file(printed_path)
+            set_active_file(printed_path)
+            return
+        path = _extract_desktop_path_from_python(code)
+        if path:
+            add_recent_file(path)
+            set_active_file(path)
+            return
 
 
 def _result(ok: bool, **kwargs: Any) -> dict[str, Any]:
@@ -71,7 +126,9 @@ def run_python(code: str, timeout_sec: int) -> dict[str, Any]:
     timestamp = int(time.time() * 1000)
     script_path = SCRIPTS_DIR / f"tmp_{timestamp}.py"
     script_path.write_text(code, encoding="utf-8")
-    return _run_command(["python", str(script_path)], script_path, timeout_sec)
+    result = _run_command(["python", str(script_path)], script_path, timeout_sec)
+    _track_result("python", code, result)
+    return result
 
 
 def run_powershell(code: str, timeout_sec: int) -> dict[str, Any]:
@@ -79,11 +136,13 @@ def run_powershell(code: str, timeout_sec: int) -> dict[str, Any]:
     timestamp = int(time.time() * 1000)
     script_path = SCRIPTS_DIR / f"tmp_{timestamp}.ps1"
     script_path.write_text(code, encoding="utf-8")
-    return _run_command(
+    result = _run_command(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
         script_path,
         timeout_sec,
     )
+    _track_result("powershell", code, result)
+    return result
 
 
 def run_pip_install(package: str, timeout_sec: int) -> dict[str, Any]:

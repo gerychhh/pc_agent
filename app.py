@@ -18,6 +18,7 @@ from core.config import (
 )
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.voice import VoiceInput
+from core.state import clear_state, get_active_file, load_state, set_active_file
 
 
 HELP_TEXT = """
@@ -26,6 +27,11 @@ Commands:
   /exit    Exit the application
   /reset   Reset conversation context
   /screens List recent screenshots
+  /active  Show current active file
+  /files   List recent files
+  /urls    List recent URLs
+  /use     Set active file by index or path
+  /clear   Clear active state
 """.strip()
 
 
@@ -37,6 +43,15 @@ def list_screenshots() -> None:
     print("Recent screenshots:")
     for shot in screenshots[:10]:
         print(f" - {shot}")
+
+
+def _print_recent(label: str, items: list[str]) -> None:
+    if not items:
+        print(f"No {label}.")
+        return
+    print(f"Recent {label}:")
+    for idx, item in enumerate(items[:10], start=1):
+        print(f"{idx}. {item}")
 
 
 def _escape_powershell(text: str) -> str:
@@ -181,6 +196,44 @@ def main() -> None:
         if user_input == "/reset":
             orchestrator.reset()
             print("Context reset.")
+            continue
+        if user_input == "/active":
+            active = get_active_file()
+            if active:
+                print(f"Active file: {active}")
+            else:
+                print("Active file: (none)")
+            continue
+        if user_input == "/files":
+            state = load_state()
+            _print_recent("files", state.get("recent_files", []))
+            continue
+        if user_input == "/urls":
+            state = load_state()
+            _print_recent("urls", state.get("recent_urls", []))
+            continue
+        if user_input.startswith("/use"):
+            raw = user_input[len("/use") :].strip()
+            if not raw:
+                print("Usage: /use <number|path>")
+                continue
+            if raw.isdigit():
+                state = load_state()
+                index = int(raw)
+                recent_files = state.get("recent_files", [])
+                if index < 1 or index > len(recent_files):
+                    print("Invalid file number.")
+                    continue
+                selected = recent_files[index - 1]
+                set_active_file(selected)
+                print(f"Active file set: {selected}")
+                continue
+            set_active_file(raw)
+            print(f"Active file set: {raw}")
+            continue
+        if user_input == "/clear":
+            clear_state()
+            print("State cleared.")
             continue
         if user_input == "/screens":
             list_screenshots()
