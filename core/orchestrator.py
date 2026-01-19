@@ -202,6 +202,7 @@ class Orchestrator:
         self.client = LLMClient()
         self.logger = SessionLogger()
         self.pending_app_name: str | None = None
+        self._no_arg_tools = {"get_known_paths"}
         self.reset()
 
     def reset(self) -> None:
@@ -439,7 +440,14 @@ class Orchestrator:
                         return reason
 
                     tool_name = tool_call.function.name
-                    args = json.loads(tool_call.function.arguments or "{}")
+                    try:
+                        args = json.loads(tool_call.function.arguments or "{}")
+                    except json.JSONDecodeError:
+                        args = {}
+                    if not isinstance(args, dict):
+                        args = {}
+                    if tool_name in self._no_arg_tools:
+                        args = {}
                     normalized_args = json.dumps(args, ensure_ascii=False, sort_keys=True)
                     repeat_key = f"{tool_name}:{normalized_args}"
                     repeats = tool_repeat_counts.get(repeat_key, 0) + 1
