@@ -479,6 +479,11 @@ class Orchestrator:
                         parsed_result = json.loads(tool_result)
                     except json.JSONDecodeError:
                         parsed_result = {}
+                    if parsed_result.get("ok") is False and parsed_result.get("error") == "app_not_found":
+                        hint = parsed_result.get("user_hint") or "Не могу найти приложение."
+                        self.messages.append({"role": "assistant", "content": hint})
+                        self.logger.log("assistant_response", {"content": hint})
+                        return hint
                     if parsed_result.get("ok") is True and parsed_result.get("done") is True:
                         self.messages.append(
                             {
