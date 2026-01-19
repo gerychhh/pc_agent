@@ -1,0 +1,1 @@
+Get-ChildItem -Path ([Environment]::GetFolderPath('Desktop')) | Select-Object Name,Extension,LastWriteTime

@@ -1,0 +1,1 @@
+Get-ChildItem -Path "$env:USERPROFILE\Desktop\*.txt"
