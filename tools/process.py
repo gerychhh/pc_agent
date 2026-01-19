@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from core.app_cache import get_cached_launch, invalidate_cached_launch, update_cached_launch
+from core.app_search_paths import load_search_paths
 from tools import verify
 from tools.desktop import _take_screenshot
 
@@ -110,6 +111,39 @@ def _find_shortcuts_in_paths(query: str, paths: list[str], limit: int = 10) -> l
         "$q=\"" + q + "\"; "
         f"$paths=@({ps_paths}); "
         "$items=Get-ChildItem $paths -Recurse -Filter *.lnk -ErrorAction SilentlyContinue "
+        "| Where-Object { $_.BaseName -like ('*'+$q+'*') } "
+        "| Select-Object -First " + str(max(limit, 1)) + " @{'n'='name';'e'={$_.BaseName}},@{'n'='path';'e'={$_.FullName}}; "
+        "$items | ConvertTo-Json -Compress"
+    )
+    completed = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", ps],
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        return []
+    out = completed.stdout.strip()
+    if not out:
+        return []
+    try:
+        parsed = json.loads(out)
+    except json.JSONDecodeError:
+        return []
+    return _normalize_shortcut_items(parsed)[:limit]
+
+
+def _find_exe_in_paths(query: str, paths: list[str], limit: int = 5) -> list[dict[str, str]]:
+    if not query or not paths:
+        return []
+    existing_paths = [p for p in paths if p and os.path.isdir(p)]
+    if not existing_paths:
+        return []
+    q = query.replace('"', "")
+    ps_paths = ",".join(f'"{p}"' for p in existing_paths)
+    ps = (
+        "$q=\"" + q + "\"; "
+        f"$paths=@({ps_paths}); "
+        "$items=Get-ChildItem $paths -Recurse -Filter *.exe -ErrorAction SilentlyContinue "
         "| Where-Object { $_.BaseName -like ('*'+$q+'*') } "
         "| Select-Object -First " + str(max(limit, 1)) + " @{'n'='name';'e'={$_.BaseName}},@{'n'='path';'e'={$_.FullName}}; "
         "$items | ConvertTo-Json -Compress"
@@ -325,6 +359,40 @@ def open_app(app: str) -> str:
                 method="discovered",
                 launch_type="exe",
                 target=app,
+                pid=pid,
+                screenshot_path=shot["path"],
+                verified=verification["verified"],
+                verify_reason=verification["verify_reason"],
+                verify_details=verification["verify_details"],
+                error=None if verification["verified"] else "not_verified",
+            )
+
+        search_paths = load_search_paths()
+        exe_matches = _find_exe_in_paths(app, search_paths, limit=5)
+        if exe_matches:
+            lowered = app.lower()
+            exact = next((item for item in exe_matches if item["name"].lower() == lowered), None)
+            selection = exact or exe_matches[0]
+            exe_path = selection["path"]
+            process = subprocess.Popen([exe_path])
+            pid = getattr(process, "pid", None)
+            shot = _take_screenshot(f"after open_app {exe_path}")
+            verification = _verify_launch(pid, selection["name"])
+            if verification["verified"]:
+                record = {
+                    "display_name": selection["name"],
+                    "launch_type": "exe",
+                    "target": exe_path,
+                    "last_verified_utc": _utc_now(),
+                    "confidence": 0.85 if exact else 0.7,
+                }
+                update_cached_launch(app, record)
+            return _result(
+                verification["verified"],
+                app=app,
+                method="discovered",
+                launch_type="exe",
+                target=exe_path,
                 pid=pid,
                 screenshot_path=shot["path"],
                 verified=verification["verified"],
