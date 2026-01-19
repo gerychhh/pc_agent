@@ -278,6 +278,39 @@ class Orchestrator:
             summary.append({"tool": name, "args": args})
         return summary
 
+    @staticmethod
+    def _extract_tool_call_from_content(content: str) -> tuple[str, dict[str, Any]] | None:
+        if not content:
+            return None
+        json_start = content.find("{")
+        json_end = content.rfind("}")
+        if json_start == -1 or json_end == -1 or json_end <= json_start:
+            return None
+        try:
+            payload = json.loads(content[json_start : json_end + 1])
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(payload, dict):
+            return None
+        name = payload.get("name")
+        if not isinstance(name, str) or not name:
+            return None
+        args = payload.get("arguments")
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except json.JSONDecodeError:
+                args = {}
+        if not isinstance(args, dict):
+            args = {k: v for k, v in payload.items() if k != "name"}
+        if name == "create_docx" and "paragraphs" not in args and "content" in args:
+            content_value = args.pop("content")
+            if isinstance(content_value, list):
+                args["paragraphs"] = content_value
+            elif isinstance(content_value, str):
+                args["paragraphs"] = [content_value]
+        return name, args
+
     def run(self, user_input: str) -> str:
         self.logger.log_user_input(user_input, len(self.messages))
         self.logger.log("user_input", {"content": user_input})
@@ -614,6 +647,94 @@ class Orchestrator:
                 continue
 
             assistant_content = message.content or ""
+            fallback_tool = self._extract_tool_call_from_content(assistant_content)
+            if fallback_tool:
+                tool_name, args = fallback_tool
+                if tool_name in self._no_arg_tools:
+                    args = {}
+                level = risk_level(tool_name, args)
+                reason = risk_reason(tool_name, args, level)
+                approved = confirm_action(tool_name, args, level)
+                self.logger.log_policy(level.value, reason, approved)
+                self.logger.log(
+                    "confirmation",
+                    {
+                        "tool_name": tool_name,
+                        "tool_args": args,
+                        "risk": level.value,
+                        "risk_reason": reason,
+                        "approved": approved,
+                    },
+                )
+                if not approved:
+                    tool_result = json.dumps(
+                        {"ok": False, "error": "user_denied"},
+                        ensure_ascii=False,
+                    )
+                else:
+                    tool_fn = TOOL_REGISTRY.get(tool_name)
+                    if not tool_fn:
+                        tool_result = json.dumps(
+                            {"ok": False, "error": "tool_not_found"},
+                            ensure_ascii=False,
+                        )
+                    else:
+                        tool_result = tool_fn(**args)
+                self._log_tool_debug(tool_name, args, tool_result)
+                self.logger.log(
+                    "tool_call",
+                    {
+                        "tool_name": tool_name,
+                        "tool_args": args,
+                        "tool_result": tool_result,
+                    },
+                )
+                self.messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": f"fallback_{tool_name}",
+                        "name": tool_name,
+                        "content": tool_result,
+                    }
+                )
+                try:
+                    parsed_result = json.loads(tool_result)
+                except json.JSONDecodeError:
+                    parsed_result = {}
+                if parsed_result.get("ok") is False:
+                    self.messages.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "Действие не выполнено (ok=false). "
+                                "Дай финальный ответ и НЕ вызывай инструменты."
+                            ),
+                        }
+                    )
+                if parsed_result.get("ok") is True and parsed_result.get("done") is True:
+                    self.messages.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "Задача выполнена (done=true). Не вызывай больше tools. "
+                                "Дай финальный ответ пользователю."
+                            ),
+                        }
+                    )
+                final_response = self.client.chat(
+                    self.messages,
+                    TOOLS_SCHEMA,
+                    tool_choice="none",
+                )
+                final_content = final_response.choices[0].message.content or ""
+                self.logger.log_llm_response(
+                    final_content,
+                    self._tool_calls_summary(getattr(final_response.choices[0].message, "tool_calls", []) or []),
+                )
+                self.messages.append({"role": "assistant", "content": final_content})
+                self.logger.log("assistant_response", {"content": final_content})
+                self.logger.log_final(final_content)
+                return final_content
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
             self.logger.log_final(assistant_content)
