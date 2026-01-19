@@ -9,7 +9,13 @@ from core.app_search_paths import (
     normalize_search_paths,
     save_search_paths,
 )
-from core.config import SCREENSHOT_DIR, VOICE_DEFAULT_ENABLED
+from core.config import (
+    SCREENSHOT_DIR,
+    VOICE_DEFAULT_ENABLED,
+    VOICE_NAME,
+    VOICE_RATE,
+    VOICE_VOLUME,
+)
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.voice import VoiceInput
 
@@ -51,7 +57,11 @@ def speak_text(text: str) -> None:
     safe_text = _escape_powershell(text)
     command = (
         "Add-Type -AssemblyName System.Speech; "
-        "(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("
+        "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+        f"try {{ $synth.SelectVoice('{VOICE_NAME}') }} catch {{}}; "
+        f"$synth.Rate = {VOICE_RATE}; "
+        f"$synth.Volume = {VOICE_VOLUME}; "
+        "$synth.Speak("
         f"'{safe_text}')"
     )
     subprocess.run(
