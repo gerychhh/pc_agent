@@ -157,7 +157,10 @@ TOOLS_SCHEMA = [
             "description": "Open a Windows application.",
             "parameters": {
                 "type": "object",
-                "properties": {"app": {"type": "string"}},
+                "properties": {
+                    "app": {"type": "string"},
+                    "alias": {"type": "string"},
+                },
                 "required": ["app"],
             },
         },
@@ -271,12 +274,14 @@ class Orchestrator:
     def __init__(self) -> None:
         self.client = LLMClient()
         self.logger = SessionLogger()
+        self.pending_app_name: str | None = None
         self.reset()
 
     def reset(self) -> None:
         self.messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
+        self.pending_app_name = None
 
     @staticmethod
     def _extract_single_url_intent(user_input: str) -> str | None:
@@ -323,16 +328,28 @@ class Orchestrator:
             return None
         return match.group(1)
 
+    @staticmethod
+    def _extract_lnk_path(user_input: str) -> str | None:
+        if not user_input:
+            return None
+        match = re.search(r"([A-Za-z]:\\\\[^\"'\n]+?\\.lnk)", user_input, re.IGNORECASE)
+        if not match:
+            return None
+        return match.group(1)
+
     def run(self, user_input: str) -> str:
         exe_path = self._extract_exe_path(user_input)
-        if exe_path:
-            level = risk_level("open_app", {"app": exe_path})
-            approved = confirm_action("open_app", {"app": exe_path}, level)
+        lnk_path = self._extract_lnk_path(user_input)
+        direct_path = exe_path or lnk_path
+        if direct_path:
+            app_alias = self.pending_app_name
+            level = risk_level("open_app", {"app": direct_path})
+            approved = confirm_action("open_app", {"app": direct_path}, level)
             self.logger.log(
                 "confirmation",
                 {
                     "tool_name": "open_app",
-                    "tool_args": {"app": exe_path},
+                    "tool_args": {"app": direct_path, "alias": app_alias},
                     "risk": level.value,
                     "approved": approved,
                 },
@@ -344,12 +361,12 @@ class Orchestrator:
                 self.logger.log("assistant_response", {"content": assistant_content})
                 return assistant_content
 
-            tool_result = process.open_app(exe_path)
+            tool_result = process.open_app(direct_path, alias=app_alias)
             self.logger.log(
                 "tool_call",
                 {
                     "tool_name": "open_app",
-                    "tool_args": {"app": exe_path},
+                    "tool_args": {"app": direct_path, "alias": app_alias},
                     "tool_result": tool_result,
                 },
             )
@@ -374,6 +391,7 @@ class Orchestrator:
             assistant_content = final_response.choices[0].message.content or ""
             self.messages.append({"role": "assistant", "content": assistant_content})
             self.logger.log("assistant_response", {"content": assistant_content})
+            self.pending_app_name = None
             return assistant_content
 
         # Fast-path: if the user explicitly asked to open a single URL/page,
@@ -560,6 +578,7 @@ class Orchestrator:
                         tool_repeat_counts[repeat_key] = 2
                     if parsed_result.get("ok") is False and parsed_result.get("error") == "app_not_found":
                         hint = parsed_result.get("user_hint") or "Не могу найти приложение."
+                        self.pending_app_name = parsed_result.get("app")
                         self.messages.append({"role": "assistant", "content": hint})
                         self.logger.log("assistant_response", {"content": hint})
                         return hint
