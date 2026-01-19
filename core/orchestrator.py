@@ -208,6 +208,8 @@ class Orchestrator:
     def run(self, user_input: str) -> str:
         self.messages.append({"role": "user", "content": user_input})
         self.logger.log("user_input", {"content": user_input})
+        tool_repeat_counts: dict[str, int] = {}
+        total_tool_calls = 0
 
         for _ in range(10):
             response = self.client.chat(self.messages, TOOLS_SCHEMA)
@@ -215,8 +217,65 @@ class Orchestrator:
 
             if getattr(message, "tool_calls", None):
                 for tool_call in message.tool_calls:
+                    if total_tool_calls >= 8:
+                        reason = "Превышен лимит инструментов (8). Пожалуйста, уточните задачу."
+                        self.logger.log(
+                            "loop_guard_triggered",
+                            {
+                                "reason": "tool_call_limit",
+                                "limit": 8,
+                                "total_tool_calls": total_tool_calls,
+                            },
+                        )
+                        self.messages.append({"role": "assistant", "content": reason})
+                        self.logger.log("assistant_response", {"content": reason})
+                        return reason
+
                     tool_name = tool_call.function.name
                     args = json.loads(tool_call.function.arguments or "{}")
+                    normalized_args = json.dumps(args, ensure_ascii=False, sort_keys=True)
+                    repeat_key = f"{tool_name}:{normalized_args}"
+                    repeats = tool_repeat_counts.get(repeat_key, 0) + 1
+                    tool_repeat_counts[repeat_key] = repeats
+                    if repeats > 2:
+                        tool_result = json.dumps(
+                            {
+                                "ok": False,
+                                "error": "loop_guard_triggered",
+                                "details": {
+                                    "tool_name": tool_name,
+                                    "args": args,
+                                    "repeats": repeats,
+                                },
+                            },
+                            ensure_ascii=False,
+                        )
+                        self.logger.log(
+                            "loop_guard_triggered",
+                            {
+                                "reason": "repeated_tool_call",
+                                "tool_name": tool_name,
+                                "tool_args": args,
+                                "repeats": repeats,
+                            },
+                        )
+                        self.messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": tool_name,
+                                "content": tool_result,
+                            }
+                        )
+                        assistant_content = (
+                            f"Я зациклился на повторяющемся действии {tool_name}. "
+                            "Останавливаюсь. Возможная причина: модель не видит изменений "
+                            "на экране или не получает ожидаемый результат."
+                        )
+                        self.messages.append({"role": "assistant", "content": assistant_content})
+                        self.logger.log("assistant_response", {"content": assistant_content})
+                        return assistant_content
+
                     level = risk_level(tool_name, args)
                     approved = confirm_action(tool_name, args, level)
                     self.logger.log(
@@ -258,6 +317,7 @@ class Orchestrator:
                             "content": tool_result,
                         }
                     )
+                    total_tool_calls += 1
                 continue
 
             assistant_content = message.content or ""
