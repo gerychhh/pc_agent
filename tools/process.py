@@ -4,6 +4,7 @@ import difflib
 import json
 import os
 import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from typing import Any
@@ -34,6 +35,17 @@ def _result(ok: bool, **kwargs: Any) -> str:
 
 def _looks_like_path(app: str) -> bool:
     return any(sep in app for sep in ("/", "\\")) or app.lower().endswith(".exe")
+
+
+def _clean_query_name(text: str) -> str:
+    cleaned = (text or "").strip().strip('"').strip("'")
+    if not cleaned:
+        return ""
+    if "\\" in cleaned or "/" in cleaned:
+        cleaned = os.path.basename(cleaned)
+    if cleaned.lower().endswith(".exe"):
+        cleaned = cleaned[:-4]
+    return cleaned.strip().lower()
 
 
 def _looks_like_url(text: str) -> bool:
@@ -257,6 +269,8 @@ def open_start_app(app_id: str, display_name: str | None = None) -> str:
 
 def open_app(app: str, alias: str | None = None) -> str:
     try:
+        original_app = app
+        search_name = _clean_query_name(app)
         if _looks_like_url(app):
             return _result(
                 False,
@@ -267,7 +281,7 @@ def open_app(app: str, alias: str | None = None) -> str:
                 details={"hint": "Use open_url for URLs"},
             )
 
-        cache_key = alias or app
+        cache_key = alias or search_name or app
         cached = get_cached_launch(cache_key)
         if cached and not _is_valid_cached_launch(cached):
             invalidate_cached_launch(cache_key)
@@ -340,17 +354,17 @@ def open_app(app: str, alias: str | None = None) -> str:
             except Exception:
                 invalidate_cached_launch(cache_key)
 
-        if _looks_like_path(app) and app.lower().endswith(".exe") and os.path.exists(app):
-            process = subprocess.Popen([app])
+        if _looks_like_path(original_app) and original_app.lower().endswith(".exe") and os.path.exists(original_app):
+            process = subprocess.Popen([original_app])
             pid = getattr(process, "pid", None)
-            shot = _take_screenshot(f"after open_app {app}")
-            verification = _verify_launch(pid, os.path.basename(app))
+            shot = _take_screenshot(f"after open_app {original_app}")
+            verification = _verify_launch(pid, os.path.basename(original_app))
             if verification["verified"]:
-                display_name = os.path.splitext(os.path.basename(app))[0]
+                display_name = alias or os.path.splitext(os.path.basename(original_app))[0]
                 record = {
                     "display_name": display_name,
                     "launch_type": "exe",
-                    "target": app,
+                    "target": original_app,
                     "last_verified_utc": _utc_now(),
                     "confidence": 1.0,
                 }
@@ -360,7 +374,7 @@ def open_app(app: str, alias: str | None = None) -> str:
                 app=cache_key,
                 method="discovered",
                 launch_type="exe",
-                target=app,
+                target=original_app,
                 pid=pid,
                 screenshot_path=shot["path"],
                 verified=verification["verified"],
@@ -369,16 +383,16 @@ def open_app(app: str, alias: str | None = None) -> str:
                 error=None if verification["verified"] else "not_verified",
             )
 
-        if _looks_like_path(app) and app.lower().endswith(".lnk") and os.path.exists(app):
-            os.startfile(app)  # type: ignore[attr-defined]
-            shot = _take_screenshot(f"after open_app {app}")
-            display_name = os.path.splitext(os.path.basename(app))[0]
+        if _looks_like_path(original_app) and original_app.lower().endswith(".lnk") and os.path.exists(original_app):
+            os.startfile(original_app)  # type: ignore[attr-defined]
+            shot = _take_screenshot(f"after open_app {original_app}")
+            display_name = alias or os.path.splitext(os.path.basename(original_app))[0]
             verification = _verify_launch(None, display_name)
             if verification["verified"]:
                 record = {
                     "display_name": display_name,
                     "launch_type": "shortcut",
-                    "target": app,
+                    "target": original_app,
                     "last_verified_utc": _utc_now(),
                     "confidence": 1.0,
                 }
@@ -388,7 +402,7 @@ def open_app(app: str, alias: str | None = None) -> str:
                 app=cache_key,
                 method="discovered",
                 launch_type="shortcut",
-                target=app,
+                target=original_app,
                 pid=None,
                 screenshot_path=shot["path"],
                 verified=verification["verified"],
@@ -397,10 +411,44 @@ def open_app(app: str, alias: str | None = None) -> str:
                 error=None if verification["verified"] else "not_verified",
             )
 
+        if search_name.endswith(".exe"):
+            search_name = search_name[:-4]
+
+        if app.lower().endswith(".exe") and not _looks_like_path(app):
+            resolved = shutil.which(app)
+            if resolved:
+                process = subprocess.Popen([resolved])
+                pid = getattr(process, "pid", None)
+                shot = _take_screenshot(f"after open_app {resolved}")
+                verification = _verify_launch(pid, os.path.basename(resolved))
+                if verification["verified"]:
+                    display_name = alias or os.path.splitext(os.path.basename(resolved))[0]
+                    record = {
+                        "display_name": display_name,
+                        "launch_type": "exe",
+                        "target": resolved,
+                        "last_verified_utc": _utc_now(),
+                        "confidence": 0.9,
+                    }
+                    update_cached_launch(cache_key, record)
+                return _result(
+                    verification["verified"],
+                    app=cache_key,
+                    method="discovered",
+                    launch_type="exe",
+                    target=resolved,
+                    pid=pid,
+                    screenshot_path=shot["path"],
+                    verified=verification["verified"],
+                    verify_reason=verification["verify_reason"],
+                    verify_details=verification["verify_details"],
+                    error=None if verification["verified"] else "not_verified",
+                )
+
         search_paths = load_search_paths()
-        exe_matches = _find_exe_in_paths(app, search_paths, limit=5)
+        exe_matches = _find_exe_in_paths(search_name or app, search_paths, limit=5)
         if exe_matches:
-            lowered = app.lower()
+            lowered = (search_name or app).lower()
             exact = next((item for item in exe_matches if item["name"].lower() == lowered), None)
             selection = exact or exe_matches[0]
             exe_path = selection["path"]
@@ -431,7 +479,7 @@ def open_app(app: str, alias: str | None = None) -> str:
                 error=None if verification["verified"] else "not_verified",
             )
 
-        start_apps_raw = find_start_apps(app)
+        start_apps_raw = find_start_apps(search_name or app)
         start_apps = json.loads(start_apps_raw)
         if start_apps.get("ok") and start_apps.get("items"):
             items = start_apps["items"]
@@ -469,7 +517,7 @@ def open_app(app: str, alias: str | None = None) -> str:
                         error=None if verification["verified"] else "not_verified",
                     )
 
-        shortcuts_raw = find_start_menu_shortcuts(app, limit=3)
+        shortcuts_raw = find_start_menu_shortcuts(search_name or app, limit=3)
         shortcuts = json.loads(shortcuts_raw)
         if shortcuts.get("ok") and shortcuts.get("items"):
             path = shortcuts["items"][0]["path"]
@@ -508,7 +556,7 @@ def open_app(app: str, alias: str | None = None) -> str:
             verified=False,
             verify_reason="not_found",
             user_hint=(
-                f"Не могу найти приложение '{cache_key}'. Укажи путь к .exe/.lnk, ссылку (URL) или точное название как в меню Пуск."
+                f"Не могу найти приложение '{cache_key}'. Укажи путь к .exe/.lnk или точное название как в меню Пуск."
             ),
         )
     except Exception as exc:  # pragma: no cover - system dependent
