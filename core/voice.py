@@ -29,12 +29,14 @@ class VoiceInput:
             return
         self.queue.put(bytes(indata))
 
-    def listen_once(self, timeout_sec: float = 8.0) -> str | None:
+    def listen_once(self, timeout_sec: float = 8.0, silence_timeout_sec: float = 0.7) -> str | None:
         recognizer = KaldiRecognizer(self.model, self.sample_rate)
         start = time.monotonic()
+        last_speech_at: float | None = None
+        blocksize = 1600 if self.sample_rate == 16000 else 8000
         with sd.RawInputStream(
             samplerate=self.sample_rate,
-            blocksize=8000,
+            blocksize=blocksize,
             dtype="int16",
             channels=1,
             callback=self._callback,
@@ -49,6 +51,15 @@ class VoiceInput:
                     text = (result.get("text") or "").strip()
                     if text:
                         return text
+                else:
+                    partial = json.loads(recognizer.PartialResult())
+                    partial_text = (partial.get("partial") or "").strip()
+                    if partial_text:
+                        last_speech_at = time.monotonic()
+                if last_speech_at and time.monotonic() - last_speech_at >= silence_timeout_sec:
+                    partial = json.loads(recognizer.FinalResult())
+                    final_text = (partial.get("text") or "").strip()
+                    return final_text or None
             partial = json.loads(recognizer.FinalResult())
             final_text = (partial.get("text") or "").strip()
             return final_text or None

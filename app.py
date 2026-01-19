@@ -53,6 +53,31 @@ def _should_speak(response: str) -> bool:
     return True
 
 
+def _is_garbage_voice(text: str) -> bool:
+    trimmed = text.strip().lower()
+    if len(trimmed) < 3:
+        return True
+    parts = trimmed.split()
+    if len(parts) == 1:
+        filler = {
+            "ээ",
+            "эм",
+            "мм",
+            "угу",
+            "ага",
+            "ну",
+            "да",
+            "нет",
+            "ок",
+            "окей",
+            "okay",
+            "хм",
+        }
+        if parts[0] in filler:
+            return True
+    return False
+
+
 def speak_text(text: str) -> None:
     safe_text = _escape_powershell(text)
     command = (
@@ -102,27 +127,41 @@ def main() -> None:
 
     while True:
         if voice_enabled:
-            print('🎤 Voice mode: speak your command (say "стоп" to exit voice mode)...')
             try:
-                if voice_input is None:
-                    voice_input = VoiceInput()
-                voice_text = voice_input.listen_once()
+                prompt = input('🎤 Voice mode: нажми Enter и скажи команду ("/voice off" для выхода)> ').strip()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting.")
                 break
-            except Exception as exc:
-                print(f"Voice error: {exc}")
-                voice_enabled = False
-                continue
-            if not voice_text:
-                continue
-            normalized = voice_text.strip().lower()
-            if normalized in {"стоп", "выключи голос", "stop"}:
-                voice_enabled = False
-                print("Voice mode disabled.")
-                continue
-            print(f"You(voice)> {voice_text}")
-            user_input = voice_text
+            if prompt:
+                if prompt == "/voice off":
+                    voice_enabled = False
+                    print("Voice mode disabled.")
+                    continue
+                user_input = prompt
+            else:
+                try:
+                    if voice_input is None:
+                        voice_input = VoiceInput()
+                    voice_text = voice_input.listen_once()
+                except (EOFError, KeyboardInterrupt):
+                    print("\nExiting.")
+                    break
+                except Exception as exc:
+                    print(f"Voice error: {exc}")
+                    voice_enabled = False
+                    continue
+                if not voice_text:
+                    continue
+                if _is_garbage_voice(voice_text):
+                    print("Не расслышал, повтори.")
+                    continue
+                normalized = voice_text.strip().lower()
+                if normalized in {"стоп", "выключи голос", "stop"}:
+                    voice_enabled = False
+                    print("Voice mode disabled.")
+                    continue
+                print(f"You(voice)> {voice_text}")
+                user_input = voice_text
         else:
             try:
                 user_input = input("You> ").strip()
@@ -157,7 +196,7 @@ def main() -> None:
                 print("Usage: /voice [on|off]")
             continue
 
-        response = orchestrator.run(user_input)
+        response = orchestrator.run(user_input, stateless=voice_enabled)
         output = sanitize_assistant_text(response)
         if not output:
             output = "(no output)"

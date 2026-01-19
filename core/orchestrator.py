@@ -71,6 +71,12 @@ SYSTEM_PROMPT = """
 
 PowerShell используй только для команд Windows (Start-Process, cd, dir, New-Item и т.д.).
 
+ПРАВИЛА ДЛЯ PYTHON:
+- Запрещены однострочники с ';'
+- Скрипт Python должен начинаться с нужных импортов (первая непустая строка — import/from)
+- .docx → только python-docx, .xlsx → только openpyxl, .pdf → только reportlab
+- Никогда не создавай docx/xlsx/pdf через open(...,"w")
+
 БЕЗОПАСНОСТЬ:
 - Не делай разрушительные действия.
 - Если запрос опасный или неясный — задай 1 короткий уточняющий вопрос.
@@ -92,15 +98,54 @@ def sanitize_assistant_text(text: str) -> str:
 
 
 class Orchestrator:
-    def __init__(self) -> None:
+    def __init__(self, history_limit: int = 2) -> None:
         self.client = LLMClient()
         self.logger = SessionLogger()
+        self.history_limit = history_limit
+        self.system_message = {"role": "system", "content": SYSTEM_PROMPT}
         self.reset()
 
     def reset(self) -> None:
-        self.messages: list[dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT}
-        ]
+        self.history: list[dict[str, Any]] = []
+
+    @staticmethod
+    def _route_intent(user_input: str) -> tuple[str, str | None]:
+        text = user_input.lower()
+        file_keywords = (
+            "создай файл",
+            "документ",
+            "ворд",
+            "docx",
+            "таблицу",
+            "xlsx",
+            "pdf",
+        )
+        os_keywords = (
+            "открой",
+            "запусти",
+            "перейди",
+            "включи",
+            "закрой",
+        )
+        if any(keyword in text for keyword in file_keywords):
+            return "file", "python"
+        if any(keyword in text for keyword in os_keywords):
+            return "os_action", "powershell"
+        return "unknown", None
+
+    def _build_messages(
+        self,
+        user_input: str,
+        stateless: bool,
+        system_override: str | None = None,
+    ) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = [self.system_message]
+        if system_override:
+            messages.append({"role": "system", "content": system_override})
+        if not stateless and self.history:
+            messages.extend(self.history[-self.history_limit :])
+        messages.append({"role": "user", "content": user_input})
+        return messages
 
     @staticmethod
     def _extract_script(content: str) -> tuple[str | None, str | None]:
@@ -177,6 +222,24 @@ class Orchestrator:
             return True
         return False
 
+    @staticmethod
+    def _python_has_semicolons(script: str) -> bool:
+        return any(";" in line for line in script.splitlines())
+
+    @staticmethod
+    def _python_starts_with_import(script: str) -> bool:
+        for line in script.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            return stripped.startswith(("import ", "from "))
+        return False
+
+    @staticmethod
+    def _python_uses_text_open_for_binary(script: str) -> bool:
+        pattern = re.compile(r"open\([^\n]*\.(docx|xlsx|pdf)[^\n]*['\"]w", re.IGNORECASE)
+        return bool(pattern.search(script))
+
     def _log_exec_result(self, result: dict[str, Any]) -> None:
         if not DEBUG:
             return
@@ -191,10 +254,37 @@ class Orchestrator:
         self._log_debug("RC", f"{result.get('returncode')}")
         self._log_debug("DURATION_MS", f"{result.get('duration_ms')}")
 
-    def run(self, user_input: str) -> str:
-        self.logger.log_user_input(user_input, len(self.messages))
+    def run(self, user_input: str, stateless: bool = False) -> str:
+        intent, forced_language = self._route_intent(user_input)
+        if intent == "unknown":
+            response = "Уточни, что именно нужно сделать на компьютере?"
+            if not stateless:
+                self.history.extend(
+                    [
+                        {"role": "user", "content": user_input},
+                        {"role": "assistant", "content": response},
+                    ]
+                )
+                self.history = self.history[-self.history_limit :]
+            return response
+
+        system_override = None
+        if intent == "os_action":
+            system_override = (
+                "Ответь только одним блоком ```powershell``` и ничего больше. "
+                "Никакого Python."
+            )
+        elif intent == "file":
+            system_override = (
+                "Ответь только одним блоком ```python``` и ничего больше. "
+                "Для .docx используй python-docx, для .xlsx openpyxl, для .pdf reportlab. "
+                "Запрещены однострочники с ';' и open(...,'w') для docx/xlsx/pdf. "
+                "Первой строкой должны идти нужные импорты."
+            )
+
+        messages = self._build_messages(user_input, stateless, system_override)
+        self.logger.log_user_input(user_input, len(messages))
         self.logger.log("user_input", {"content": user_input})
-        self.messages.append({"role": "user", "content": user_input})
         request_confirmed = False
         last_language: str | None = None
         last_risk: RiskLevel | None = None
@@ -205,7 +295,7 @@ class Orchestrator:
         }
 
         for attempt in range(MAX_RETRIES + 1):
-            response = self.client.chat(self.messages, tools=[], tool_choice="none")
+            response = self.client.chat(messages, tools=[], tool_choice="none")
             raw_content = response.choices[0].message.content or ""
             self._log_debug("LLM_RAW", sanitize_assistant_text(raw_content)[:300])
             language, script = self._extract_script(raw_content)
@@ -214,7 +304,36 @@ class Orchestrator:
                     language = "powershell"
                     script = raw_content.strip()
                 else:
-                    return sanitize_assistant_text(raw_content)
+                    if forced_language:
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": (
+                                    f"Ответь только кодом в блоке ```{forced_language}```."
+                                ),
+                            }
+                        )
+                        continue
+                    assistant_text = sanitize_assistant_text(raw_content)
+                    if not stateless:
+                        self.history.extend(
+                            [
+                                {"role": "user", "content": user_input},
+                                {"role": "assistant", "content": assistant_text},
+                            ]
+                        )
+                        self.history = self.history[-self.history_limit :]
+                    return assistant_text
+            if forced_language and language != forced_language:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Нужно вернуть только {forced_language} код одним блоком."
+                        ),
+                    }
+                )
+                continue
             self._log_debug("SCRIPT_LANG", language)
             self._log_debug("SCRIPT_HASH", self._script_hash(script))
 
@@ -222,7 +341,7 @@ class Orchestrator:
                 try:
                     compile(script, "<agent>", "exec")
                 except SyntaxError as exc:
-                    self.messages.append(
+                    messages.append(
                         {
                             "role": "user",
                             "content": (
@@ -232,8 +351,41 @@ class Orchestrator:
                         }
                     )
                     continue
+                if self._python_has_semicolons(script):
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "Нельзя использовать ';' в python. "
+                                "Верни полный python-код без однострочников с ';'."
+                            ),
+                        }
+                    )
+                    continue
+                if not self._python_starts_with_import(script):
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "Python-скрипт должен начинаться с нужных импортов "
+                                "(первая непустая строка — import/from)."
+                            ),
+                        }
+                    )
+                    continue
+                if self._python_uses_text_open_for_binary(script):
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "Нельзя создавать docx/xlsx/pdf через open(...,'w'). "
+                                "Используй правильные библиотеки."
+                            ),
+                        }
+                    )
+                    continue
             if language == "powershell" and self._powershell_script_incomplete(script):
-                self.messages.append(
+                messages.append(
                     {
                         "role": "user",
                         "content": (
@@ -278,14 +430,26 @@ class Orchestrator:
                             install_result = run_pip_install(package, TIMEOUT_SEC)
                             self._log_exec_result(install_result)
                             if install_result.get("ok"):
-                                self.messages.append({"role": "user", "content": user_input})
+                                messages.append({"role": "user", "content": user_input})
                                 continue
 
             if ok:
                 summary = "✅ Готово"
                 if stdout or stderr:
-                    return f"{summary}\nreturncode={returncode}\nstdout=\n{stdout}\nstderr=\n{stderr}"
-                return f"{summary}\nreturncode={returncode}"
+                    final_response = (
+                        f"{summary}\nreturncode={returncode}\nstdout=\n{stdout}\nstderr=\n{stderr}"
+                    )
+                else:
+                    final_response = f"{summary}\nreturncode={returncode}"
+                if not stateless:
+                    self.history.extend(
+                        [
+                            {"role": "user", "content": user_input},
+                            {"role": "assistant", "content": final_response},
+                        ]
+                    )
+                    self.history = self.history[-self.history_limit :]
+                return final_response
 
             if attempt < MAX_RETRIES:
                 error_message = (
@@ -295,12 +459,21 @@ class Orchestrator:
                     f"stderr=\n{stderr}\n"
                     "Исправь скрипт и верни ТОЛЬКО новый код-блок."
                 )
-                self.messages.append({"role": "user", "content": error_message})
+                messages.append({"role": "user", "content": error_message})
                 continue
 
-            return (
+            final_error = (
                 "❌ Ошибка выполнения\n"
                 f"returncode={returncode}\nstdout=\n{stdout}\nstderr=\n{stderr}"
             )
+            if not stateless:
+                self.history.extend(
+                    [
+                        {"role": "user", "content": user_input},
+                        {"role": "assistant", "content": final_error},
+                    ]
+                )
+                self.history = self.history[-self.history_limit :]
+            return final_error
 
         return ""
