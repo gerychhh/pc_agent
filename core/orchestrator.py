@@ -10,6 +10,7 @@ from .llm_client import LLMClient
 from .logger import SessionLogger
 from .policy import RiskLevel, assess_risk, confirm_if_needed
 from .state import load_state
+from .youtube import focus_browser_window, open_first_video_from_search, open_search, open_youtube_home
 
 
 SYSTEM_PROMPT = """
@@ -156,6 +157,124 @@ class Orchestrator:
         return messages
 
     @staticmethod
+    def _format_action(action: dict[str, str]) -> str:
+        return f"```{action['language']}\n{action['script']}\n```"
+
+    @staticmethod
+    def _parse_duration_seconds(text: str) -> int | None:
+        lowered = text.lower()
+        if "мину" in lowered and not re.search(r"\d", lowered):
+            return 60
+        match = re.search(r"(\d+)\s*(сек|секунд|секунды|с|мин|минут|минута|минуты)", lowered)
+        if match:
+            value = int(match.group(1))
+            unit = match.group(2)
+            if unit.startswith("мин"):
+                return value * 60
+            return value
+        digits = re.search(r"(\d+)", lowered)
+        if digits:
+            return int(digits.group(1))
+        return None
+
+    def _handle_youtube_command(self, user_input: str, active_url: str | None) -> str | None:
+        lowered = user_input.lower()
+        has_youtube_keyword = any(term in lowered for term in ("ютуб", "ютубе", "youtube", "на ютуб"))
+        has_active_youtube = bool(active_url and ("youtube" in active_url or "youtu.be" in active_url))
+        if not has_youtube_keyword and not has_active_youtube:
+            return None
+
+        if "закрой" in lowered and has_youtube_keyword:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"close_tab\")"
+            return f"```python\n{script}\n```"
+
+        if "открой" in lowered and ("ютуб" in lowered or "youtube" in lowered):
+            action = open_youtube_home()
+            return self._format_action(action)
+
+        search_match = re.search(
+            r"найди на (?:ютубе|ютуб|youtube)\s+(.+)", user_input, re.IGNORECASE
+        )
+        if search_match:
+            action = open_search(search_match.group(1).strip())
+            return self._format_action(action)
+
+        play_match = re.search(r"(?:включи|открой) видео\s+(.+)", user_input, re.IGNORECASE)
+        if play_match:
+            action = open_first_video_from_search(play_match.group(1).strip())
+            return self._format_action(action)
+
+        if any(word in lowered for word in ("пауза", "останови")):
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"play_pause\")"
+            return f"```python\n{script}\n```"
+
+        if any(word in lowered for word in ("продолжи", "воспроизведение")):
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"play_pause\")"
+            return f"```python\n{script}\n```"
+
+        if "перемотай" in lowered or "назад" in lowered:
+            seconds = self._parse_duration_seconds(lowered) or 10
+            steps = max(1, round(seconds / 10))
+            if "назад" in lowered:
+                action = "seek_back_10"
+            else:
+                action = "seek_forward_10"
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = f"from core.youtube import control\ncontrol(\"{action}\", {steps})"
+            return f"```python\n{script}\n```"
+
+        if "громче" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"volume_up\", 3)"
+            return f"```python\n{script}\n```"
+
+        if "тише" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"volume_down\", 3)"
+            return f"```python\n{script}\n```"
+
+        if "выключи звук" in lowered or "mute" in lowered or "включи звук" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"mute_toggle\")"
+            return f"```python\n{script}\n```"
+
+        if "на весь экран" in lowered or "полный экран" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"fullscreen_toggle\")"
+            return f"```python\n{script}\n```"
+
+        if "следующее видео" in lowered or "следующий" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"next_video\")"
+            return f"```python\n{script}\n```"
+
+        if "предыдущее видео" in lowered or "предыдущ" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"prev_video\")"
+            return f"```python\n{script}\n```"
+
+        if "субтитр" in lowered:
+            if not focus_browser_window():
+                return "Открой YouTube сначала: 'открой ютуб'."
+            script = "from core.youtube import control\ncontrol(\"captions_toggle\")"
+            return f"```python\n{script}\n```"
+
+        return None
+
+    @staticmethod
     def _is_file_operation(user_input: str) -> bool:
         triggers = (
             "измени",
@@ -293,6 +412,10 @@ class Orchestrator:
 
     def run(self, user_input: str, stateless: bool = False) -> str:
         state = load_state()
+        active_url = state.get("active_url")
+        youtube_response = self._handle_youtube_command(user_input, active_url)
+        if youtube_response:
+            return youtube_response
         active_file = state.get("active_file")
         active_type = state.get("active_type")
         is_file_op = self._is_file_operation(user_input)

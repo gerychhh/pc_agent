@@ -11,6 +11,7 @@ STATE_PATH = PROJECT_ROOT / "state.json"
 DEFAULT_STATE: dict[str, Any] = {
     "active_file": None,
     "active_type": None,
+    "active_url": None,
     "recent_files": [],
     "recent_urls": [],
 }
@@ -63,6 +64,19 @@ def set_active_file(path: str) -> None:
 def get_active_file() -> str | None:
     state = load_state()
     active = state.get("active_file")
+    return str(active) if active else None
+
+
+def set_active_url(url: str) -> None:
+    state = load_state()
+    state["active_url"] = url
+    state["recent_urls"] = _unique_front(state.get("recent_urls", []), url, 20)
+    save_state(state)
+
+
+def get_active_url() -> str | None:
+    state = load_state()
+    active = state.get("active_url")
     return str(active) if active else None
 
 

@@ -1,6 +1,7 @@
 openai
 pyautogui
 pygetwindow
+pyperclip
 pillow
 opencv-python
 psutil

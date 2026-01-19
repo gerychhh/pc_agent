@@ -8,7 +8,7 @@ import subprocess
 
 
 from .config import PROJECT_ROOT
-from .state import add_recent_file, add_recent_url, set_active_file
+from .state import add_recent_file, add_recent_url, set_active_file, set_active_url
 
 
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
@@ -52,6 +52,8 @@ def _track_result(language: str, code: str, result: dict[str, Any]) -> None:
         url = _extract_url_from_powershell(code)
         if url:
             add_recent_url(url)
+            if "youtube.com" in url or "youtu.be" in url:
+                set_active_url(url)
         return
 
     if language == "python":
