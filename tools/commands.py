@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 import subprocess
+import textwrap
 
 
 def _result(ok: bool, **kwargs: Any) -> str:
@@ -81,12 +82,25 @@ def run_cmd(command: str, timeout_sec: int = 20) -> str:
     return _run_command(["cmd", "/c", command], exec_cmd, timeout_sec)
 
 
+def _wrap_python_code(code: str) -> str:
+    indented = textwrap.indent(code.rstrip("\n"), "    ")
+    return (
+        "import traceback\n"
+        "try:\n"
+        f"{indented}\n"
+        "except Exception:\n"
+        "    traceback.print_exc()\n"
+        "    raise\n"
+    )
+
+
 def run_python_script(code: str, timeout_sec: int = 20) -> str:
     scripts_dir = Path("scripts")
     scripts_dir.mkdir(parents=True, exist_ok=True)
     timestamp = int(time.time() * 1000)
     script_path = scripts_dir / f"tmp_{timestamp}.py"
-    script_path.write_text(code, encoding="utf-8")
+    wrapped_code = _wrap_python_code(code)
+    script_path.write_text(wrapped_code, encoding="utf-8")
 
     exec_cmd = f"python {script_path}"
     start = time.perf_counter()
@@ -104,6 +118,7 @@ def run_python_script(code: str, timeout_sec: int = 20) -> str:
             returncode=completed.returncode,
             stdout=completed.stdout,
             stderr=completed.stderr,
+            error=None if ok else "python_error",
             duration_ms=duration_ms,
             verified=ok,
             verify_reason="returncode_zero" if ok else "nonzero_returncode",
@@ -116,6 +131,7 @@ def run_python_script(code: str, timeout_sec: int = 20) -> str:
             returncode=None,
             stdout=exc.stdout or "",
             stderr=exc.stderr or "timeout",
+            error="timeout",
             duration_ms=duration_ms,
             verified=False,
             verify_reason="timeout",
@@ -128,6 +144,7 @@ def run_python_script(code: str, timeout_sec: int = 20) -> str:
             returncode=None,
             stdout="",
             stderr=str(exc),
+            error=str(exc),
             duration_ms=duration_ms,
             verified=False,
             verify_reason="exception",

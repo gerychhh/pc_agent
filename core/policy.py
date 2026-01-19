@@ -21,10 +21,14 @@ PROCESS_ACTIONS = {
     "run_powershell",
     "run_python_script",
 }
+FILE_WRITE_ACTIONS = {
+    "write_text_file_lines",
+    "create_docx",
+}
 
 
 def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:
-    if tool_name in PROCESS_ACTIONS:
+    if tool_name in PROCESS_ACTIONS or tool_name in FILE_WRITE_ACTIONS:
         return RiskLevel.MEDIUM
 
     if tool_name == "write_file":
@@ -45,6 +49,8 @@ def risk_level(tool_name: str, args: dict[str, Any]) -> RiskLevel:
 def risk_reason(tool_name: str, args: dict[str, Any], level: RiskLevel) -> str:
     if tool_name in PROCESS_ACTIONS:
         return "process_action"
+    if tool_name in FILE_WRITE_ACTIONS:
+        return "file_write"
     if tool_name == "write_file":
         path = str(args.get("path", ""))
         lower_path = path.lower()

@@ -14,6 +14,10 @@ SYSTEM_PROMPT = (
     "Ты локальный ассистент управления ПК. "
     "НИКОГДА не используй управление мышью, клики или ввод с клавиатуры. "
     "Все действия выполняй только через инструменты open_app/open_url/run_powershell/run_cmd/run_python_script. "
+    "Для создания txt/docx используй специализированные инструменты write_text_file_lines/create_docx, "
+    "а не run_python_script. "
+    "Перед созданием файлов на рабочем столе сначала вызывай get_known_paths, "
+    "чтобы получить корректный путь Desktop. "
     "Если нужен вывод о результате — используй поля verified/verify_reason. "
     "Если пользователь дал точный путь к .exe, используй open_app с этим путем, не заменяй на другое имя. "
     "Если пользователь просит открыть сервис (Яндекс Музыка, Telegram, Discord, Spotify и т.п.), "
@@ -38,6 +42,9 @@ TOOL_REGISTRY = {
     "run_powershell": commands.run_powershell,
     "run_cmd": commands.run_cmd,
     "run_python_script": commands.run_python_script,
+    "get_known_paths": filesystem.get_known_paths,
+    "write_text_file_lines": filesystem.write_text_file_lines,
+    "create_docx": filesystem.create_docx,
     "read_file": filesystem.read_file,
     "write_file": filesystem.write_file,
 }
@@ -113,6 +120,47 @@ TOOLS_SCHEMA = [
                     "timeout_sec": {"type": "integer", "default": 20},
                 },
                 "required": ["code"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_known_paths",
+            "description": "Return common user paths (Desktop/Documents/Downloads/Home).",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_text_file_lines",
+            "description": "Write repeated text lines to a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "line_template": {"type": "string"},
+                    "count": {"type": "integer"},
+                    "add_newline": {"type": "boolean", "default": True},
+                },
+                "required": ["path", "line_template", "count"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_docx",
+            "description": "Create a .docx document with optional title and paragraphs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "title": {"type": "string"},
+                    "paragraphs": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["path", "paragraphs"],
             },
         },
     },

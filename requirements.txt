@@ -4,3 +4,4 @@ pygetwindow
 pillow
 opencv-python
 psutil
+python-docx
