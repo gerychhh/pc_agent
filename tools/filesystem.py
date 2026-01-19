@@ -5,8 +5,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from docx import Document
-
 
 def _result(ok: bool, **kwargs: Any) -> str:
     payload = {"ok": ok, **kwargs}
@@ -75,6 +73,10 @@ def write_text_file_lines(
 
 def create_docx(path: str, title: str | None, paragraphs: list[str]) -> str:
     try:
+        try:
+            from docx import Document  # type: ignore
+        except Exception as exc:
+            return _result(False, path=path, paragraphs=0, error=f"missing_python_docx: {exc}")
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         document = Document()
