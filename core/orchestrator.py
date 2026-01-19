@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from .llm_client import LLMClient
@@ -36,6 +37,7 @@ TOOL_REGISTRY = {
     "open_app": process.open_app,
     "open_url": process.open_url,
     "find_start_apps": process.find_start_apps,
+    "find_start_menu_shortcuts": process.find_start_menu_shortcuts,
     "open_start_app": process.open_start_app,
     "run_cmd": process.run_cmd,
     "read_file": filesystem.read_file,
@@ -186,6 +188,21 @@ TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
+            "name": "find_start_menu_shortcuts",
+            "description": "Search Start Menu .lnk shortcuts by name (useful when app isn't visible in Get-StartApps).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 10},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "open_start_app",
             "description": "Open a Start menu app by AppID.",
             "parameters": {
@@ -254,7 +271,99 @@ class Orchestrator:
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
 
+    @staticmethod
+    def _extract_single_url_intent(user_input: str) -> str | None:
+        """Heuristic router for the common 'open a website' intent.
+
+        We intentionally bypass the LLM for this intent to prevent repeated
+        attempts using different strategies (browser open loops).
+        """
+        text = user_input.strip()
+        lower = text.lower()
+
+        # Must look like an 'open site/page' request.
+        if not any(k in lower for k in ("открой", "открыть", "open")):
+            return None
+        if not any(k in lower for k in ("сайт", "страниц", "url", "http", "www", ".ru", ".com", ".net", ".org")):
+            return None
+
+        # Extract first URL-like token.
+        m = re.search(r"(https?://[^\s]+)", text, re.IGNORECASE)
+        if m:
+            return m.group(1).rstrip('.,;')
+
+        # Domain without scheme (e.g. music.yandex.ru)
+        m2 = re.search(r"\b([a-z0-9\-]+(?:\.[a-z0-9\-]+)+)\b", text, re.IGNORECASE)
+        if not m2:
+            return None
+
+        domain = m2.group(1).rstrip('.,;')
+
+        # If the request is obviously more complex than "just open site", don't fast-path.
+        # This keeps multi-step tasks under LLM control.
+        extra_intent_words = ("введи", "набери", "найди", "зарегистр", "войти", "логин", "пароль", "скачай", "поиск")
+        if any(w in lower for w in extra_intent_words):
+            return None
+
+        return "https://" + domain
+
     def run(self, user_input: str) -> str:
+        # Fast-path: if the user explicitly asked to open a single URL/page,
+        # do it deterministically once to avoid LLM "multiple strategy" loops.
+        url = self._extract_single_url_intent(user_input)
+        if url:
+            # Ask for confirmation via policy
+            level = risk_level("open_url", {"url": url})
+            approved = confirm_action("open_url", {"url": url}, level)
+            self.logger.log(
+                "confirmation",
+                {
+                    "tool_name": "open_url",
+                    "tool_args": {"url": url},
+                    "risk": level.value,
+                    "approved": approved,
+                },
+            )
+
+            if not approved:
+                assistant_content = "Ок, отменено пользователем."
+                self.messages.append({"role": "assistant", "content": assistant_content})
+                self.logger.log("assistant_response", {"content": assistant_content})
+                return assistant_content
+
+            tool_result = process.open_url(url)
+            self.logger.log(
+                "tool_call",
+                {
+                    "tool_name": "open_url",
+                    "tool_args": {"url": url},
+                    "tool_result": tool_result,
+                },
+            )
+
+            # Provide tool result to the model and force a final response without more tools.
+            self.messages.append({"role": "user", "content": user_input})
+            self.messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": "direct_open_url",
+                    "name": "open_url",
+                    "content": tool_result,
+                }
+            )
+            self.messages.append(
+                {
+                    "role": "system",
+                    "content": "URL открыт (если ok=true). Дай финальный ответ и НЕ вызывай инструменты.",
+                }
+            )
+
+            final_response = self.client.chat(self.messages, TOOLS_SCHEMA, tool_choice="none")
+            assistant_content = final_response.choices[0].message.content or ""
+            self.messages.append({"role": "assistant", "content": assistant_content})
+            self.logger.log("assistant_response", {"content": assistant_content})
+            return assistant_content
+
         self.messages.append({"role": "user", "content": user_input})
         self.logger.log("user_input", {"content": user_input})
         tool_repeat_counts: dict[str, int] = {}
@@ -400,3 +509,33 @@ class Orchestrator:
         fallback = "Reached tool execution limit without a final response."
         self.logger.log("assistant_response", {"content": fallback})
         return fallback
+
+    @staticmethod
+    def _extract_single_url_intent(text: str) -> str | None:
+        """Return URL if request looks like 'open this site/page' and nothing more."""
+        t = (text or "").strip()
+        if not t:
+            return None
+
+        # Only trigger for explicit "open website/page" intent in RU/EN.
+        intent = re.search(r"\b(открой|открыть|open)\b", t, flags=re.IGNORECASE)
+        if not intent:
+            return None
+
+        # Find first URL-like token
+        m = re.search(r"(https?://\S+|www\.[^\s]+|[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s]*)", t)
+        if not m:
+            return None
+
+        # If user asks a complex task (and/then, type, click, search), don't short-circuit.
+        complex_markers = ["и ", " затем", " потом", "напечат", "клик", "введ", "найди", "search", "type", "click"]
+        lowered = t.lower()
+        if any(marker in lowered for marker in complex_markers):
+            return None
+
+        url = m.group(1).strip().strip('"\'')
+        if url.startswith("www."):
+            url = "https://" + url
+        elif not re.match(r"^https?://", url, flags=re.IGNORECASE):
+            url = "https://" + url
+        return url

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import difflib
 from typing import Any
 
 from tools.desktop import _take_screenshot
@@ -52,12 +53,71 @@ def find_start_apps(query: str, limit: int = 10) -> str:
         if completed.returncode != 0:
             return _result(False, error=completed.stderr.strip() or "powershell failed")
         items = _parse_start_apps(completed.stdout)
+
+        # Intelligent matching:
+        # 1) substring match
+        # 2) fuzzy match via stdlib difflib
         if query:
-            lowered = query.lower()
-            items = [item for item in items if lowered in item["name"].lower()]
+            q = query.strip().lower()
+            substring = [item for item in items if q in item["name"].lower()]
+            if substring:
+                items = substring
+            else:
+                names = [item["name"] for item in items]
+                close = difflib.get_close_matches(query, names, n=limit, cutoff=0.55)
+                if close:
+                    close_set = {c.lower() for c in close}
+                    items = [item for item in items if item["name"].lower() in close_set]
+
         return _result(True, items=items[:limit])
     except FileNotFoundError as exc:
         return _result(False, error=str(exc))
+    except Exception as exc:  # pragma: no cover - system dependent
+        return _result(False, error=str(exc))
+
+
+def find_start_menu_shortcuts(query: str, limit: int = 10) -> str:
+    """Find Start Menu shortcuts (.lnk) matching query (helps with apps not in Get-StartApps)."""
+    try:
+        q = query.replace('"', "")
+        ps = (
+            "$q=\"" + q + "\"; "
+            "$paths=@($env:APPDATA+'\\Microsoft\\Windows\\Start Menu\\Programs',"
+            "$env:ProgramData+'\\Microsoft\\Windows\\Start Menu\\Programs'); "
+            "$items=Get-ChildItem $paths -Recurse -Filter *.lnk -ErrorAction SilentlyContinue "
+            "| Where-Object { $_.BaseName -like ('*'+$q+'*') } "
+            "| Select-Object -First " + str(max(limit, 1)) + " @{'n'='name';'e'={$_.BaseName}},@{'n'='path';'e'={$_.FullName}}; "
+            "$items | ConvertTo-Json -Compress"
+        )
+        completed = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps],
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            return _result(False, error=completed.stderr.strip() or "powershell failed")
+
+        out = completed.stdout.strip()
+        if not out:
+            return _result(True, items=[])
+
+        parsed = json.loads(out)
+        # PowerShell returns object or array depending on count
+        if isinstance(parsed, dict):
+            items = [parsed]
+        elif isinstance(parsed, list):
+            items = parsed
+        else:
+            items = []
+
+        normalized = []
+        for it in items:
+            name = str(it.get("name", "")).strip()
+            path = str(it.get("path", "")).strip()
+            if name and path:
+                normalized.append({"name": name, "path": path})
+
+        return _result(True, items=normalized[:limit])
     except Exception as exc:  # pragma: no cover - system dependent
         return _result(False, error=str(exc))
 
@@ -66,7 +126,7 @@ def open_start_app(app_id: str) -> str:
     try:
         subprocess.Popen(["explorer.exe", f"shell:AppsFolder\\{app_id}"])
         shot = _take_screenshot("after open_start_app")
-        return _result(True, screenshot_path=shot["path"])
+        return _result(True, screenshot_path=shot["path"], method="startapp")
     except Exception as exc:  # pragma: no cover - system dependent
         return _result(False, error=str(exc))
 
@@ -78,7 +138,6 @@ def open_app(app: str) -> str:
             shot = _take_screenshot(f"after open_app {app}")
             return _result(
                 True,
-                done=True,
                 pid=getattr(process, "pid", None),
                 screenshot_path=shot["path"],
                 method="exe_path",
@@ -93,9 +152,20 @@ def open_app(app: str) -> str:
             selection = exact or (items[0] if len(items) == 1 else None)
             if selection:
                 opened = json.loads(open_start_app(selection["app_id"]))
-                opened["done"] = True
-                opened["method"] = "startapp"
                 return json.dumps(opened, ensure_ascii=False)
+
+        # Fallback: search Start Menu shortcuts (.lnk)
+        shortcuts_raw = find_start_menu_shortcuts(app, limit=3)
+        shortcuts = json.loads(shortcuts_raw)
+        if shortcuts.get("ok") and shortcuts.get("items"):
+            path = shortcuts["items"][0]["path"]
+            try:
+                os.startfile(path)  # type: ignore[attr-defined]
+                shot = _take_screenshot(f"after open_shortcut {path}")
+                return _result(True, pid=None, screenshot_path=shot["path"], method="startmenu_shortcut")
+            except Exception as exc:
+                # continue to final fallback
+                pass
 
         try:
             os.startfile(app)  # type: ignore[attr-defined]
@@ -105,13 +175,12 @@ def open_app(app: str) -> str:
         shot = _take_screenshot(f"after open_app {app}")
         return _result(
             True,
-            done=True,
             pid=getattr(process, "pid", None),
             screenshot_path=shot["path"],
             method="fallback",
         )
     except Exception as exc:  # pragma: no cover - system dependent
-        return _result(False, error=str(exc), method="fallback", done=True)
+        return _result(False, error=str(exc), method="fallback")
 
 
 def open_url(url: str) -> str:
