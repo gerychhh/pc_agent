@@ -15,7 +15,7 @@ SYSTEM_PROMPT = (
     "Ты локальный ассистент управления ПК. "
     "Отвечай очень кратко и по делу, язык русский, пока не попросят подробнее. "
     "Если запрос не требует выполнения действий, отвечай обычным текстом без кода. "
-    "Если нужно выполнить действие, отвечай ТОЛЬКО одним код-блоком (python или powershell). "
+    "Если нужно выполнить действие, отвечай ТОЛЬКО текстом команды без markdown и пояснений. "
     "Не пиши объяснений вне блока, когда приводишь код. "
     "Возвращай ТОЛЬКО один полный code block. "
     "Код должен быть завершённым и исполняемым. Никаких обрывков вроде 'except ImportError:' без тела. "
@@ -63,6 +63,32 @@ class Orchestrator:
         if ps_match:
             return "powershell", ps_match.group(1).strip()
         return None, None
+
+    @staticmethod
+    def _is_command_text(content: str) -> bool:
+        if not content:
+            return False
+        trimmed = content.strip()
+        command_prefixes = (
+            "get-",
+            "set-",
+            "start-",
+            "new-",
+            "remove-",
+            "copy-",
+            "move-",
+            "invoke-",
+            "add-",
+            "python ",
+            "pip ",
+            "dir",
+            "cd ",
+            "echo ",
+            "notepad",
+            "start ",
+        )
+        lowered = trimmed.lower()
+        return lowered.startswith(command_prefixes)
 
     def _run_script(self, language: str, script: str) -> dict[str, Any]:
         if language == "python":
@@ -134,7 +160,11 @@ class Orchestrator:
             self._log_debug("LLM_RAW", sanitize_assistant_text(raw_content)[:300])
             language, script = self._extract_script(raw_content)
             if not language or not script:
-                return sanitize_assistant_text(raw_content)
+                if self._is_command_text(raw_content):
+                    language = "powershell"
+                    script = raw_content.strip()
+                else:
+                    return sanitize_assistant_text(raw_content)
             self._log_debug("SCRIPT_LANG", language)
             self._log_debug("SCRIPT_HASH", self._script_hash(script))
 
