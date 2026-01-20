@@ -144,7 +144,7 @@ def run_powershell(code: str, timeout_sec: int) -> dict[str, Any]:
     SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = int(time.time() * 1000)
     script_path = SCRIPTS_DIR / f"tmp_{timestamp}.ps1"
-    script_path.write_text(code, encoding="utf-8")
+    script_path.write_text(code, encoding="utf-8-sig")
     result = _run_command(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
         script_path,

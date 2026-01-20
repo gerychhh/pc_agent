@@ -20,6 +20,9 @@ _NUMBER_WORDS = {
 _ALIASES = {
     "дота 2": "dota 2",
     "дота два": "dota 2",
+    "дота": "dota 2",
+    "доту": "dota 2",
+    "dota": "dota 2",
     "ворд": "word",
     "эксель": "excel",
     "дискорд": "discord",

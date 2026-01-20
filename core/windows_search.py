@@ -13,20 +13,15 @@ def windows_search_open(query: str) -> None:
     for attempt in range(1, 3):
         debug_event("APP_OPEN", f"strategy=windows_search attempt={attempt}")
         try:
-            pyautogui.press("win")
-            time.sleep(0.35)
-            pyautogui.hotkey("ctrl", "esc")
-            time.sleep(0.20)
+            pyautogui.hotkey("win", "s")
+            time.sleep(0.40)
             try:
                 click_center_active_window()
             except Exception:
                 pass
-            pyautogui.hotkey("ctrl", "a")
-            time.sleep(0.05)
-            pyautogui.press("backspace")
             pyperclip.copy(query)
             pyautogui.hotkey("ctrl", "v")
-            time.sleep(0.10)
+            time.sleep(0.15)
             pyautogui.press("enter")
             time.sleep(0.60)
             print(f"[APP_OPEN] attempt={attempt} ok=true")
