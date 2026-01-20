@@ -145,6 +145,16 @@ def extract_params(command: dict[str, Any], user_text: str, intent_text: str) ->
         name = item.get("name")
         default = item.get("default")
         from_user = item.get("from_user", False)
+        if name == "query":
+            extracted_query = _extract_query(user_text)
+            if extracted_query:
+                params[name] = extracted_query
+                continue
+        if name == "filename":
+            extracted_name = _extract_filename(user_text)
+            if extracted_name:
+                params[name] = extracted_name
+                continue
         if from_user and name in {"text", "content"}:
             extracted = _extract_after_keywords(user_text)
             if extracted:
@@ -167,6 +177,30 @@ def extract_params(command: dict[str, Any], user_text: str, intent_text: str) ->
         params["filename"] = _sanitize_filename(params["filename"], _guess_extension(command))
 
     return params
+
+
+def extract_params_best(command: dict[str, Any], user_text: str) -> dict[str, str]:
+    best_params: dict[str, str] = {}
+    best_score = 0
+    for intent in command.get("intents") or []:
+        intent_text = str(intent)
+        score, _reason = _match_intent(intent_text, user_text.lower())
+        if score > best_score:
+            best_score = score
+            best_params = extract_params(command, user_text, intent_text)
+    if best_params:
+        return best_params
+    fallback_params = extract_params(command, user_text, "")
+    if fallback_params:
+        return fallback_params
+    fallback_params = {}
+    query = _extract_query(user_text)
+    text_value = _extract_after_keywords(user_text)
+    if query:
+        fallback_params["query"] = query
+    if text_value:
+        fallback_params["text"] = text_value
+    return fallback_params
 
 
 def _run_action(action: Action) -> ExecResult:
@@ -247,6 +281,24 @@ def _extract_wildcard(intent: str, user_text: str) -> str | None:
 
 def _extract_after_keywords(text: str) -> str | None:
     match = re.search(r"(?:текст|содержимое|впиши|напиши)\s*[:\-]?\s*(.+)$", text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def _extract_query(text: str) -> str | None:
+    match = re.search(
+        r"(?:найди(?:\s+на\s+\w+)?|поиск|погугли)\s+(.+)$",
+        text,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def _extract_filename(text: str) -> str | None:
+    match = re.search(r"(\\S+\\.(?:txt|md|json|docx))", text, re.IGNORECASE)
     if match:
         return match.group(1).strip()
     return None

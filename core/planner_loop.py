@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .command_engine import Action, extract_params, load_commands, run_command
+from .command_engine import Action, extract_params_best, load_commands, run_command
 from .context_builder import ctx_planner, ctx_smart_fix
 from .debug import debug_event, truncate_text
 from .llm_client import LLMClient
@@ -92,7 +92,7 @@ class PlannerLoop:
         if use_command:
             command = next((cmd for cmd in self.commands if cmd.get("id") == use_command), None)
             if command:
-                params = extract_params(command, user_text, "")
+                params = extract_params_best(command, user_text)
                 result = run_command(command, params)
                 return StepExecution(
                     step=step,
