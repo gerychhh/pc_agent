@@ -87,6 +87,23 @@ def _should_speak(response: str) -> bool:
     return True
 
 
+def _extract_voice_command(text: str, wake_name: str | None) -> str | None:
+    if not wake_name:
+        return text
+    wake = wake_name.strip().lower()
+    if not wake:
+        return text
+    normalized = text.strip().lower()
+    prefixes = (wake, f"эй {wake}", f"hey {wake}")
+    for prefix in prefixes:
+        if normalized == prefix:
+            return ""
+        if normalized.startswith(prefix):
+            remainder = text[len(prefix) :].lstrip(" ,.!?:;—-")
+            return remainder
+    return None
+
+
 def _is_garbage_voice(text: str) -> bool:
     trimmed = text.strip().lower()
     if len(trimmed) < 3:
@@ -155,6 +172,7 @@ def ensure_app_search_paths() -> None:
 def main() -> None:
     print("PC Agent CLI. Type /help for commands.")
     print("Tip: включить голосовой ввод → /voice on (и проверь микрофон: /voice devices)")
+    voice_wake_name = input("Имя для обращения к агенту (например, 'Агент')> ").strip()
     ensure_app_search_paths()
     set_debug(os.getenv("PC_AGENT_DEBUG", "0") == "1")
     orchestrator = Orchestrator()
@@ -164,44 +182,35 @@ def main() -> None:
     while True:
         if voice_enabled:
             try:
-                prompt = input('🎤 Voice mode: нажми Enter и скажи команду ("/voice off" для выхода)> ').strip()
+                if voice_input is None:
+                    device_idx = get_voice_device()
+                    voice_input = VoiceInput(device=device_idx)
+                voice_text = voice_input.listen_once()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting.")
                 break
-            if prompt:
-                if prompt == "/voice off":
-                    voice_enabled = False
-                    print("Voice mode disabled.")
-                    continue
-                if prompt.startswith("/debug"):
-                    _handle_debug_command(prompt)
-                    continue
-                user_input = prompt
-            else:
-                try:
-                    if voice_input is None:
-                        device_idx = get_voice_device()
-                        voice_input = VoiceInput(device=device_idx)
-                    voice_text = voice_input.listen_once()
-                except (EOFError, KeyboardInterrupt):
-                    print("\nExiting.")
-                    break
-                except Exception as exc:
-                    print(f"Voice error: {exc}")
-                    voice_enabled = False
-                    continue
-                if not voice_text:
-                    continue
-                if _is_garbage_voice(voice_text):
-                    print("Не расслышал, повтори.")
-                    continue
-                normalized = voice_text.strip().lower()
-                if normalized in {"стоп", "выключи голос", "stop"}:
-                    voice_enabled = False
-                    print("Voice mode disabled.")
-                    continue
-                print(f"You(voice)> {voice_text}")
-                user_input = voice_text
+            except Exception as exc:
+                print(f"Voice error: {exc}")
+                voice_enabled = False
+                continue
+            if not voice_text:
+                continue
+            if _is_garbage_voice(voice_text):
+                print("Не расслышал, повтори.")
+                continue
+            normalized = voice_text.strip().lower()
+            if normalized in {"стоп", "выключи голос", "stop"}:
+                voice_enabled = False
+                print("Voice mode disabled.")
+                continue
+            command = _extract_voice_command(voice_text, voice_wake_name)
+            if command is None:
+                continue
+            if not command:
+                print("Скажи команду после имени.")
+                continue
+            print(f"You(voice)> {command}")
+            user_input = command
         else:
             try:
                 user_input = input("You> ").strip()
