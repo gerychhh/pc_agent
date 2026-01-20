@@ -86,52 +86,51 @@ class Orchestrator:
         has_multiple = _contains_multiple_actions(user_text)
         if best_match and best_match.score >= 2 and not has_multiple:
             debug_event("ROUTER", "simple -> command")
+            action_desc = _format_command_action(best_match.command.get("id"), best_match.params)
             result = run_command(best_match.command, best_match.params)
             if _is_blocked_result(result):
                 return BLOCKED_MESSAGE
-            return self._report(user_text, state, [_summarize_command_result(result)])
+            return _format_action_output(action_desc, self._report(user_text, state, [_summarize_command_result(result)]))
 
         if best_match and best_match.score == 3 and "*" in best_match.intent:
             debug_event("ROUTER", "wildcard -> command")
+            action_desc = _format_command_action(best_match.command.get("id"), best_match.params)
             result = run_command(best_match.command, best_match.params)
             if _is_blocked_result(result):
                 return BLOCKED_MESSAGE
-            return self._report(user_text, state, [_summarize_command_result(result)])
+            return _format_action_output(action_desc, self._report(user_text, state, [_summarize_command_result(result)]))
 
         if has_multiple:
             subtasks = split_into_subtasks(user_text)
             if subtasks:
                 results: list[dict[str, Any]] = []
+                action_lines: list[str] = []
                 for subtask in subtasks:
                     sub_match, _ = match_command(subtask, self.commands)
                     if not sub_match or sub_match.score < 2:
                         results = []
                         break
                     debug_event("ROUTER", f"subtask -> command: {sub_match.command.get('id')}")
+                    action_lines.append(_format_command_action(sub_match.command.get("id"), sub_match.params))
                     sub_result = run_command(sub_match.command, sub_match.params)
                     if _is_blocked_result(sub_result):
                         return BLOCKED_MESSAGE
                     results.append(_summarize_command_result(sub_result))
                 if results:
-                    return self._report(user_text, state, results)
+                    return _format_action_output(" | ".join(action_lines), self._report(user_text, state, results))
 
         if not _is_action_like(user_text):
-            # Не действие. Раньше мы просто эхо-повторяли текст пользователя — это выглядело как баг.
-            debug_event("ROUTER", "not an action -> assistant")
-            lowered = user_text.strip().lower()
-            if any(token in lowered for token in ("не сделал", "не получилось", "не работает", "ошибка")):
-                return "Понял. Давай попробуем ещё раз — скажи точную команду, что сделать на компьютере."
-            if lowered in {"что", "чего", "а", "?", "ээ", "эм", "мм"}:
-                return "Скажи команду: открой/закрой приложение, напиши текст, найди видео на YouTube и т.д."
-            return "Ок. Скажи команду, что сделать на компьютере."
+            debug_event("ROUTER", "not an action -> chat")
+            return self._chat_response(user_text, state)
 
         debug_event("ROUTER", "fallback -> llm action")
-        llm_result = self._run_llm_action(user_text, state)
-        if llm_result is None:
+        llm_action = self._run_llm_action(user_text, state)
+        if llm_action is None:
             return "Не удалось подобрать команду."
+        llm_result, action_desc = llm_action
         if llm_result.get("blocked"):
             return BLOCKED_MESSAGE
-        return self._report(user_text, state, [llm_result])
+        return _format_action_output(action_desc, self._report(user_text, state, [llm_result]))
 
     def _handle_media_control(self, user_text: str, state: dict[str, Any]) -> str | None:
         lowered = user_text.lower()
@@ -153,10 +152,11 @@ class Orchestrator:
         command = next((cmd for cmd in self.commands if cmd.get("id") == command_id), None)
         if not command:
             return "Не нашёл команду для управления медиа."
+        action_desc = _format_command_action(command_id, params)
         result = run_command(command, params)
         if _is_blocked_result(result):
             return BLOCKED_MESSAGE
-        return self._report(user_text, state, [_summarize_command_result(result)])
+        return _format_action_output(action_desc, self._report(user_text, state, [_summarize_command_result(result)]))
 
     def _report(self, user_text: str, state: dict[str, Any], results: list[dict[str, Any]]) -> str:
         payload = ctx_reporter(state, results, user_text)
@@ -175,7 +175,7 @@ class Orchestrator:
                 return "Готово."
             return "Не удалось выполнить запрос."
 
-    def _run_llm_action(self, user_text: str, state: dict[str, Any]) -> dict[str, Any] | None:
+    def _run_llm_action(self, user_text: str, state: dict[str, Any]) -> tuple[dict[str, Any], str] | None:
         payload = ctx_action(state, self.command_index, user_text)
         debug_event("LLM_REQ", f"action model={FAST_MODEL} payload={truncate_text(payload, 400)}")
         try:
@@ -200,8 +200,9 @@ class Orchestrator:
             if not command:
                 return None
             params = action.get("params") or extract_params_best(command, user_text)
+            action_desc = _format_command_action(command_id, params)
             result = run_command(command, params)
-            return _summarize_command_result(result)
+            return _summarize_command_result(result), action_desc
 
         execute = action.get("execute") or {}
         if not execute:
@@ -212,7 +213,7 @@ class Orchestrator:
             return None
         errors = validate_python(script) if lang == "python" else validate_powershell(script)
         if errors:
-            return {"id": "LLM_SCRIPT", "ok": False, "stderr": "\n".join(errors), "blocked": True}
+            return {"id": "LLM_SCRIPT", "ok": False, "stderr": "\n".join(errors), "blocked": True}, _format_script_action(lang, script)
         result = run_python(script, TIMEOUT_SEC) if lang == "python" else run_powershell(script, TIMEOUT_SEC)
         verify = action.get("verify")
         ok = bool(result.get("ok"))
@@ -223,7 +224,7 @@ class Orchestrator:
                 verify_errors = validate_python(verify_script) if verify_lang == "python" else validate_powershell(verify_script)
                 if verify_errors:
                     ok = False
-                    return {"id": "LLM_SCRIPT", "ok": False, "stderr": "\n".join(verify_errors), "blocked": True}
+                    return {"id": "LLM_SCRIPT", "ok": False, "stderr": "\n".join(verify_errors), "blocked": True}, _format_script_action(lang, script)
                 verify_result = (
                     run_python(verify_script, TIMEOUT_SEC)
                     if verify_lang == "python"
@@ -231,7 +232,29 @@ class Orchestrator:
                 )
                 ok = ok and bool(verify_result.get("ok"))
         update_active_window_state()
-        return {"id": "LLM_SCRIPT", "ok": ok, "stdout": result.get("stdout"), "stderr": result.get("stderr")}
+        return {"id": "LLM_SCRIPT", "ok": ok, "stdout": result.get("stdout"), "stderr": result.get("stderr")}, _format_script_action(lang, script)
+
+    def _chat_response(self, user_text: str, state: dict[str, Any]) -> str:
+        payload = (
+            "[SYSTEM] Ты — ассистент для ПК. Отвечай кратко, без code blocks.\n"
+            "[ENV] Windows 10/11.\n"
+            f"[STATE] ACTIVE_FILE={state.get('active_file')} | ACTIVE_URL={state.get('active_url')} | "
+            f"ACTIVE_APP={state.get('active_app')}\n"
+            f"[TASK] {user_text}\n"
+            "[OUTPUT] 1-2 коротких предложения."
+        )
+        debug_event("LLM_REQ", f"chat model={FAST_MODEL} payload={truncate_text(payload, 400)}")
+        try:
+            response = self.client.chat(
+                [{"role": "user", "content": payload}],
+                tools=[],
+                model_name=FAST_MODEL,
+                tool_choice="none",
+            )
+            content = response.choices[0].message.content or ""
+            return sanitize_assistant_text(content)
+        except Exception:
+            return "Не удалось ответить."
 
 
 def _is_media_control(lowered: str) -> bool:
@@ -262,6 +285,27 @@ def _parse_seek_seconds(text: str) -> int | None:
     if "минут" in text or "минута" in text:
         return 60
     return None
+
+
+def _format_command_action(command_id: str | None, params: dict[str, str]) -> str:
+    if not command_id:
+        return "COMMAND: unknown"
+    if not params:
+        return f"COMMAND: {command_id}"
+    params_view = ", ".join(f"{key}={value}" for key, value in params.items())
+    return f"COMMAND: {command_id} ({params_view})"
+
+
+def _format_script_action(lang: str | None, script: str | None) -> str:
+    language = lang or "script"
+    snippet = (script or "").strip().replace("\n", " ")
+    if len(snippet) > 120:
+        snippet = snippet[:120] + "..."
+    return f"SCRIPT[{language}]: {snippet}"
+
+
+def _format_action_output(action: str, response: str) -> str:
+    return f"{action}\n{response}".strip()
 
 
 def _summarize_command_result(result: CommandResult) -> dict[str, Any]:
