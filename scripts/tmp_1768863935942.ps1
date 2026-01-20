@@ -1,1 +1,0 @@
-Get-ChildItem -Path ([Environment]::GetFolderPath('Desktop')) | Select-Object Name, FullName, LastWriteTime | Format-Table -AutoSize

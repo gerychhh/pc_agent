@@ -1,1 +1,0 @@
-Get-ChildItem -Path "C:\Users\YourUsername\Desktop" | Where-Object { $_.Extension -eq ".jpg" } | ForEach-Object { Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $_.FullName" }

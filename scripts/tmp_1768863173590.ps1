@@ -1,1 +1,0 @@
-New-Item -ItemType Directory -Path "$env:USERPROFILE\Desktop\germify"

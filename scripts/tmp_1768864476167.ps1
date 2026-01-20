@@ -1,2 +1,0 @@
-$desktop = [Environment]::GetFolderPath('Desktop')
-from docx import Document; doc = Document(); doc.add_paragraph("Я документ Word, созданный на рабочем столе. Я здесь для того, чтобы помочь вам с информацией о себе и других важных вещах. Если у вас есть вопросы или нужна помощь, пожалуйста, не стесняйтесь спрашивать!").save("$desktop\о_себе.docx")

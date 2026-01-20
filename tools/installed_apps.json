@@ -1,0 +1,4090 @@
+[
+  {
+    "name": "Visual Studio Community 2022",
+    "exe_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe",
+    "version": "17.14.13 (August 2025)",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community"
+  },
+  {
+    "name": "FL Cloud Plugins version 1.9.6",
+    "exe_path": null,
+    "version": "1.9.6",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\FL Cloud Plugins\\"
+  },
+  {
+    "name": "FL Studio 2025",
+    "exe_path": "C:\\Program Files\\Image-Line\\FL Studio 2025\\FL64.exe",
+    "version": "25.1.6.4997",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "FL Studio ASIO",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Google Chrome",
+    "exe_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "version": "143.0.7499.194",
+    "is_running": true,
+    "install_location": "C:\\Program Files\\Google\\Chrome\\Application"
+  },
+  {
+    "name": "Microsoft Edge",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\144.0.3719.82\\msedge.exe",
+    "version": "144.0.3719.82",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application"
+  },
+  {
+    "name": "Среда выполнения Microsoft Edge WebView2 Runtime",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\143.0.3650.139\\msedgewebview2.exe",
+    "version": "143.0.3650.139",
+    "is_running": true,
+    "install_location": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application"
+  },
+  {
+    "name": "Microsoft Help Viewer 2.2",
+    "exe_path": null,
+    "version": "2.2.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft SQL Server 2017",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Mortal Kombat XL",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Mortal Kombat XL\\"
+  },
+  {
+    "name": "OBS Studio",
+    "exe_path": "C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe",
+    "version": "32.0.4",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Adobe Photoshop 2025",
+    "exe_path": "C:\\Program Files\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe",
+    "version": "26.8.1.8",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Adobe\\Adobe Photoshop 2025"
+  },
+  {
+    "name": "PyCharm 2024.2.2",
+    "exe_path": "C:\\Program Files\\JetBrains\\PyCharm 2024.2.2\\bin\\pycharm64.exe",
+    "version": "242.22855.92",
+    "is_running": true,
+    "install_location": "C:\\Program Files\\JetBrains\\PyCharm 2024.2.2"
+  },
+  {
+    "name": "qBittorrent",
+    "exe_path": "C:\\Program Files\\qBittorrent\\qbittorrent.exe",
+    "version": "5.1.2",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Adobe Substance 3D Painter",
+    "exe_path": "C:\\Program Files\\Adobe\\Adobe Substance 3D Painter\\Adobe Substance 3D Painter.exe",
+    "version": "9.1.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Adobe\\Adobe Substance 3D Painter"
+  },
+  {
+    "name": "Spotify 1.2.47.366",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\Spotify\\unins000.exe",
+    "version": "1.2.47.366",
+    "is_running": false,
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\Spotify\\"
+  },
+  {
+    "name": "Steam",
+    "exe_path": "C:\\Program Files (x86)\\Steam\\uninstall.exe",
+    "version": "2.10.91.91",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Victoria 3",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Victoria 3\\"
+  },
+  {
+    "name": "WinRT Intellisense PPI - Other Languages",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Headers x86",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 Shell (Minimum)",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015 Language Support - ENU Language Pack",
+    "exe_path": null,
+    "version": "14.0.23107.20",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WinRT Intellisense PPI - en-us",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Tcl/Tk Support (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps Metadata",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Universal CRT Redistributable",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Libs arm64",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 Redistributable (x64) - 12.0.30501",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{050d4fc8-5d48-4b8f-8972-47c82c46020f}\\vcredist_x64.exe",
+    "version": "12.0.30501.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "WinRT Intellisense Desktop - Other Languages",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK AddOn",
+    "exe_path": null,
+    "version": "10.1.0.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WinRT Intellisense Desktop - en-us",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Tools x86",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Tools arm64",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2015-2022 Redistributable (x86) - 14.44.35211",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{0b5169e3-39da-4313-808e-1f9c0407f3bf}\\VC_redist.x86.exe",
+    "version": "14.44.35211.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "WinRT Intellisense Mobile - en-us",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps Contracts",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 XAML Designer",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MySQL Connector/ODBC 8.0 (32-bit)",
+    "exe_path": null,
+    "version": "8.0.43",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\MySQL\\Connector ODBC 8.0\\"
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015 x86 Hosting Support",
+    "exe_path": null,
+    "version": "14.0.23829",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Universal CRT Extension SDK",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows IoT Extension SDK",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Host FX Resolver - 9.0.8 (x86)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK EULA",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": " Tools for .Net 3.5",
+    "exe_path": null,
+    "version": "3.11.50727",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Desktop Extension SDK",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.7.2 Targeting Pack",
+    "exe_path": null,
+    "version": "4.7.03062",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Mobile Extension SDK",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WinRT Intellisense UAP - en-us",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_CoreEditorFonts",
+    "exe_path": null,
+    "version": "17.7.40001",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ASP.NET Core 9.0.8 Targeting Pack (x86)",
+    "exe_path": null,
+    "version": "9.0.8.25368",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.5.1 SDK",
+    "exe_path": null,
+    "version": "4.5.51641",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_clickoncebootstrappermsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_tipsmsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Libs x86",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Epic Online Services",
+    "exe_path": null,
+    "version": "3.0.4",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Headers x64",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_filehandler_amd64",
+    "exe_path": null,
+    "version": "17.14.36024",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft SQL Server 2017 Policies ",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft SQL Server 2014 Management Objects ",
+    "exe_path": null,
+    "version": "12.0.2000.8",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Headers arm64",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Managed Apps Libs",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.5.2 Multi-Targeting Pack (ENU)",
+    "exe_path": null,
+    "version": "4.5.51209",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_githubprotocolhandlermsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Tools x64",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Signing Tools",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_vswebprotocolselectormsires",
+    "exe_path": null,
+    "version": "17.14.36323",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Software Development Kit - Windows 10.0.26100.4654",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{2c1d2274-0b9c-437b-8937-60ed881f6678}\\winsdksetup.exe",
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "SDK ARM64 Redistributables",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Update for Microsoft Visual Studio 2015 (KB3095681)",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{2e13383e-8f68-4bb5-959e-9fddd8cb8789}\\VS14-KB3095681.exe",
+    "version": "14.0.23317",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Пакет нацеливания Microsoft .NET Framework 4.8 (Русский)",
+    "exe_path": null,
+    "version": "4.8.03761",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows App Certification Kit x64",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ASP.NET Core 8.0.19 Targeting Pack (x86)",
+    "exe_path": null,
+    "version": "8.0.19.25372",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK ARM Desktop Tools",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2012 Redistributable (x86) - 11.0.61030",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{33d1fd90-4274-48a1-9bc1-97e33d9c2d6f}\\vcredist_x86.exe",
+    "version": "11.0.61030.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Windows SDK OnecoreUap Headers x86",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps Libs",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Runtime - 8.0.19 (x86)",
+    "exe_path": null,
+    "version": "64.76.37602",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "icecap_collectionresourcesx64",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Runtime - 9.0.8 (x86)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Facade Windows WinMD Versioned",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Desktop Extension SDK Contracts",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MSI Development Tools",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 Shell (Minimum) Interop Assemblies",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 Shell (Isolated) Resources",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Team Extension SDK Contracts",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Setup WMI Provider",
+    "exe_path": null,
+    "version": "3.12.2140.44225",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "cloudflared",
+    "exe_path": null,
+    "version": "2025.11.1",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Core Interpreter (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WinRT Intellisense IoT - en-us",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_clickoncesigntoolmsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vcpp_crt.redist.clickonce",
+    "exe_path": null,
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WinAppDeploy",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_minshellinteropsharedmsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Libs x64",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MySQL Installer",
+    "exe_path": null,
+    "version": "1.6.15.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Targeting Pack - 8.0.19 (x86)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.7.1 Targeting Pack",
+    "exe_path": null,
+    "version": "4.7.02558",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.5 Multi-Targeting Pack",
+    "exe_path": null,
+    "version": "4.5.50710",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Redistributables",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Roslyn Language Services - x86",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows IoT Extension SDK Contracts",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_minshellmsires",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Software Development Kit - Windows 10.0.19041.5609",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{5f4dc51d-f151-4325-8ba1-8b26169529a9}\\winsdksetup.exe",
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Launcher Prerequisites (x64)",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{60e762c3-a30e-4a24-ac32-35fc9aa84805}\\LauncherPrereqSetup_x64.exe",
+    "version": "1.0.0.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Windows SDK Modern Versioned Developer Tools",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Management Studio Extensions",
+    "exe_path": null,
+    "version": "14.0.3026.27",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ASP.NET Core 9.0.8 Shared Framework (x86)",
+    "exe_path": null,
+    "version": "9.0.8.25368",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK DirectX x86 Remote",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Targeting Pack - 8.0.19 (x86)",
+    "exe_path": null,
+    "version": "64.76.37602",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.5.1 Multi-Targeting Pack",
+    "exe_path": null,
+    "version": "4.5.50932",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK OnecoreUap Headers arm64",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Standard Library (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_filehandler_x86",
+    "exe_path": null,
+    "version": "17.14.36024",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Common Files",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 Shell (Isolated)",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{d2981c27-a434-4c9a-96c7-0209e97c4eac}\\vs_isoshell.exe",
+    "version": "14.0.23107.10",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Universal CRT Headers Libraries and Sources",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2005 Redistributable",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "8.0.61187",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_communitysharedmsi",
+    "exe_path": null,
+    "version": "17.14.36025",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WPTx64 (OnecoreUAP)",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft System CLR Types for SQL Server 2014",
+    "exe_path": null,
+    "version": "12.0.2402.11",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK ARM64 Desktop Tools",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps DirectX x86 Remote",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WinRT Intellisense IoT - Other Languages",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Test Suite (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 Shell (Minimum) Resources",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft SQL Server Data-Tier Application Framework (x86)",
+    "exe_path": null,
+    "version": "14.0.4127.1",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 x86 Minimum Runtime - 12.0.40664",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "12.0.40664",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Runtime - 8.0.19 (x86)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015 Language Support",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{bd4ef7af-dfb1-472e-8fa4-1b97f360a3e7}\\vsta_ls.exe",
+    "version": "14.0.23107.20",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Kits Configuration Installer",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps Headers OnecoreUap",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Documentation (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 pip Bootstrap (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_communitymsires",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Modern Non-Versioned Developer Tools",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK Desktop Headers arm",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Universal General MIDI DLS Extension SDK",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python Launcher",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft SQL Server Management Studio - 17.9.1",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{91a1b895-c621-4038-b34a-01e7affbcb6b}\\SSMS-Setup-ENU.exe",
+    "version": "14.0.17289.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Microsoft Visual C++ 2022 X86 Minimum Runtime - 14.44.35211",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Development Libraries (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Services Hub",
+    "exe_path": null,
+    "version": "1.0.23107.00",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows App Certification Kit x64 (OnecoreUAP)",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.8 SDK",
+    "exe_path": null,
+    "version": "4.8.03928",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps Headers",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2008 Redistributable - x86 9.0.30729.7523",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "9.0.30729.7523",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WPT Redistributables",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Executables (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_clickoncebootstrappermsires",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.6.2 Targeting Pack",
+    "exe_path": null,
+    "version": "4.6.01590",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Host - 9.0.8 (x86)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Runtime - 9.0.8 (x86)",
+    "exe_path": null,
+    "version": "72.32.37601",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps Tools",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "WPTx64 (DesktopEditions)",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Team Extension SDK",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Build Tools Language Resources 14.0 (x86)",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Целевой пакет Microsoft .NET Framework 4.6.2 (Русский)",
+    "exe_path": null,
+    "version": "4.6.01590",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows App Certification Kit SupportedApiList x86",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{ab213ab7-4792-4c6f-a3fa-8485d06c3475}\\vsta_setup.exe",
+    "version": "14.0.23829",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Adobe Refresh Manager",
+    "exe_path": null,
+    "version": "1.8.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Common Files\\Adobe\\ARM\\1.0\\"
+  },
+  {
+    "name": "Windows Mobile Extension SDK Contracts",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2012 x86 Additional Runtime - 11.0.61135",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "11.0.61135",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_devenvsharedmsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_vswebprotocolselectormsi",
+    "exe_path": null,
+    "version": "17.14.36323",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Utility Scripts (32-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Software Development Kit - Windows 10.0.22621.5040",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{b72d4013-dd88-405a-9f9d-e88c278dcefe}\\winsdksetup.exe",
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Epic Games Launcher",
+    "exe_path": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Binaries\\Win32\\EpicGamesLauncher.exe",
+    "version": "1.3.151.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Epic Games\\"
+  },
+  {
+    "name": "WinRT Intellisense UAP - Other Languages",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.5.2 Multi-Targeting Pack",
+    "exe_path": null,
+    "version": "4.5.51209",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.7.1 Doc Redirected Targeting Pack (ENU) (русский)",
+    "exe_path": null,
+    "version": "4.7.02558",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.8 Targeting Pack",
+    "exe_path": null,
+    "version": "4.8.03761",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2022 X86 Debug Runtime - 14.44.35211",
+    "exe_path": null,
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "icecap_collection_neutral",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2012 x86 Minimum Runtime - 11.0.61135",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "11.0.61135",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "ClickOnce Bootstrapper Package for Microsoft .NET Framework",
+    "exe_path": null,
+    "version": "4.8.09256",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "icecap_collectionresources",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015 Language Support Finalizer",
+    "exe_path": null,
+    "version": "14.0.23107.20",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2022 X86 Additional Runtime - 14.44.35211",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Basic/C++ Runtime (x86)",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "1.1.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "IntelliTraceProfilerProxy",
+    "exe_path": null,
+    "version": "15.0.21225.01",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2012 Redistributable (x64) - 11.0.61030",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{ca67548a-5ebe-413a-b50c-4b9ceb6d66c6}\\vcredist_x64.exe",
+    "version": "11.0.61030.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Microsoft .NET Targeting Pack - 9.0.8 (x86)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "KBW-G660, версия 1.0.0.3",
+    "exe_path": null,
+    "version": "1.0.0.3",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\KBW-G660\\"
+  },
+  {
+    "name": "Windows SDK Desktop Libs arm",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4 Multi-Targeting Pack",
+    "exe_path": null,
+    "version": "4.0.30319",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Update for  (KB2504637)",
+    "exe_path": null,
+    "version": "1",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Microsoft Visual Studio Setup Configuration",
+    "exe_path": null,
+    "version": "3.12.2140.44225",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Build Tools 14.0 (x86)",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_SQLClickOnceBootstrappermsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_FileTracker_Singleton",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Framework 4.5.1 Multi-Targeting Pack (ENU)",
+    "exe_path": null,
+    "version": "4.5.50932",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 x86 Additional Runtime - 12.0.40664",
+    "exe_path": "C:\\WINDOWS\\SysWOW64\\msiexec.exe",
+    "version": "12.0.40664",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_Graphics_Singletonx86",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64) - 14.44.35211",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{d8bbe9f9-7c5b-42c6-b715-9ee898a2e515}\\VC_redist.x64.exe",
+    "version": "14.44.35211.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Microsoft ASP.NET Core 8.0.19 Shared Framework (x86)",
+    "exe_path": null,
+    "version": "8.0.19.25372",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2015 XAML Designer - ENU",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 x86 Debug Runtime - 12.0.21005",
+    "exe_path": null,
+    "version": "12.0.21005",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Universal CRT Tools x86",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK OnecoreUap Headers x64",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SDK ARM64 Additions",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2010  x86 Redistributable - 10.0.40219",
+    "exe_path": null,
+    "version": "10.0.40219",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Пакет SDK для Microsoft .NET Framework 4.8 (Русский)",
+    "exe_path": null,
+    "version": "4.8.03761",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Analysis Services OLE DB Provider",
+    "exe_path": null,
+    "version": "15.0.800.90",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Redragon M916-PRO-4K version 1.0.0.4",
+    "exe_path": null,
+    "version": "1.0.0.4",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Redragon M916-PRO-4K\\"
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 Redistributable (x86) - 12.0.30501",
+    "exe_path": "C:\\ProgramData\\Package Cache\\{f65db027-aff3-4070-886a-0d87064aabb1}\\vcredist_x86.exe",
+    "version": "12.0.30501.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Пакет нацеливания Microsoft .NET Framework 4.7.2 (Русский)",
+    "exe_path": null,
+    "version": "4.7.03062",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_minshellsharedmsi",
+    "exe_path": null,
+    "version": "17.14.36024",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Накопительный пакет обновления Microsoft .NET Framework Intellisense для Visual Studio (Русский)",
+    "exe_path": null,
+    "version": "4.8.09037",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015 Finalizer",
+    "exe_path": null,
+    "version": "14.0.23829",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Targeting Pack - 9.0.8 (x86)",
+    "exe_path": null,
+    "version": "72.32.37601",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK for Windows Store Apps",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MCHOSE HUB",
+    "exe_path": "C:\\Program Files\\MCHOSE HUB\\MCHOSE HUB.exe",
+    "version": "1.0.0",
+    "is_running": true,
+    "install_location": null
+  },
+  {
+    "name": "4ebur.net 3.0.7",
+    "exe_path": "C:\\Program Files\\4ebur.net\\4ebur.net.exe",
+    "version": "3.0.7",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Audacity 3.7.7",
+    "exe_path": "C:\\Program Files\\Audacity\\audacity.exe",
+    "version": "3.7.7",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Audacity\\"
+  },
+  {
+    "name": "BlueStacks",
+    "exe_path": null,
+    "version": "5.22.160.1025",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "LM Studio 0.3.33",
+    "exe_path": "C:\\Program Files\\LM Studio\\LM Studio.exe",
+    "version": "0.3.33",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Chaos Cosmos Browser",
+    "exe_path": "C:\\Program Files\\Chaos Group\\Chaos Cosmos/uninstall/installer.exe",
+    "version": "2024.2.21",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Chaos License Server",
+    "exe_path": "C:\\Program Files\\Chaos\\VRLService/uninstall/installer.exe",
+    "version": "6.0.1",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Chaos Scatter for 3ds Max 2024",
+    "exe_path": "C:\\Program Files\\Chaos Group\\Scatter\\3ds Max 2024/uninstall/installer.exe",
+    "version": "4.0.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Chaos Unified Login",
+    "exe_path": "C:\\Program Files\\Chaos\\UnifiedLogin/uninstall/installer.exe",
+    "version": "2023.1.18",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Chaos Corona for 3ds Max",
+    "exe_path": "C:\\Program Files\\Corona\\Corona Renderer for 3ds Max\\Uninstaller\\RemoveCoronaForMax.exe",
+    "version": "11 (Hotfix 2)",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Corona\\Corona Renderer for 3ds Max\\Uninstaller"
+  },
+  {
+    "name": "Docker Desktop",
+    "exe_path": "C:\\Program Files\\Docker\\Docker\\Docker Desktop Installer.exe",
+    "version": "4.55.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Docker\\Docker"
+  },
+  {
+    "name": "Git",
+    "exe_path": null,
+    "version": "2.51.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Git\\"
+  },
+  {
+    "name": "Microsoft Office профессиональный плюс 2019 - ru-ru",
+    "exe_path": "C:\\Program Files\\Common Files\\Microsoft Shared\\ClickToRun\\OfficeClickToRun.exe",
+    "version": "16.0.12527.22253",
+    "is_running": true,
+    "install_location": "C:\\Program Files\\Microsoft Office"
+  },
+  {
+    "name": "Tiny Bunny",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\TinyBunny"
+  },
+  {
+    "name": "Euro Truck Simulator 2",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2"
+  },
+  {
+    "name": "No, I'm not a Human",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\No, I'm not a Human"
+  },
+  {
+    "name": "R.E.P.O.",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REPO"
+  },
+  {
+    "name": "Blender",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Blender"
+  },
+  {
+    "name": "Hearts of Iron IV",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Wallpaper Engine",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine"
+  },
+  {
+    "name": "Dota 2",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\dota 2 beta"
+  },
+  {
+    "name": "PUBG: BATTLEGROUNDS",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\PUBG"
+  },
+  {
+    "name": "Portal 2",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Portal 2"
+  },
+  {
+    "name": "Soundpad",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Soundpad"
+  },
+  {
+    "name": "Counter-Strike 2",
+    "exe_path": null,
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive"
+  },
+  {
+    "name": "Sublime Text 3",
+    "exe_path": "C:\\Program Files\\Sublime Text 3\\sublime_text.exe",
+    "version": "N/A",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Sublime Text 3\\"
+  },
+  {
+    "name": "Unity 6000.2.5f1",
+    "exe_path": "C:\\Program Files\\Unity\\Hub\\Editor\\6000.2.5f1\\Editor\\Unity.exe",
+    "version": "6000.2.5f1",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Unity Hub 3.14.2",
+    "exe_path": "C:\\Program Files\\Unity Hub\\Unity Hub.exe",
+    "version": "3.14.2",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "WinRAR 5.70 (64-bit)",
+    "exe_path": "C:\\Program Files\\WinRAR\\WinRAR.exe",
+    "version": "5.70.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\WinRAR\\"
+  },
+  {
+    "name": "Microsoft ASP.NET Core 9.0.8 Shared Framework (x64)",
+    "exe_path": null,
+    "version": "9.0.8.25368",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Mono.Toolchain.Current.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.0.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Client Tools Extensions",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Emscripten.Current.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.48.37361",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.12.0 Test Suite (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft System CLR Types для SQL Server 2019",
+    "exe_path": null,
+    "version": "15.0.2000.5",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 pip Bootstrap (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Shared Management Objects",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.12.0 Standard Library (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET AppHost Pack - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ASP.NET Core 9.0.8 Targeting Pack (x64)",
+    "exe_path": null,
+    "version": "9.0.8.25368",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Emscripten.net8.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.48.37361",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server Management Studio for Reporting Services",
+    "exe_path": null,
+    "version": "14.0.17289.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2010  x64 Redistributable - 10.0.40219",
+    "exe_path": null,
+    "version": "10.0.40219",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Core Interpreter (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MySQL Connector/ODBC 9.5 (64-bit)",
+    "exe_path": null,
+    "version": "9.5.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\"
+  },
+  {
+    "name": "Python 3.12.0 Development Libraries (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Add to Path (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Documentation (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ASP.NET Core 8.0.19 Shared Framework (x64)",
+    "exe_path": null,
+    "version": "8.0.19.25372",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.12.0 pip Bootstrap (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET AppHost Pack - 9.0.8 (x64_x86)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows App Certification Kit Native Components",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 pip Bootstrap (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Targeting Pack - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Batch Parser",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET AppHost Pack - 8.0.19 (x64_arm64)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Sdk.Aspire.Manifest-8.0.100 (x64)",
+    "exe_path": null,
+    "version": "64.136.23253",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Emscripten.net7.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.48.37361",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET AppHost Pack - 8.0.19 (x64)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Utility Scripts (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Documentation (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2012 x64 Additional Runtime - 11.0.61135",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "11.0.61135",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_communityx64msi",
+    "exe_path": null,
+    "version": "17.14.36025",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Autodesk Interoperability Engine Manager",
+    "exe_path": null,
+    "version": "1.1.0.28",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Common Files\\Autodesk Shared\\Interoperability Engine Manager\\"
+  },
+  {
+    "name": "Microsoft .NET Host FX Resolver - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Standard Library (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2022 X64 Minimum Runtime - 14.44.35211",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Tcl/Tk Support (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Host - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Build Tools Language Resources 14.0 (amd64)",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Autodesk Network License Manager",
+    "exe_path": null,
+    "version": "11.18.0.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MySQL Workbench 8.0 CE",
+    "exe_path": "C:\\Program Files\\MySQL\\MySQL Workbench 8.0\\MySQLWorkbench.exe",
+    "version": "8.0.43",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\MySQL\\MySQL Workbench 8.0"
+  },
+  {
+    "name": "Microsoft SQL Server 2012 Native Client ",
+    "exe_path": null,
+    "version": "11.3.6540.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Active Directory Authentication Library for SQL Server",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET 9.0 Templates 9.0.304 (x64)",
+    "exe_path": null,
+    "version": "36.11.46995",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_minshellx64msi",
+    "exe_path": null,
+    "version": "17.14.36301",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Targeting Pack - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37601",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MySQL Server 8.0",
+    "exe_path": null,
+    "version": "8.0.43",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\"
+  },
+  {
+    "name": "Python 3.12.0 Executables (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Utility Scripts (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_devenx64vmsi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "vs_Graphics_Singletonx64",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.12.0 Documentation (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2008 Redistributable - x64 9.0.30729.7523",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "9.0.30729.7523",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio 2010 Tools for Office Runtime (x64)",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "10.0.60922",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.12.0 Core Interpreter (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Test Suite (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Test Suite (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Integration Services Scale Out Management Portal",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Sdk.Android.Manifest-9.0.100 (x64)",
+    "exe_path": null,
+    "version": "35.0.78",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "icecap_collection_x64",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Control Center Service",
+    "exe_path": null,
+    "version": "5.52.49.6",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\OEM\\Control Center\\"
+  },
+  {
+    "name": "Python 3.12.0 Tcl/Tk Support (64-bit)",
+    "exe_path": null,
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Installer",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe",
+    "version": "4.0.2168.39045",
+    "is_running": false,
+    "install_location": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\""
+  },
+  {
+    "name": "Python 3.11.0 Tcl/Tk Support (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Development Libraries (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Targeting Pack - 8.0.19 (x64)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ODBC Driver 13 for SQL Server",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Mono.Toolchain.net6.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.0.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET SDK 9.0.304 (x64) from Visual Studio",
+    "exe_path": null,
+    "version": "9.3.425.36819",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Mono.Toolchain.net8.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.0.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Autodesk 3ds Max 2024",
+    "exe_path": "C:\\Program Files\\Autodesk\\AdODIS\\V1\\Installer.exe",
+    "version": "26.0.0.940",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Autodesk"
+  },
+  {
+    "name": "Microsoft.NET.Sdk.tvOS.Manifest-9.0.100 (x64)",
+    "exe_path": null,
+    "version": "18.5.9214",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Visual Studio 2015 Prerequisites - ENU Language Pack",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2022 X64 Additional Runtime - 14.44.35211",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows Subsystem for Linux",
+    "exe_path": null,
+    "version": "2.6.1.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft ASP.NET Core 8.0.19 Targeting Pack (x64)",
+    "exe_path": null,
+    "version": "8.0.19.25372",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Connection Info",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Runtime - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37601",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 Shared Management Objects Extensions",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Build Tools 14.0 (amd64)",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Office 16 Click-to-Run Licensing Component",
+    "exe_path": null,
+    "version": "16.0.12527.22253",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Office 16 Click-to-Run Extensibility Component",
+    "exe_path": null,
+    "version": "16.0.12527.22253",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Office 16 Click-to-Run Localization Component",
+    "exe_path": null,
+    "version": "16.0.12527.22253",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Test Suite (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 x64 Additional Runtime - 12.0.21005",
+    "exe_path": null,
+    "version": "12.0.21005",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Core Interpreter (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "MAXtoA for 3ds Max 2024",
+    "exe_path": null,
+    "version": "5.6.0.100",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "ViGEm Bus Driver",
+    "exe_path": null,
+    "version": "1.22.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Nefarius Software Solutions\\ViGEm Bus Driver\\"
+  },
+  {
+    "name": "Python 3.13.7 Development Libraries (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Toolset 9.0.304 (x64)",
+    "exe_path": null,
+    "version": "36.9.46995",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET AppHost Pack - 9.0.8 (x64_arm64)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft System CLR Types for SQL Server 2017",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Adobe Substance 3D for 3ds Max 2024",
+    "exe_path": null,
+    "version": "2.4.10",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Standard Library (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Tcl/Tk Support (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Runtime - 8.0.19 (x64)",
+    "exe_path": null,
+    "version": "64.76.37602",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Standard Targeting Pack - 2.1.0 (x64)",
+    "exe_path": null,
+    "version": "24.0.28113",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 x64 Minimum Runtime - 12.0.21005",
+    "exe_path": null,
+    "version": "12.0.21005",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Sdk.Maui.Manifest-9.0.100 (x64)",
+    "exe_path": null,
+    "version": "9.0.82",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Application Verifier x64 External Package (DesktopEditions)",
+    "exe_path": null,
+    "version": "10.1.22621.5040",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual Studio Tools for Applications 2015 x64 Hosting Support",
+    "exe_path": null,
+    "version": "14.0.23829",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Development Libraries (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Executables (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Java(TM) SE Development Kit 22.0.2 (64-bit)",
+    "exe_path": null,
+    "version": "22.0.2.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Java\\jdk-22\\"
+  },
+  {
+    "name": "Adobe Acrobat (64-bit)",
+    "exe_path": null,
+    "version": "25.001.20997",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Adobe\\Acrobat DC\\"
+  },
+  {
+    "name": "Microsoft Visual C++ 2005 Redistributable (x64)",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "8.0.61186",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Tcl/Tk Support (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SSMS Post Install Tasks",
+    "exe_path": null,
+    "version": "14.0.17289.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Core Interpreter (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft SQL Server 2017 T-SQL Language Service ",
+    "exe_path": null,
+    "version": "14.0.17289.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Executables (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "NVIDIA Графический драйвер 591.74",
+    "exe_path": null,
+    "version": "591.74",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\Display.Driver.{56EC4D33-3727-4EB0-B9D5-21243A1048A4}"
+  },
+  {
+    "name": "NVIDIA App 11.0.6.379",
+    "exe_path": null,
+    "version": "11.0.6.379",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\Display.NvApp.{84A03A8A-135A-470B-B25A-E453C15E90A6}"
+  },
+  {
+    "name": "NVIDIA MessageBus 3 for NvApp",
+    "exe_path": null,
+    "version": "3.20",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\Display.NvApp.MessageBus.{B1536B95-587D-4967-AD8E-DD30B1325338}"
+  },
+  {
+    "name": "NVIDIA Backend",
+    "exe_path": null,
+    "version": "11.0.6.379",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\Display.NvApp.NvBackend.{EE264756-0D91-46ED-8199-A1CA4FBF94FA}"
+  },
+  {
+    "name": "NvCpl",
+    "exe_path": null,
+    "version": "1.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\Display.NvApp.NvCPL.{C0352479-CA96-49F4-8FA7-1B38B47DB8D3}"
+  },
+  {
+    "name": "NVIDIA Системное программное обеспечение PhysX 9.23.1019",
+    "exe_path": null,
+    "version": "9.23.1019",
+    "is_running": false,
+    "install_location": "C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX"
+  },
+  {
+    "name": "NVIDIA FrameView SDK 1.5.11821.36727370",
+    "exe_path": null,
+    "version": "1.5.11821.36727370",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\FrameViewSDK"
+  },
+  {
+    "name": "NVIDIA Аудиодрайвер HD 1.4.5.7",
+    "exe_path": null,
+    "version": "1.4.5.7",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\HDAudio.Driver.{CA053E78-C42D-4F54-9DC7-5E22CF36459B}"
+  },
+  {
+    "name": "NVIDIA Install Application",
+    "exe_path": null,
+    "version": "2.1002.438.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\InstallerCore"
+  },
+  {
+    "name": "NVIDIA Container",
+    "exe_path": null,
+    "version": "1.48",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\NvContainer"
+  },
+  {
+    "name": "NVIDIA AIUser Container",
+    "exe_path": null,
+    "version": "1.48",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NvContainer.AIUser.{38DE4616-4C3B-4BE7-B671-02A4981EAB44}"
+  },
+  {
+    "name": "NVIDIA LocalSystem Container",
+    "exe_path": null,
+    "version": "1.48",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NvContainer.LocalSystem.{C7C5C568-5819-40E7-BBA9-918A52C90621}"
+  },
+  {
+    "name": "NVIDIA Session Container",
+    "exe_path": null,
+    "version": "1.48",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NvContainer.Session.{18A60B56-0B50-41F6-9F53-0294B9FC9579}"
+  },
+  {
+    "name": "NVIDIA User Container",
+    "exe_path": null,
+    "version": "1.48",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NvContainer.User.{598E6DF4-9A88-4676-A458-A9C90FA0EBAB}"
+  },
+  {
+    "name": "NVIDIA NvDLISR",
+    "exe_path": null,
+    "version": "1.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NvDLISR.{5CF30CAC-6C31-4A9D-B7BA-123541AE7108}"
+  },
+  {
+    "name": "NVIDIA Platform Controllers and Framework",
+    "exe_path": null,
+    "version": "590.71",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NVPCF.{27B2CB45-9D8C-4BBE-B669-219A617C41F6}"
+  },
+  {
+    "name": "NVIDIA Watchdog Plugin for NvContainer",
+    "exe_path": null,
+    "version": "1.48",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\NvPlugin.Watchdog.{0BC40B65-CEEA-424E-8491-A9DA0EFA0A29}"
+  },
+  {
+    "name": "NVIDIA Telemetry Client",
+    "exe_path": null,
+    "version": "19.5.6.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\NvTelemetry"
+  },
+  {
+    "name": "NVIDIA ShadowPlay 11.0.6.0",
+    "exe_path": null,
+    "version": "11.0.6.0",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\ShadowPlay"
+  },
+  {
+    "name": "NVIDIA Virtual Audio 4.65.0.12",
+    "exe_path": null,
+    "version": "4.65.0.12",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\Installer2\\VirtualAudio.Driver.{4BAC5BEA-AEE8-4726-9986-FAAC94D546FB}"
+  },
+  {
+    "name": "vs_minshellinteropx64msi",
+    "exe_path": null,
+    "version": "17.14.36015",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 DMF",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Runtime - 8.0.19 (x64)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Standard Library (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Paradox Launcher v2",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Paradox Interactive\\launcher\\bootstrapper-v2.exe",
+    "version": "2.4.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Utility Scripts (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Sdk.macOS.Manifest-9.0.100 (x64)",
+    "exe_path": null,
+    "version": "15.5.9214",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Core Interpreter (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Autodesk 3ds Max 2024 CivilView 1.2.0.0",
+    "exe_path": null,
+    "version": "1.2.0.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Application Verifier x64 External Package (OnecoreUAP)",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2013 x64 Debug Runtime - 12.0.21005",
+    "exe_path": null,
+    "version": "12.0.21005",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Retopology Tools for 3ds Max 2024",
+    "exe_path": null,
+    "version": "1.3.0.935",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\Autodesk\\"
+  },
+  {
+    "name": "SQL Server Management Studio for Analysis Services",
+    "exe_path": null,
+    "version": "14.0.17289.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "DiagnosticsHub_CollectionService",
+    "exe_path": null,
+    "version": "17.14.36412",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Autodesk Advanced Modeling Tools for 3ds Max 2024 1.2.0.1",
+    "exe_path": null,
+    "version": "1.2.0.1",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Standard Library (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 pip Bootstrap (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Sdk.MacCatalyst.Manifest-9.0.100 (x64)",
+    "exe_path": null,
+    "version": "18.5.9214",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2012 x64 Minimum Runtime - 11.0.61135",
+    "exe_path": "C:\\WINDOWS\\system32\\msiexec.exe",
+    "version": "11.0.61135",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Documentation (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Windows SDK DirectX x64 Remote",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Documentation (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.11.0 Test Suite (64-bit)",
+    "exe_path": null,
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Application Verifier x64 External Package",
+    "exe_path": null,
+    "version": "10.1.19041.5609",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 pip Bootstrap (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.10.0 Executables (64-bit)",
+    "exe_path": null,
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Visual Studio 2015 Prerequisites",
+    "exe_path": null,
+    "version": "14.0.23107",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Universal CRT Tools x64",
+    "exe_path": null,
+    "version": "10.1.26100.4654",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server 2017 SQL Diagnostics",
+    "exe_path": null,
+    "version": "14.0.1000.169",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Sdk.iOS.Manifest-9.0.100 (x64)",
+    "exe_path": null,
+    "version": "18.5.9214",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.13.7 Executables (64-bit)",
+    "exe_path": null,
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET AppHost Pack - 8.0.19 (x64_x86)",
+    "exe_path": null,
+    "version": "64.76.37566",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Python 3.9.0 Development Libraries (64-bit)",
+    "exe_path": null,
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Epic Games Launcher Prerequisites (x64)",
+    "exe_path": null,
+    "version": "1.0.0.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "SQL Server Management Studio",
+    "exe_path": null,
+    "version": "14.0.17289.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Mono.Toolchain.net7.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.0.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET 8.0 Templates 8.0.413 (x64)",
+    "exe_path": null,
+    "version": "32.13.63773",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "JetBrains IntelliJ IDEA Ultimate 2025.2.3 x64-(IDE`a)",
+    "exe_path": null,
+    "version": "2025.2.3",
+    "is_running": false,
+    "install_location": "C:\\Program Files\\JetBrains\\"
+  },
+  {
+    "name": "VS Script Debugging Common",
+    "exe_path": null,
+    "version": "17.0.157.0",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft .NET Runtime - 9.0.8 (x64)",
+    "exe_path": null,
+    "version": "72.32.37563",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Windows Desktop Targeting Pack - 8.0.19 (x64)",
+    "exe_path": null,
+    "version": "64.76.37602",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft.NET.Workload.Emscripten.net6.Manifest (x64)",
+    "exe_path": null,
+    "version": "72.48.37361",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Microsoft Visual C++ 2022 X64 Debug Runtime - 14.44.35211",
+    "exe_path": null,
+    "version": "14.44.35211",
+    "is_running": false,
+    "install_location": ""
+  },
+  {
+    "name": "Яндекс Музыка 5.82.0",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\YandexMusic\\Яндекс Музыка.exe",
+    "version": "5.82.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "BlueStacks Services",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\bluestacks-services\\BlueStacksServices.exe",
+    "version": "3.0.9",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "CapCut",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\CapCut\\Apps\\uninst.exe",
+    "version": "7.3.0.2974",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Discord",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Discord\\Update.exe",
+    "version": "1.0.9220",
+    "is_running": false,
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Discord"
+  },
+  {
+    "name": "Telegram Web",
+    "exe_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome_proxy.exe",
+    "version": "1.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "FACEIT",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\FACEIT\\FACEIT.exe",
+    "version": "2.2.3",
+    "is_running": false,
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\FACEIT"
+  },
+  {
+    "name": "Python 3.10.0 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Package Cache\\{21b42743-c8f9-49d7-b8b6-b5855317c7ed}\\python-3.10.0-amd64.exe",
+    "version": "3.10.150.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Python 3.9.0 (32-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Package Cache\\{41214a40-fad4-439a-881c-6026cdd88dbf}\\python-3.9.0.exe",
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Telegram Desktop",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\Telegram Desktop\\Telegram.exe",
+    "version": "6.4.2",
+    "is_running": false,
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\Telegram Desktop\\"
+  },
+  {
+    "name": "Legacy Launcher Stable, версия 1.168.5.0",
+    "exe_path": null,
+    "version": "1.168.5.0",
+    "is_running": false,
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\.tlauncher\\legacy\\Minecraft\\"
+  },
+  {
+    "name": "Microsoft Visual Studio Code (User)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+    "version": "1.108.1",
+    "is_running": false,
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Microsoft VS Code\\"
+  },
+  {
+    "name": "Python 3.11.0 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Package Cache\\{7f8381ad-2e42-4432-8de5-c7beebe1009f}\\python-3.11.0-amd64.exe",
+    "version": "3.11.150.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Python 3.13.7 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Package Cache\\{9a46f6d0-8f11-4f8f-a23d-d617db01bbb6}\\python-3.13.7-amd64.exe",
+    "version": "3.13.7150.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Python 3.9.0 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Package Cache\\{a2a37ca0-8ebd-4d7e-b4b8-e6b1740c2ce0}\\python-3.9.0-amd64.exe",
+    "version": "3.9.150.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "Vulkan SDK 1.4.335.0",
+    "exe_path": "C:\\VulkanSDK\\1.4.335.0\\maintenancetool.exe",
+    "version": "1.4.335.0",
+    "is_running": false,
+    "install_location": "C:\\VulkanSDK\\1.4.335.0"
+  },
+  {
+    "name": "Python 3.12.0 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Package Cache\\{cf9c4d97-48a7-4a27-b9fc-91b88a803c40}\\python-3.12.0-amd64.exe",
+    "version": "3.12.150.0",
+    "is_running": false,
+    "install_location": null
+  },
+  {
+    "name": "4ebur.net",
+    "exe_path": "C:\\Program Files\\4ebur.net\\4ebur.net.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\4ebur.net",
+    "is_running": false
+  },
+  {
+    "name": "Access",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\MSACCESS.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "Adobe Acrobat",
+    "exe_path": "C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat",
+    "is_running": false
+  },
+  {
+    "name": "Audacity",
+    "exe_path": "C:\\Program Files\\Audacity\\Audacity.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Audacity",
+    "is_running": false
+  },
+  {
+    "name": "BlueStacks 5",
+    "exe_path": "C:\\Program Files\\BlueStacks_nxt\\HD-Player.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\BlueStacks_nxt",
+    "is_running": false
+  },
+  {
+    "name": "BlueStacks Multi-Instance Manager",
+    "exe_path": "C:\\Program Files\\BlueStacks_nxt\\HD-MultiInstanceManager.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\BlueStacks_nxt",
+    "is_running": false
+  },
+  {
+    "name": "Excel",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "FL Cloud Plugins",
+    "exe_path": "C:\\Program Files\\FL Cloud Plugins\\FL Cloud Plugins.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\FL Cloud Plugins",
+    "is_running": false
+  },
+  {
+    "name": "KBW-G660",
+    "exe_path": "C:\\Program Files (x86)\\KBW-G660\\KBW-G660_Gembird.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\KBW-G660",
+    "is_running": false
+  },
+  {
+    "name": "LM Studio",
+    "exe_path": "C:\\Program Files\\LM Studio\\LM Studio.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\LM Studio",
+    "is_running": false
+  },
+  {
+    "name": "PowerPoint",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\POWERPNT.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "Redragon M916-PRO-4K",
+    "exe_path": "C:\\Program Files (x86)\\Redragon M916-PRO-4K\\Mouse Drive Beta.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Redragon M916-PRO-4K",
+    "is_running": true
+  },
+  {
+    "name": "Unity Hub",
+    "exe_path": "C:\\Program Files\\Unity Hub\\Unity Hub.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Unity Hub",
+    "is_running": false
+  },
+  {
+    "name": "Visual Studio 2022",
+    "exe_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE",
+    "is_running": false
+  },
+  {
+    "name": "Visual Studio Installer",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer",
+    "is_running": false
+  },
+  {
+    "name": "Word",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "Remote Desktop Connection",
+    "exe_path": "C:\\WINDOWS\\system32\\mstsc.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Steps Recorder",
+    "exe_path": "C:\\WINDOWS\\system32\\psr.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Windows Media Player Legacy",
+    "exe_path": "C:\\Program Files (x86)\\Windows Media Player\\wmplayer.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Windows Media Player",
+    "is_running": false
+  },
+  {
+    "name": "Character Map",
+    "exe_path": "C:\\WINDOWS\\system32\\charmap.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "dfrgui",
+    "exe_path": "C:\\WINDOWS\\system32\\dfrgui.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Disk Cleanup",
+    "exe_path": "C:\\WINDOWS\\system32\\cleanmgr.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "iSCSI Initiator",
+    "exe_path": "C:\\WINDOWS\\system32\\iscsicpl.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Memory Diagnostics Tool",
+    "exe_path": "C:\\WINDOWS\\system32\\MdSched.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "ODBC Data Sources (32-bit)",
+    "exe_path": "C:\\WINDOWS\\syswow64\\odbcad32.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\syswow64",
+    "is_running": false
+  },
+  {
+    "name": "ODBC Data Sources (64-bit)",
+    "exe_path": "C:\\WINDOWS\\system32\\odbcad32.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "RecoveryDrive",
+    "exe_path": "C:\\WINDOWS\\system32\\RecoveryDrive.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Registry Editor",
+    "exe_path": "C:\\WINDOWS\\regedit.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS",
+    "is_running": false
+  },
+  {
+    "name": "Resource Monitor",
+    "exe_path": "C:\\WINDOWS\\system32\\perfmon.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "System Configuration",
+    "exe_path": "C:\\WINDOWS\\system32\\msconfig.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "System Information",
+    "exe_path": "C:\\WINDOWS\\system32\\msinfo32.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - Brazilian Portuguese",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - English",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - French",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - German",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - Japanese",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - Korean",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024 - Simplified Chinese",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "3ds Max 2024",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "Change Graphics Mode - 3ds Max 2024",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\3dsmax.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "MaxFind 2024",
+    "exe_path": "C:\\Program Files\\Autodesk\\3ds Max 2024\\MaxFind.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\3ds Max 2024",
+    "is_running": false
+  },
+  {
+    "name": "Autodesk Access",
+    "exe_path": "C:\\Program Files\\Autodesk\\AdODIS\\V1\\Setup\\AdskAccessCore.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Autodesk\\AdODIS\\V1\\Setup",
+    "is_running": false
+  },
+  {
+    "name": "LMTOOLS Utility",
+    "exe_path": "C:\\Program Files (x86)\\Common Files\\Autodesk Shared\\Network License Manager\\lmtools.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Common Files\\Autodesk Shared\\Network License Manager",
+    "is_running": false
+  },
+  {
+    "name": "BlueStacks Store",
+    "exe_path": "C:\\Program Files (x86)\\BlueStacks X\\BlueStacks X.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\BlueStacks X",
+    "is_running": false
+  },
+  {
+    "name": "Manage Chaos License Server",
+    "exe_path": "C:\\Program Files\\Chaos\\VRLService\\vrlctl.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\VRLService",
+    "is_running": false
+  },
+  {
+    "name": "Start Chaos License Server",
+    "exe_path": "C:\\Program Files\\Chaos\\VRLService\\vrlsupervisor.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\VRLService",
+    "is_running": true
+  },
+  {
+    "name": "Stop Chaos License Server",
+    "exe_path": "C:\\Program Files\\Chaos\\VRLService\\vrlsupervisor.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\VRLService",
+    "is_running": false
+  },
+  {
+    "name": "Uninstall Chaos License Server",
+    "exe_path": "C:\\Program Files\\Chaos\\VRLService\\uninstall\\installer.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\VRLService\\uninstall",
+    "is_running": false
+  },
+  {
+    "name": "Start Chaos Unified Login",
+    "exe_path": "C:\\Program Files\\Chaos\\UnifiedLogin\\ulasupervisor.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\UnifiedLogin",
+    "is_running": true
+  },
+  {
+    "name": "Stop Chaos Unified Login",
+    "exe_path": "C:\\Program Files\\Chaos\\UnifiedLogin\\ulasupervisor.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\UnifiedLogin",
+    "is_running": false
+  },
+  {
+    "name": "Uninstall Chaos Unified Login",
+    "exe_path": "C:\\Program Files\\Chaos\\UnifiedLogin\\uninstall\\installer.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\UnifiedLogin\\uninstall",
+    "is_running": false
+  },
+  {
+    "name": "Start Chaos Cosmos Browser",
+    "exe_path": "C:\\Program Files\\Chaos Group\\Chaos Cosmos\\cbservice.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos Group\\Chaos Cosmos",
+    "is_running": true
+  },
+  {
+    "name": "Stop Chaos Cosmos Browser",
+    "exe_path": "C:\\Program Files\\Chaos Group\\Chaos Cosmos\\cbservice.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos Group\\Chaos Cosmos",
+    "is_running": false
+  },
+  {
+    "name": "Uninstall Chaos Cosmos Browser",
+    "exe_path": "C:\\Program Files\\Chaos Group\\Chaos Cosmos\\uninstall\\installer.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos Group\\Chaos Cosmos\\uninstall",
+    "is_running": false
+  },
+  {
+    "name": "Git Bash",
+    "exe_path": "C:\\Program Files\\Git\\git-bash.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Git",
+    "is_running": false
+  },
+  {
+    "name": "Git CMD",
+    "exe_path": "C:\\Program Files\\Git\\git-cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Git",
+    "is_running": false
+  },
+  {
+    "name": "Git GUI",
+    "exe_path": "C:\\Program Files\\Git\\cmd\\git-gui.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Git\\cmd",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Import and Export Data (32-bit)",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn\\DTSWizard.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "Deployment Wizard",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\ManagementStudio\\Microsoft.AnalysisServices.Deployment.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\ManagementStudio",
+    "is_running": false
+  },
+  {
+    "name": "Reporting Services Configuration Manager",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\RSConfigTool.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Configuration Manager",
+    "exe_path": "C:\\Windows\\SysWOW64\\mmc.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\SysWOW64",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Data Feed Publishing Wizard",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn\\ISDataFeedPublishingWizard.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Data Profile Viewer",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn\\DataProfileViewer.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Deployment Wizard",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn\\ISDeploymentWizard.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Execute Package Utility",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\ManagementStudio\\DTExecUI.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\ManagementStudio",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Project Conversion Wizard",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn\\ISProjectWizard.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\DTS\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server 2017 Database Engine Tuning Advisor",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\DTASHELL.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "Microsoft SQL Server Management Studio 17",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\ManagementStudio\\Ssms.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\ManagementStudio",
+    "is_running": false
+  },
+  {
+    "name": "SQL Server Profiler 17",
+    "exe_path": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn\\PROFILER.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Microsoft SQL Server\\140\\Tools\\Binn",
+    "is_running": false
+  },
+  {
+    "name": "Деинсталлировать Mortal Kombat XL ",
+    "exe_path": "C:\\Program Files (x86)\\Mortal Kombat XL\\unins000.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Mortal Kombat XL",
+    "is_running": false
+  },
+  {
+    "name": "Запустить Mortal Kombat XL",
+    "exe_path": "C:\\Program Files (x86)\\Mortal Kombat XL\\Binaries\\Retail\\MK10.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Mortal Kombat XL\\Binaries\\Retail",
+    "is_running": false
+  },
+  {
+    "name": "MySQL Installer - Community",
+    "exe_path": "C:\\Program Files (x86)\\MySQL\\MySQL Installer for Windows\\MySQLInstaller.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\MySQL\\MySQL Installer for Windows",
+    "is_running": false
+  },
+  {
+    "name": "MySQL 8.0 Command Line Client - Unicode",
+    "exe_path": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin",
+    "is_running": false
+  },
+  {
+    "name": "MySQL 8.0 Command Line Client",
+    "exe_path": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin",
+    "is_running": false
+  },
+  {
+    "name": "NVIDIA App",
+    "exe_path": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF",
+    "is_running": false
+  },
+  {
+    "name": "Удалить qBittorrent",
+    "exe_path": "C:\\Program Files\\qBittorrent\\uninst.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\qBittorrent",
+    "is_running": false
+  },
+  {
+    "name": "IntelliJ IDEA Ultimate",
+    "exe_path": "C:\\Program Files\\JetBrains\\IntelliJIdea2025.2\\bin\\idea64.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\JetBrains\\IntelliJIdea2025.2\\bin",
+    "is_running": false
+  },
+  {
+    "name": "Деинсталлировать IntelliJ IDEA",
+    "exe_path": "C:\\Program Files\\JetBrains\\IntelliJIdea2025.2\\bin\\unins000.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\JetBrains\\IntelliJIdea2025.2\\bin",
+    "is_running": false
+  },
+  {
+    "name": "Spotify",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\Spotify\\Spotify.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\Spotify",
+    "is_running": false
+  },
+  {
+    "name": "Удаление",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\Spotify\\unins000.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\Spotify",
+    "is_running": false
+  },
+  {
+    "name": "CCBService",
+    "exe_path": "C:\\Program Files\\Chaos Group\\Chaos Cosmos\\cbservice.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos Group\\Chaos Cosmos",
+    "is_running": false
+  },
+  {
+    "name": "ChaosUnifiedLogin",
+    "exe_path": "C:\\Program Files\\Chaos\\UnifiedLogin\\ulasupervisor.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Chaos\\UnifiedLogin",
+    "is_running": false
+  },
+  {
+    "name": "Task Manager",
+    "exe_path": "C:\\WINDOWS\\system32\\taskmgr.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Report a Problem with Unity",
+    "exe_path": "C:\\Program Files\\Unity\\Hub\\Editor\\6000.2.5f1\\Editor\\BugReporter\\UnityBugReporter.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Unity\\Hub\\Editor\\6000.2.5f1\\Editor\\BugReporter",
+    "is_running": false
+  },
+  {
+    "name": "Unity",
+    "exe_path": "C:\\Program Files\\Unity\\Hub\\Editor\\6000.2.5f1\\Editor\\Unity.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Unity\\Hub\\Editor\\6000.2.5f1\\Editor",
+    "is_running": false
+  },
+  {
+    "name": "Деинсталлировать Victoria 3",
+    "exe_path": "C:\\Program Files (x86)\\Victoria 3\\unins000.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Victoria 3",
+    "is_running": false
+  },
+  {
+    "name": "Запустить Victoria 3",
+    "exe_path": "C:\\Program Files (x86)\\Victoria 3\\binaries\\victoria3.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Victoria 3\\binaries",
+    "is_running": false
+  },
+  {
+    "name": "Debuggable Package Manager",
+    "exe_path": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0",
+    "is_running": false
+  },
+  {
+    "name": "Developer Command Prompt for VS 2022",
+    "exe_path": "C:\\Windows\\System32\\cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32",
+    "is_running": false
+  },
+  {
+    "name": "Developer PowerShell for VS 2022",
+    "exe_path": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0",
+    "is_running": false
+  },
+  {
+    "name": "x64 Native Tools Command Prompt for VS 2022",
+    "exe_path": "C:\\Windows\\System32\\cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32",
+    "is_running": false
+  },
+  {
+    "name": "x64_x86 Cross Tools Command Prompt for VS 2022",
+    "exe_path": "C:\\Windows\\System32\\cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32",
+    "is_running": false
+  },
+  {
+    "name": "x86 Native Tools Command Prompt for VS 2022",
+    "exe_path": "C:\\Windows\\System32\\cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32",
+    "is_running": false
+  },
+  {
+    "name": "x86_x64 Cross Tools Command Prompt for VS 2022",
+    "exe_path": "C:\\Windows\\System32\\cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32",
+    "is_running": false
+  },
+  {
+    "name": "Maintenance Tool",
+    "exe_path": "C:\\VulkanSDK\\1.4.335.0\\maintenancetool.exe",
+    "version": "N/A",
+    "install_location": "C:\\VulkanSDK\\1.4.335.0",
+    "is_running": false
+  },
+  {
+    "name": "Vulkan Caps Viewer",
+    "exe_path": "C:\\VulkanSDK\\1.4.335.0\\Bin\\vulkanCapsViewer.exe",
+    "version": "N/A",
+    "install_location": "C:\\VulkanSDK\\1.4.335.0\\Bin",
+    "is_running": false
+  },
+  {
+    "name": "Vulkan Configurator",
+    "exe_path": "C:\\VulkanSDK\\1.4.335.0\\Bin\\vkconfig-gui.exe",
+    "version": "N/A",
+    "install_location": "C:\\VulkanSDK\\1.4.335.0\\Bin",
+    "is_running": false
+  },
+  {
+    "name": "Vulkan Cube",
+    "exe_path": "C:\\VulkanSDK\\1.4.335.0\\Bin\\vkcube.exe",
+    "version": "N/A",
+    "install_location": "C:\\VulkanSDK\\1.4.335.0\\Bin",
+    "is_running": false
+  },
+  {
+    "name": "Application Verifier (X64)",
+    "exe_path": "C:\\Windows\\System32\\appverif.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32",
+    "is_running": false
+  },
+  {
+    "name": "Application Verifier (WOW)",
+    "exe_path": "C:\\Windows\\SysWOW64\\appverif.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\SysWOW64",
+    "is_running": false
+  },
+  {
+    "name": "Windows App Cert Kit",
+    "exe_path": "C:\\Program Files (x86)\\Windows Kits\\10\\App Certification Kit\\appcertui.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Windows Kits\\10\\App Certification Kit",
+    "is_running": false
+  },
+  {
+    "name": "GPUView",
+    "exe_path": "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\gpuview\\GPUView.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\gpuview",
+    "is_running": false
+  },
+  {
+    "name": "Windows Performance Analyzer",
+    "exe_path": "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\wpa.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit",
+    "is_running": false
+  },
+  {
+    "name": "Windows Performance Recorder",
+    "exe_path": "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\WPRUI.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit",
+    "is_running": false
+  },
+  {
+    "name": "Windows Software Development Kit",
+    "exe_path": "C:\\WINDOWS\\explorer.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS",
+    "is_running": true
+  },
+  {
+    "name": "Windows PowerShell ISE (x86)",
+    "exe_path": "C:\\WINDOWS\\syswow64\\WindowsPowerShell\\v1.0\\PowerShell_ISE.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\syswow64\\WindowsPowerShell\\v1.0",
+    "is_running": false
+  },
+  {
+    "name": "Windows PowerShell ISE",
+    "exe_path": "C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\PowerShell_ISE.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0",
+    "is_running": false
+  },
+  {
+    "name": "WinRAR",
+    "exe_path": "C:\\Program Files\\WinRAR\\WinRAR.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\WinRAR",
+    "is_running": false
+  },
+  {
+    "name": "Database Compare",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Client\\AppVLP.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Client",
+    "is_running": false
+  },
+  {
+    "name": "Spreadsheet Compare",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Client\\AppVLP.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Client",
+    "is_running": false
+  },
+  {
+    "name": "Журнал телеметрии Office",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\msoev.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "Панель мониторинга телеметрии Office",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\msotd.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "Центр отправки Office",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Client\\AppVLP.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Client",
+    "is_running": false
+  },
+  {
+    "name": "Языковые параметры Office",
+    "exe_path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\SETLANG.EXE",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\Microsoft Office\\root\\Office16",
+    "is_running": false
+  },
+  {
+    "name": "Administrative Tools",
+    "exe_path": "C:\\WINDOWS\\system32\\control.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Legacy Launcher Stable",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\.tlauncher\\legacy\\Minecraft\\LL.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\.tlauncher\\legacy\\Minecraft",
+    "is_running": false
+  },
+  {
+    "name": "Яндекс Музыка",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\YandexMusic\\Яндекс Музыка.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\YandexMusic",
+    "is_running": false
+  },
+  {
+    "name": "LiveCaptions",
+    "exe_path": "C:\\WINDOWS\\system32\\LiveCaptions.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Magnify",
+    "exe_path": "C:\\WINDOWS\\system32\\magnify.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Narrator",
+    "exe_path": "C:\\WINDOWS\\system32\\narrator.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "On-Screen Keyboard",
+    "exe_path": "C:\\WINDOWS\\system32\\osk.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "VoiceAccess",
+    "exe_path": "C:\\WINDOWS\\system32\\voiceaccess.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "IDLE (Python 3.10 64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python310\\pythonw.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python310",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.10 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python310",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.10 Manuals (64-bit)",
+    "exe_path": "C:\\WINDOWS\\hh.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.10 Module Docs (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python310",
+    "is_running": false
+  },
+  {
+    "name": "IDLE (Python 3.11 64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python311\\pythonw.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python311",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.11 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python311",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.11 Module Docs (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python311",
+    "is_running": false
+  },
+  {
+    "name": "IDLE (Python 3.12 64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python312\\pythonw.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python312",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.12 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python312",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.12 Module Docs (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python312",
+    "is_running": false
+  },
+  {
+    "name": "IDLE (Python 3.13 64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python313\\pythonw.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python313",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.13 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python313",
+    "is_running": true
+  },
+  {
+    "name": "Python 3.13 Module Docs (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python313",
+    "is_running": false
+  },
+  {
+    "name": "IDLE (Python 3.9 32-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39-32\\pythonw.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39-32",
+    "is_running": false
+  },
+  {
+    "name": "IDLE (Python 3.9 64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39\\pythonw.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.9 (32-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39-32\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39-32",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.9 (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.9 Manuals (32-bit)",
+    "exe_path": "C:\\WINDOWS\\hh.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.9 Manuals (64-bit)",
+    "exe_path": "C:\\WINDOWS\\hh.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.9 Module Docs (32-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39-32\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39-32",
+    "is_running": false
+  },
+  {
+    "name": "Python 3.9 Module Docs (64-bit)",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39\\python.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Python\\Python39",
+    "is_running": false
+  },
+  {
+    "name": "DS4Windows",
+    "exe_path": "C:\\gerychhh_\\DS4Windows\\DS4Windows.exe",
+    "version": "N/A",
+    "install_location": "C:\\gerychhh_\\DS4Windows",
+    "is_running": true
+  },
+  {
+    "name": "nginx.exe — ярлык",
+    "exe_path": "C:\\Program Files\\nginx-1.29.3\\nginx.exe",
+    "version": "N/A",
+    "install_location": "C:\\Program Files\\nginx-1.29.3",
+    "is_running": false
+  },
+  {
+    "name": "Command Prompt",
+    "exe_path": "C:\\WINDOWS\\system32\\cmd.exe",
+    "version": "N/A",
+    "install_location": "C:\\WINDOWS\\system32",
+    "is_running": false
+  },
+  {
+    "name": "Telegram",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\Telegram Desktop\\Telegram.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\Telegram Desktop",
+    "is_running": false
+  },
+  {
+    "name": "Деинсталлировать Telegram",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Roaming\\Telegram Desktop\\unins000.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Roaming\\Telegram Desktop",
+    "is_running": false
+  },
+  {
+    "name": "Visual Studio Code",
+    "exe_path": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+    "version": "N/A",
+    "install_location": "C:\\Users\\ger-2\\AppData\\Local\\Programs\\Microsoft VS Code",
+    "is_running": false
+  },
+  {
+    "name": "Windows PowerShell (x86)",
+    "exe_path": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0",
+    "is_running": false
+  },
+  {
+    "name": "Windows PowerShell",
+    "exe_path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "version": "N/A",
+    "install_location": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+    "is_running": true
+  }
+]
