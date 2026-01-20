@@ -28,6 +28,15 @@ def _contains_multiple_actions(text: str) -> bool:
     return any(token in lowered for token in (" и ", " затем ", " потом ", ","))
 
 
+def split_into_subtasks(text: str) -> list[str]:
+    lowered = text.lower()
+    for token in (" затем ", " потом ", " и "):
+        if token in lowered:
+            parts = [part.strip() for part in re.split(rf"\\s*{re.escape(token.strip())}\\s*", text) if part.strip()]
+            return parts
+    return [text.strip()] if text.strip() else []
+
+
 def _is_action_like(user_input: str) -> bool:
     verbs = (
         "открой",
@@ -64,12 +73,36 @@ class Orchestrator:
 
         best_match, matches = match_command(user_text, self.commands)
         has_multiple = _contains_multiple_actions(user_text)
-        if best_match and not has_multiple:
+        if best_match and best_match.score >= 2 and not has_multiple:
             debug_event("ROUTER", "simple -> command")
             result = run_command(best_match.command, best_match.params)
             if _is_blocked_result(result):
                 return BLOCKED_MESSAGE
             return self._report(user_text, state, [_summarize_command_result(result)])
+
+        if best_match and best_match.score == 3 and "*" in best_match.intent:
+            debug_event("ROUTER", "wildcard -> command")
+            result = run_command(best_match.command, best_match.params)
+            if _is_blocked_result(result):
+                return BLOCKED_MESSAGE
+            return self._report(user_text, state, [_summarize_command_result(result)])
+
+        if has_multiple:
+            subtasks = split_into_subtasks(user_text)
+            if subtasks:
+                results: list[dict[str, Any]] = []
+                for subtask in subtasks:
+                    sub_match, _ = match_command(subtask, self.commands)
+                    if not sub_match or sub_match.score < 2:
+                        results = []
+                        break
+                    debug_event("ROUTER", f"subtask -> command: {sub_match.command.get('id')}")
+                    sub_result = run_command(sub_match.command, sub_match.params)
+                    if _is_blocked_result(sub_result):
+                        return BLOCKED_MESSAGE
+                    results.append(_summarize_command_result(sub_result))
+                if results:
+                    return self._report(user_text, state, results)
 
         if not _is_action_like(user_text):
             debug_event("ROUTER", "not an action -> echo")
