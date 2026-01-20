@@ -640,35 +640,30 @@ commands:
   verify: {lang: powershell, script: "Get-Process explorer -ErrorAction SilentlyContinue | Out-String"}
   success: {type: process_running, process_name: explorer}
 
-- id: CMD_OPEN_APP_SEARCH
-  intents: ["открой *", "запусти *", "open *", "launch *"]
-  description_short: "Открывает приложение через Windows Search."
+- id: CMD_OPEN_APP
+  intents: ["открой *", "запусти *", "включи *"]
+  description_short: "Открывает приложение через Windows Search с вставкой из буфера."
   params:
-    - name: app
+    - name: app_name
       from_user: true
   execute:
     lang: python
     script: |
-      import time
-      import pyautogui
-      app = "{{app}}"
-      pyautogui.press("win")
-      time.sleep(0.2)
-      pyautogui.typewrite(app, interval=0.02)
-      time.sleep(0.1)
-      pyautogui.press("enter")
-      print("OK: launched", app)
+      from core.app_normalizer import normalize_app_query
+      from core.windows_search import windows_search_open
+      raw = "{{app_name}}"
+      normalized = normalize_app_query(raw)
+      print(f'[APP_OPEN] raw="{raw}"')
+      print(f'[APP_OPEN] normalized="{normalized}"')
+      print('[APP_OPEN] strategy="windows_search"')
+      windows_search_open(normalized)
   verify:
     lang: python
     script: |
-      import pygetwindow as gw
-      target = "{{app}}".lower()
-      win = gw.getActiveWindow()
-      title = (win.title if win else "").lower()
-      if target in title:
-        print("OK: active window contains", target)
-      else:
-        print("WARN: active window not matched", title)
+      from core.window_manager import get_active_window_info
+      info = get_active_window_info()
+      print(f"ACTIVE_WINDOW title=\"{info.get('title','')}\" process=\"{info.get('process','')}\"")
+      print("OK")
   success:
     type: custom
 

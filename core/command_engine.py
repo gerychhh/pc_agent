@@ -91,9 +91,9 @@ def match_command(user_text: str, commands: list[dict[str, Any]]) -> tuple[Comma
             )
     matches.sort(key=lambda m: m.score, reverse=True)
     best = matches[0] if matches else None
-    if best and best.command.get("id") == "CMD_OPEN_APP_SEARCH":
+    if best and best.command.get("id") == "CMD_OPEN_APP":
         for candidate in matches[1:]:
-            if candidate.command.get("id") != "CMD_OPEN_APP_SEARCH" and candidate.score >= 2:
+            if candidate.command.get("id") != "CMD_OPEN_APP" and candidate.score >= 2:
                 best = candidate
                 break
     debug_event("CMD_MATCH", f"matches={len(matches)} best={best.command.get('id') if best else 'NONE'}")
@@ -175,6 +175,11 @@ def extract_params(command: dict[str, Any], user_text: str, intent_text: str) ->
         name = item.get("name")
         default = item.get("default")
         from_user = item.get("from_user", False)
+        if name == "app_name":
+            extracted_app = _extract_app_name(user_text)
+            if extracted_app:
+                params[name] = extracted_app
+                continue
         if name == "query":
             extracted_query = _extract_query(user_text)
             if extracted_query:
@@ -317,6 +322,13 @@ def _extract_wildcard(intent: str, user_text: str) -> str | None:
 
 def _extract_after_keywords(text: str) -> str | None:
     match = re.search(r"(?:текст|содержимое|впиши|напиши)\s*[:\-]?\s*(.+)$", text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def _extract_app_name(text: str) -> str | None:
+    match = re.search(r"(?:открой|запусти|включи)\s+(.+)$", text, re.IGNORECASE)
     if match:
         return match.group(1).strip()
     return None
