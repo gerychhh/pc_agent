@@ -20,7 +20,8 @@ class VoiceInput:
         if not self.model_dir.exists():
             raise FileNotFoundError(
                 f"Vosk model not found at {self.model_dir}. "
-                "Download it with: python scripts/download_vosk_ru.py"
+                "Download it with: python scripts/download_vosk_ru.py "
+                "(or set VOSK_MODEL_DIR / VOSK_MODEL_SIZE=small)."
             )
         self.model = Model(str(self.model_dir))
         self.queue: queue.Queue[bytes] = queue.Queue()
