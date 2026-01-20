@@ -5,9 +5,9 @@ from typing import Any
 
 from .command_engine import CommandResult, load_commands, match_command, run_command
 from .config import FAST_MODEL, SMART_MODEL
-from .context_builder import build_command_index, ctx_fast, ctx_reporter
+from .context_builder import build_command_index, ctx_reporter
+from .debug import debug_event, truncate_text
 from .llm_client import LLMClient
-from .logger import SessionLogger
 from .planner_loop import PlannerLoop
 from .state import load_state
 
@@ -51,24 +51,31 @@ def _is_action_like(user_input: str) -> bool:
 class Orchestrator:
     def __init__(self) -> None:
         self.client = LLMClient()
-        self.logger = SessionLogger()
         self.commands = load_commands()
         self.command_index = build_command_index(self.commands)
         self.planner = PlannerLoop()
 
+    def reset(self) -> None:
+        return None
+
     def run(self, user_text: str, stateless: bool = False) -> str:
         state = load_state()
-        self.logger.log_user_input(user_text, 1)
-        match = match_command(user_text, self.commands)
-        if match and not match.missing and not _contains_multiple_actions(user_text):
-            result = run_command(match)
+        debug_event("USER_IN", user_text)
+
+        best_match, matches = match_command(user_text, self.commands)
+        has_multiple = _contains_multiple_actions(user_text)
+        if best_match and not has_multiple:
+            debug_event("ROUTER", "simple -> command")
+            result = run_command(best_match.command, best_match.params)
             if _is_blocked_result(result):
                 return BLOCKED_MESSAGE
             return self._report(user_text, state, [_summarize_command_result(result)])
 
-        if not match and not _is_action_like(user_text):
-            return self._fast_reply(user_text, state)
+        if not _is_action_like(user_text):
+            debug_event("ROUTER", "not an action -> echo")
+            return sanitize_assistant_text(user_text)
 
+        debug_event("ROUTER", "complex -> planner")
         plan_results = self.planner.run(user_text, state, self.command_index)
         if not plan_results:
             return "Не удалось построить план."
@@ -81,6 +88,7 @@ class Orchestrator:
     def _report(self, user_text: str, state: dict[str, Any], results: list[dict[str, Any]]) -> str:
         payload = ctx_reporter(state, results, user_text)
         model = SMART_MODEL if any(not r.get("ok") for r in results) else FAST_MODEL
+        debug_event("LLM_REQ", f"report model={model} payload={truncate_text(payload, 400)}")
         try:
             response = self.client.chat(
                 [{"role": "user", "content": payload}],
@@ -95,27 +103,13 @@ class Orchestrator:
                 return "Готово."
             return "Не удалось выполнить запрос."
 
-    def _fast_reply(self, user_text: str, state: dict[str, Any]) -> str:
-        payload = ctx_fast(state, self.command_index, user_text)
-        try:
-            response = self.client.chat(
-                [{"role": "user", "content": payload}],
-                tools=[],
-                model_name=FAST_MODEL,
-                tool_choice="none",
-            )
-            content = response.choices[0].message.content or ""
-            return sanitize_assistant_text(content)
-        except Exception:
-            return "Уточни, что нужно сделать."
-
 
 def _summarize_command_result(result: CommandResult) -> dict[str, Any]:
     return {
         "id": result.action.name,
         "ok": result.ok,
-        "stdout": result.execute_result.get("stdout"),
-        "stderr": result.execute_result.get("stderr"),
+        "stdout": result.execute_result.stdout,
+        "stderr": result.execute_result.stderr,
     }
 
 
@@ -129,7 +123,7 @@ def _summarize_step_execution(step: Any) -> dict[str, Any]:
 
 
 def _is_blocked_result(result: CommandResult) -> bool:
-    stderr = result.execute_result.get("stderr") or ""
-    if result.execute_result.get("error") == "blocked":
+    if result.execute_result.error == "blocked":
         return True
+    stderr = result.execute_result.stderr or ""
     return "запрещ" in stderr.lower()

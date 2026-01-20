@@ -5,6 +5,7 @@ from typing import Any
 from openai import OpenAI
 
 from .config import API_KEY, BASE_URL
+from .debug import debug_context, debug_event
 
 
 class LLMClient:
@@ -39,14 +40,20 @@ class LLMClient:
     ) -> Any:
         self.model = model_name
         normalized_messages = self._normalize_messages(messages)
+        debug_event("LLM_REQ", f"model={model_name} tool_choice={tool_choice}")
+        debug_context("LLM_REQ", normalized_messages, limit=1200)
         if tool_choice == "none":
-            return self.client.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model=model_name,
                 messages=normalized_messages,
             )
-        return self.client.chat.completions.create(
-            model=model_name,
-            messages=normalized_messages,
-            tools=tools,
-            tool_choice=tool_choice,
-        )
+        else:
+            response = self.client.chat.completions.create(
+                model=model_name,
+                messages=normalized_messages,
+                tools=tools,
+                tool_choice=tool_choice,
+            )
+        content = response.choices[0].message.content or ""
+        debug_context("LLM_RES", content, limit=1200)
+        return response

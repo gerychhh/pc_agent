@@ -1,176 +1,471 @@
-- id: CMD_OPEN_NOTEPAD
-  intents:
-    - "открой блокнот"
-    - "open notepad"
-    - "notepad"
-  description_short: "Открыть Блокнот"
-  execute:
-    lang: powershell
-    script: |
-      Start-Process notepad.exe
-  verify:
-    lang: powershell
-    script: |
-      $p = Get-Process notepad -ErrorAction SilentlyContinue
-      if ($p) { exit 0 } else { Write-Output "NOT RUNNING"; exit 1 }
-  success:
-    type: process_running
-    process_name: notepad
-  state_update:
-    active_app: notepad
+commands:
 
-- id: CMD_CLOSE_NOTEPAD
-  intents:
-    - "закрой блокнот"
-    - "close notepad"
-  description_short: "Закрыть Блокнот"
-  execute:
-    lang: powershell
-    script: |
-      Stop-Process -Name notepad -ErrorAction SilentlyContinue
-  verify:
-    lang: powershell
-    script: |
-      $p = Get-Process notepad -ErrorAction SilentlyContinue
-      if ($p) { Write-Output "STILL RUNNING"; exit 1 } else { exit 0 }
-  success:
-    type: custom
-
-- id: CMD_OPEN_YOUTUBE
-  intents:
-    - "открой ютуб"
-    - "открой youtube"
-    - "open youtube"
-  description_short: "Открыть YouTube"
-  execute:
-    lang: powershell
-    script: |
-      Start-Process "https://www.youtube.com/"
-  verify:
-    lang: powershell
-    script: |
-      exit 0
-  success:
-    type: none
-  state_update:
-    active_url: "https://www.youtube.com/"
-
-- id: CMD_SEARCH_YOUTUBE
-  intents:
-    - "найди на ютубе"
-    - "поиск ютуб"
-    - "search youtube"
-  description_short: "Поиск на YouTube"
-  execute:
-    lang: powershell
-    script: |
-      Start-Process "https://www.youtube.com/results?search_query={query}"
-  verify:
-    lang: powershell
-    script: |
-      exit 0
-  success:
-    type: none
-
-- id: CMD_CREATE_TXT_DESKTOP
-  intents:
-    - "создай txt"
-    - "txt на рабочем столе"
-    - "создай тхт"
-    - "создай ткст"
-    - "re:создай\\s+.*txt"
-    - "re:файл\\s+.*txt"
-  description_short: "Создать TXT на рабочем столе"
-  execute:
-    lang: powershell
-    script: |
-      $desktop = [Environment]::GetFolderPath('Desktop')
-      $path = Join-Path $desktop '{filename}'
-      @'
-      {content}
-      '@ | Set-Content -Path $path -Encoding UTF8
-      Write-Output "SAVED: $path"
-  verify:
-    lang: powershell
-    script: |
-      $desktop = [Environment]::GetFolderPath('Desktop')
-      $path = Join-Path $desktop '{filename}'
-      if (Test-Path $path) { exit 0 } else { exit 1 }
-  success:
-    type: file_exists
-
-- id: CMD_CREATE_DOCX_DESKTOP
-  intents:
-    - "создай docx"
-    - "создай ворд файл"
-    - "создай word файл"
-    - "docx на рабочем столе"
-    - "re:создай\\s+.*docx"
-    - "re:файл\\s+.*docx"
-  description_short: "Создать DOCX на рабочем столе"
+# ======== ACTIVE WINDOW / FOCUS / TYPE ========
+- id: CMD_GET_ACTIVE_WINDOW_TITLE
+  intents: ["какое активное окно", "активное окно", "active window title", "проверь активное окно"]
+  description_short: "Показывает заголовок активного окна."
   execute:
     lang: python
     script: |
-      import os
+      import pygetwindow as gw
+      win = gw.getActiveWindow()
+      print("ACTIVE_WINDOW:", win.title if win else "NONE")
+  verify:
+    lang: python
+    script: |
+      import pygetwindow as gw
+      win = gw.getActiveWindow()
+      print("OK" if win else "NONE")
+  success:
+    type: custom
+
+- id: CMD_VERIFY_ACTIVE_WINDOW_CONTAINS
+  intents: ["проверь что активное окно содержит *", "active window contains *"]
+  description_short: "Проверяет что заголовок активного окна содержит текст."
+  params:
+    - name: text
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import pygetwindow as gw
+      target = "{{text}}".lower()
+      win = gw.getActiveWindow()
+      title = (win.title if win else "").lower()
+      if target in title:
+        print("OK: active window contains", target)
+      else:
+        raise RuntimeError(f"Active window mismatch: '{title}' not contains '{target}'")
+  verify:
+    lang: python
+    script: |
+      print("OK")
+  success:
+    type: custom
+
+- id: CMD_TYPE_ACTIVE_TEXT
+  intents: ["напиши *", "впиши *", "введи *", "пиши *", "в активное поле *"]
+  description_short: "Печатает текст в активное поле/окно."
+  params:
+    - name: text
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import time
+      import pyautogui
+      import pygetwindow as gw
+      text = "{{text}}"
+      win = gw.getActiveWindow()
+      if not win:
+        raise RuntimeError("No active window")
+      time.sleep(0.15)
+      pyautogui.typewrite(text, interval=0.01)
+      print("OK: typed")
+  verify:
+    lang: python
+    script: |
+      import pygetwindow as gw
+      win = gw.getActiveWindow()
+      print("OK: active_window=" + (win.title if win else "NONE"))
+  success:
+    type: custom
+
+- id: CMD_PRESS_ENTER
+  intents: ["нажми enter", "enter", "нажми ввод"]
+  description_short: "Нажимает Enter."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.press("enter")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_PRESS_ESC
+  intents: ["нажми escape", "esc", "закрой меню"]
+  description_short: "Нажимает Escape."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.press("esc")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ======== CLIPBOARD ========
+- id: CMD_COPY
+  intents: ["копируй", "скопируй", "копировать"]
+  description_short: "Ctrl+C (копировать выделенное)."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","c")
+      print("OK: copy")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_PASTE
+  intents: ["вставь", "вставить", "paste"]
+  description_short: "Ctrl+V (вставить)."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","v")
+      print("OK: paste")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_CUT
+  intents: ["вырежи", "вырезать", "cut"]
+  description_short: "Ctrl+X (вырезать)."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","x")
+      print("OK: cut")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_SELECT_ALL
+  intents: ["выдели все", "выделить все", "select all"]
+  description_short: "Ctrl+A (выделить всё)."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","a")
+      print("OK: select all")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_PASTE_TEXT
+  intents: ["вставь текст *", "вклей *"]
+  description_short: "Копирует текст в буфер и вставляет (стабильно для длинного)."
+  params:
+    - name: text
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import time
+      import pyautogui
+      import pyperclip
+      text = "{{text}}"
+      pyperclip.copy(text)
+      time.sleep(0.05)
+      pyautogui.hotkey("ctrl","v")
+      print("OK: pasted text")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ======== WINDOW MANAGEMENT ========
+- id: CMD_CLOSE_ACTIVE_WINDOW
+  intents: ["закрой окно", "закрой активное окно", "закрой текущее"]
+  description_short: "Alt+F4 закрывает активное окно."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("alt","f4")
+      print("OK: alt+f4")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_MINIMIZE_ACTIVE_WINDOW
+  intents: ["сверни окно", "сверни активное"]
+  description_short: "Win+Down сворачивает активное окно."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("win","down")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_MAXIMIZE_ACTIVE_WINDOW
+  intents: ["разверни окно", "на весь экран окно", "увеличь окно"]
+  description_short: "Win+Up разворачивает активное окно."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("win","up")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_SHOW_DESKTOP
+  intents: ["покажи рабочий стол", "сверни все окна", "win d"]
+  description_short: "Win+D показать рабочий стол."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("win","d")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_ALT_TAB
+  intents: ["переключи окно", "следующее окно", "alt tab"]
+  description_short: "Alt+Tab переключает окно."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("alt","tab")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ======== APPS ========
+- id: CMD_OPEN_NOTEPAD
+  intents: ["открой блокнот", "запусти блокнот", "notepad"]
+  description_short: "Открывает Блокнот."
+  execute: {lang: powershell, script: "Start-Process notepad.exe"}
+  verify: {lang: powershell, script: "Get-Process notepad -ErrorAction SilentlyContinue | Out-String"}
+  success: {type: process_running, process_name: notepad}
+
+- id: CMD_CLOSE_NOTEPAD
+  intents: ["закрой блокнот", "убей блокнот"]
+  description_short: "Закрывает Блокнот."
+  execute: {lang: powershell, script: "Stop-Process -Name notepad -ErrorAction SilentlyContinue"}
+  verify: {lang: powershell, script: "if (Get-Process notepad -ErrorAction SilentlyContinue) { exit 1 } else { 'OK' }"}
+  success: {type: custom}
+
+- id: CMD_OPEN_CALCULATOR
+  intents: ["открой калькулятор", "запусти калькулятор", "calculator"]
+  description_short: "Открывает калькулятор."
+  execute: {lang: powershell, script: "Start-Process calc.exe"}
+  verify: {lang: powershell, script: "Get-Process Calculator -ErrorAction SilentlyContinue | Out-String"}
+  success: {type: custom}
+
+- id: CMD_OPEN_EXPLORER
+  intents: ["открой проводник", "открой папки", "explorer"]
+  description_short: "Открывает Проводник."
+  execute: {lang: powershell, script: "Start-Process explorer.exe"}
+  verify: {lang: powershell, script: "Get-Process explorer -ErrorAction SilentlyContinue | Out-String"}
+  success: {type: process_running, process_name: explorer}
+
+# ======== FILES SAFE ========
+- id: CMD_CREATE_TXT_DESKTOP
+  intents: ["создай txt *", "создай текстовый файл *", "создай файл ткст *"]
+  description_short: "Создаёт txt на Desktop и записывает текст."
+  params:
+    - name: content
+      from_user: true
+    - name: filename
+      default: "note.txt"
+  execute:
+    lang: powershell
+    script: |
+      $desktop = [Environment]::GetFolderPath('Desktop')
+      $path = Join-Path $desktop "{{filename}}"
+      "{{content}}" | Set-Content -Path $path -Encoding UTF8
+      Write-Host "SAVED: $path"
+  verify:
+    lang: powershell
+    script: |
+      $desktop = [Environment]::GetFolderPath('Desktop')
+      $path = Join-Path $desktop "{{filename}}"
+      if (Test-Path $path) { "OK" } else { exit 1 }
+  success: {type: file_exists}
+
+- id: CMD_CREATE_DOCX_DESKTOP
+  intents: ["создай ворд файл *", "создай docx *", "создай документ word *", "создай документ ворд *"]
+  description_short: "Создаёт настоящий .docx на Desktop через python-docx."
+  params:
+    - name: content
+      from_user: true
+    - name: filename
+      default: "document.docx"
+  execute:
+    lang: python
+    script: |
       from pathlib import Path
       from docx import Document
-
-      def pick_desktop() -> Path:
-          candidates = []
-          for key in ('OneDriveConsumer', 'OneDrive'):
-              val = os.environ.get(key)
-              if val:
-                  candidates.append(Path(val) / 'Desktop')
-          candidates.append(Path.home() / 'Desktop')
-          user = os.environ.get('USERPROFILE')
-          if user:
-              candidates.append(Path(user) / 'Desktop')
-          for p in candidates:
-              if p.exists():
-                  return p
-          return Path.home()
-
-      content = {content}
-      filename = {filename}
-      desktop = pick_desktop()
-      path = desktop / filename
+      desktop = Path.home() / "Desktop"
+      path = desktop / "{{filename}}"
       doc = Document()
-      if content:
-          doc.add_paragraph(str(content))
-      doc.save(str(path))
+      doc.add_paragraph("{{content}}")
+      doc.save(path)
       print(f"SAVED: {path}")
   verify:
     lang: python
     script: |
-      import os
       from pathlib import Path
+      p = Path.home() / "Desktop" / "{{filename}}"
+      print("OK" if p.exists() else "FAIL")
+      if not p.exists(): raise RuntimeError("docx not found")
+  success: {type: file_exists}
 
-      filename = {filename}
-      desktop = Path.home() / 'Desktop'
-      path = desktop / filename
-      if path.exists():
-          raise SystemExit(0)
-      raise SystemExit(1)
-  success:
-    type: file_exists
+# ======== BROWSER / SEARCH ========
+- id: CMD_OPEN_URL
+  intents: ["открой ссылку *", "открой сайт *", "перейди на *", "open url *"]
+  description_short: "Открывает URL в браузере."
+  params: [{name: url, from_user: true}]
+  execute: {lang: powershell, script: "Start-Process \"{{url}}\""}
+  verify: {lang: powershell, script: "OK"}
+  success: {type: none}
 
-- id: CMD_OPEN_WORD
-  intents:
-    - "открой ворд"
-    - "открой word"
-    - "open word"
-  description_short: "Открыть Microsoft Word"
+- id: CMD_GOOGLE_SEARCH
+  intents: ["погугли *", "найди в гугле *", "google *", "поиск *"]
+  description_short: "Открывает Google поиск по запросу."
+  params: [{name: query, from_user: true}]
   execute:
     lang: powershell
     script: |
-      Start-Process winword.exe
-  verify:
+      $q=[uri]::EscapeDataString("{{query}}")
+      Start-Process "https://www.google.com/search?q=$q"
+  verify: {lang: powershell, script: "OK"}
+  success: {type: none}
+
+- id: CMD_YOUTUBE_OPEN
+  intents: ["открой ютуб", "youtube", "youtube.com"]
+  description_short: "Открывает YouTube."
+  execute: {lang: powershell, script: "Start-Process \"https://www.youtube.com/\""}
+  verify: {lang: powershell, script: "OK"}
+  success: {type: none}
+
+- id: CMD_YOUTUBE_SEARCH
+  intents: ["найди на ютубе *", "поиск ютуб *", "youtube search *"]
+  description_short: "Открывает результаты поиска YouTube."
+  params: [{name: query, from_user: true}]
+  execute:
     lang: powershell
     script: |
-      $p = Get-Process WINWORD -ErrorAction SilentlyContinue
-      if ($p) { exit 0 } else { exit 1 }
-  success:
-    type: process_running
-    process_name: WINWORD
-  state_update:
-    active_app: WINWORD
+      $q=[uri]::EscapeDataString("{{query}}")
+      Start-Process "https://www.youtube.com/results?search_query=$q"
+  verify: {lang: powershell, script: "OK"}
+  success: {type: none}
+
+- id: CMD_BROWSER_NEW_TAB
+  intents: ["новая вкладка", "открой новую вкладку", "ctrl t"]
+  description_short: "Ctrl+T новая вкладка в браузере."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","t")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_CLOSE_TAB
+  intents: ["закрой вкладку", "ctrl w", "close tab"]
+  description_short: "Ctrl+W закрывает вкладку."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","w")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_REOPEN_TAB
+  intents: ["верни вкладку", "открой закрытую вкладку", "ctrl shift t"]
+  description_short: "Ctrl+Shift+T вернуть закрытую вкладку."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","shift","t")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_ADDRESS_BAR
+  intents: ["в адресную строку", "открой адресную строку", "ctrl l"]
+  description_short: "Ctrl+L фокус на адресную строку."
+  execute:
+    lang: python
+    script: |
+      import pyautogui
+      pyautogui.hotkey("ctrl","l")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ======== SMART “FIND ON PAGE” ========
+- id: CMD_FIND_ON_PAGE
+  intents: ["найди на странице *", "ctrl f *", "поиск по странице *"]
+  description_short: "Ctrl+F поиск по странице + ввод текста."
+  params: [{name: text, from_user: true}]
+  execute:
+    lang: python
+    script: |
+      import time
+      import pyautogui
+      text="{{text}}"
+      pyautogui.hotkey("ctrl","f")
+      time.sleep(0.1)
+      pyautogui.typewrite(text, interval=0.01)
+      pyautogui.press("enter")
+      print("OK: find on page")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ======== YOUTUBE HOTKEYS ========
+- id: CMD_YT_PLAY_PAUSE
+  intents: ["пауза", "поставь на паузу", "продолжи", "play pause"]
+  description_short: "YouTube: K пауза/плей."
+  execute: {lang: python, script: "import pyautogui; pyautogui.press('k'); print('OK')"}
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_FORWARD_10
+  intents: ["вперед 10", "перемотай вперед", "forward 10"]
+  description_short: "YouTube: L вперед 10 сек."
+  execute: {lang: python, script: "import pyautogui; pyautogui.press('l'); print('OK')"}
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_BACK_10
+  intents: ["назад 10", "перемотай назад", "back 10"]
+  description_short: "YouTube: J назад 10 сек."
+  execute: {lang: python, script: "import pyautogui; pyautogui.press('j'); print('OK')"}
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_MUTE
+  intents: ["выключи звук", "mute", "без звука"]
+  description_short: "YouTube: M mute."
+  execute: {lang: python, script: "import pyautogui; pyautogui.press('m'); print('OK')"}
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_FULLSCREEN
+  intents: ["полный экран", "fullscreen", "фуллскрин"]
+  description_short: "YouTube: F fullscreen."
+  execute: {lang: python, script: "import pyautogui; pyautogui.press('f'); print('OK')"}
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ======== BULK / LOOP HELPERS ========
+- id: CMD_PRESS_CTRL_W_TIMES
+  intents: ["закрой * вкладок", "закрой вкладки * раз", "ctrl w * раз"]
+  description_short: "Нажимает Ctrl+W N раз."
+  params: [{name: times, from_user: true}]
+  execute:
+    lang: python
+    script: |
+      import time, pyautogui
+      n=int("{{times}}")
+      for i in range(n):
+        pyautogui.hotkey("ctrl","w")
+        time.sleep(0.15)
+      print("OK: closed tabs", n)
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+# ----------------------------------------
+# Конец библиотеки (можно дополнять дальше)
+# ----------------------------------------

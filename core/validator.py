@@ -11,6 +11,32 @@ FORBIDDEN_PATHS = (
     r"\\appdata\\",
 )
 
+SAFE_PATH_TOKENS = (
+    "desktop",
+    "documents",
+    "downloads",
+    "temp",
+    "$env:temp",
+    "$env:tmp",
+)
+
+WRITE_COMMANDS_PS = (
+    "set-content",
+    "add-content",
+    "out-file",
+    "new-item",
+    "copy-item",
+    "move-item",
+)
+
+WRITE_HINTS_PY = (
+    "open(",
+    "write_text(",
+    "write_bytes(",
+    "to_csv(",
+    "to_json(",
+)
+
 
 def validate_python(script: str) -> list[str]:
     errors: list[str] = []
@@ -46,6 +72,9 @@ def validate_python(script: str) -> list[str]:
 
     if _mentions_forbidden_paths(script):
         errors.append("Доступ к системным каталогам запрещен.")
+
+    if _uses_write_ops_py(script) and not _mentions_safe_paths(script):
+        errors.append("Запись разрешена только в Desktop/Documents/Downloads/%TEMP%.")
 
     return errors
 
@@ -87,6 +116,9 @@ def validate_powershell(script: str) -> list[str]:
     if _mentions_forbidden_paths(script):
         errors.append("Доступ к системным каталогам запрещен.")
 
+    if _uses_write_ops_ps(script) and not _mentions_safe_paths(script):
+        errors.append("Запись разрешена только в Desktop/Documents/Downloads/%TEMP%.")
+
     if re.search(r"Set-Location\s+['\"]Desktop['\"]", script, re.IGNORECASE):
         errors.append(
             "Нельзя использовать Set-Location \"Desktop\". Используй GetFolderPath('Desktop') и Join-Path."
@@ -98,3 +130,18 @@ def validate_powershell(script: str) -> list[str]:
 def _mentions_forbidden_paths(script: str) -> bool:
     lowered = script.lower()
     return any(token in lowered for token in FORBIDDEN_PATHS)
+
+
+def _mentions_safe_paths(script: str) -> bool:
+    lowered = script.lower()
+    return any(token in lowered for token in SAFE_PATH_TOKENS)
+
+
+def _uses_write_ops_ps(script: str) -> bool:
+    lowered = script.lower()
+    return any(token in lowered for token in WRITE_COMMANDS_PS)
+
+
+def _uses_write_ops_py(script: str) -> bool:
+    lowered = script.lower()
+    return any(token in lowered for token in WRITE_HINTS_PY)

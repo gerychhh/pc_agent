@@ -17,6 +17,7 @@ from core.config import (
     VOICE_VOLUME,
 )
 from core.orchestrator import Orchestrator, sanitize_assistant_text
+from core.debug import set_debug
 from core.voice import VoiceInput
 from core.state import clear_state, get_active_app, get_active_file, get_active_url, load_state, set_active_file
 
@@ -26,6 +27,7 @@ Commands:
   /help    Show this help message
   /exit    Exit the application
   /reset   Reset conversation context
+  /debug   Toggle debug logging
   /screens List recent screenshots
   /active  Show current active file/url/app
   /files   List recent files
@@ -57,6 +59,20 @@ def _print_recent(label: str, items: list[str]) -> None:
 
 def _escape_powershell(text: str) -> str:
     return text.replace("'", "''")
+
+
+def _handle_debug_command(raw: str) -> None:
+    parts = raw.split()
+    if len(parts) == 1:
+        set_debug(True)
+        print("Debug enabled.")
+        return
+    if parts[1].lower() in ("off", "0", "false"):
+        set_debug(False)
+        print("Debug disabled.")
+        return
+    set_debug(True)
+    print("Debug enabled.")
 
 
 def _should_speak(response: str) -> bool:
@@ -137,6 +153,7 @@ def ensure_app_search_paths() -> None:
 def main() -> None:
     print("PC Agent CLI. Type /help for commands.")
     ensure_app_search_paths()
+    set_debug(os.getenv("PC_AGENT_DEBUG", "0") == "1")
     orchestrator = Orchestrator()
     voice_enabled = VOICE_DEFAULT_ENABLED
     voice_input: VoiceInput | None = None
@@ -152,6 +169,9 @@ def main() -> None:
                 if prompt == "/voice off":
                     voice_enabled = False
                     print("Voice mode disabled.")
+                    continue
+                if prompt.startswith("/debug"):
+                    _handle_debug_command(prompt)
                     continue
                 user_input = prompt
             else:
@@ -197,6 +217,9 @@ def main() -> None:
         if user_input == "/reset":
             orchestrator.reset()
             print("Context reset.")
+            continue
+        if user_input.startswith("/debug"):
+            _handle_debug_command(user_input)
             continue
         if user_input == "/active":
             active_file = get_active_file()
