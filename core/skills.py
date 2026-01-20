@@ -107,6 +107,63 @@ def _extract_docx_text(user_text: str) -> str | None:
     return None
 
 
+def _extract_txt_content(user_text: str) -> str | None:
+    match = re.search(
+        r"(?:впиши|напиши|запиши|вставь)\s*(?:туда|в файл|в тексте|текст)?\s*[:\-]?\s*(.+)$",
+        user_text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    content = match.group(1).strip()
+    content = re.sub(
+        r"\s*(?:и\s+сохрани(?:ть)?|на\s+рабочем\s+столе)\s*$",
+        "",
+        content,
+        flags=re.IGNORECASE,
+    ).strip()
+    return content or None
+
+
+def _extract_txt_filename(user_text: str) -> str | None:
+    match = re.search(
+        r"(?:назови|имя|как|сохрани\s+как)\s+([\w\-а-яА-Я_]+)(?:\.txt)?",
+        user_text,
+        re.IGNORECASE,
+    )
+    if not match:
+        match = re.search(
+            r"файл\s+([\w\-а-яА-Я_]+)(?:\.txt)?",
+            user_text,
+            re.IGNORECASE,
+        )
+    if match:
+        name = match.group(1).strip()
+        if name:
+            return f"{name}.txt"
+    return None
+
+
+def _default_txt_filename(content: str | None, user_text: str) -> str:
+    number_source = content or user_text
+    match = re.search(r"\b(\d{2,})\b", number_source)
+    if match:
+        return f"{match.group(1)}.txt"
+    return "note.txt"
+
+
+def _powershell_create_txt(filename: str, content: str) -> str:
+    safe_filename = re.sub(r"[\\/]+", "_", filename)
+    safe_content = content.replace('"', '""')
+    return (
+        "$desktop = [Environment]::GetFolderPath('Desktop')\n"
+        f"$path = Join-Path $desktop \"{safe_filename}\"\n"
+        f"$content = @\"\n{safe_content}\n\"@\n"
+        "$content | Set-Content -Path $path -Encoding UTF8\n"
+        'Write-Host "SAVED: $path"\n'
+    )
+
+
 def _python_create_docx(title: str, paragraphs: list[str], filename: str) -> str:
     """Генерирует безопасный Python-скрипт для создания реального .docx через python-docx."""
     safe_title = repr(title)
@@ -151,6 +208,27 @@ def _python_create_docx(title: str, paragraphs: list[str], filename: str) -> str
 
 def match_skill(user_text: str, state: dict[str, Any]) -> Action | str | None:
     lowered = user_text.lower().strip()
+
+    # =============================
+    # TXT file creation on Desktop (железный скилл)
+    # =============================
+    txt_keywords = (
+        "файл txt",
+        "txt файл",
+        "файл текст",
+        "файл ткст",
+        "текстовый файл",
+    )
+    if any(term in lowered for term in txt_keywords) and "созд" in lowered:
+        content = _extract_txt_content(user_text) or ""
+        filename = _extract_txt_filename(user_text) or _default_txt_filename(content, user_text)
+        script = _powershell_create_txt(filename, content)
+        return Action(language="powershell", script=script, name="create_txt_on_desktop")
+    if "на рабочем столе" in lowered and "созд" in lowered and "файл" in lowered:
+        content = _extract_txt_content(user_text) or ""
+        filename = _extract_txt_filename(user_text) or _default_txt_filename(content, user_text)
+        script = _powershell_create_txt(filename, content)
+        return Action(language="powershell", script=script, name="create_txt_on_desktop")
 
     # =============================
     # DOCX / Word document creation (железный скилл)

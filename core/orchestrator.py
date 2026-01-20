@@ -137,18 +137,54 @@ class Orchestrator:
         if not content:
             return None, None
         stripped = content.strip()
-        python_match = re.fullmatch(
-            r"```python\s*([\s\S]*?)```", stripped, re.IGNORECASE
-        )
-        ps_match = re.fullmatch(
-            r"```powershell\s*([\s\S]*?)```", stripped, re.IGNORECASE
-        )
+        python_match = re.fullmatch(r"```python\s*([\s\S]*?)```", stripped, re.IGNORECASE)
+        ps_match = re.fullmatch(r"```powershell\s*([\s\S]*?)```", stripped, re.IGNORECASE)
         if python_match and ps_match:
             return None, None
         if python_match:
             return "python", python_match.group(1).strip()
         if ps_match:
             return "powershell", ps_match.group(1).strip()
+        if "[TOOL_RESULT]" in stripped:
+            lang_match = re.search(r"LANG:\s*(python|powershell)", stripped, re.IGNORECASE)
+            script_match = re.search(
+                r"SCRIPT:\s*([\s\S]*?)(?:\n[A-Z_]+:|\[/TOOL_RESULT\]|$)",
+                stripped,
+                re.IGNORECASE,
+            )
+            script_block = script_match.group(1).strip() if script_match else ""
+            if script_block:
+                fenced_python = re.search(r"```python\s*([\s\S]*?)```", script_block, re.IGNORECASE)
+                fenced_ps = re.search(r"```powershell\s*([\s\S]*?)```", script_block, re.IGNORECASE)
+                if fenced_python:
+                    return "python", fenced_python.group(1).strip()
+                if fenced_ps:
+                    return "powershell", fenced_ps.group(1).strip()
+            if lang_match and script_block:
+                return lang_match.group(1).lower(), script_block
+        lines = stripped.splitlines()
+        if lines:
+            line_match = re.match(r"^(python|powershell)\s*$", lines[0], re.IGNORECASE)
+        else:
+            line_match = None
+        if line_match:
+            lang = line_match.group(1).lower()
+            lines = lines[1:]
+            script = "\n".join(lines).strip()
+            if script:
+                return lang, script
+        command_match = re.match(
+            r"^powershell\s+-Command\s+(.+)$", stripped, re.IGNORECASE | re.DOTALL
+        )
+        if command_match:
+            payload = command_match.group(1).strip()
+            if (payload.startswith('"') and payload.endswith('"')) or (
+                payload.startswith("'") and payload.endswith("'")
+            ):
+                payload = payload[1:-1]
+            payload = payload.strip()
+            if payload:
+                return "powershell", payload
         return None, None
 
     def _build_messages(
