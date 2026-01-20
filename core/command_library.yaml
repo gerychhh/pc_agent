@@ -232,6 +232,8 @@ commands:
   execute: {lang: powershell, script: "Start-Process notepad.exe"}
   verify: {lang: powershell, script: "Get-Process notepad -ErrorAction SilentlyContinue | Out-String"}
   success: {type: process_running, process_name: notepad}
+  state_update:
+    active_app: "notepad"
 
 - id: CMD_CLOSE_NOTEPAD
   intents: ["закрой блокнот", "убей блокнот"]
@@ -246,6 +248,8 @@ commands:
   execute: {lang: powershell, script: "Start-Process calc.exe"}
   verify: {lang: powershell, script: "Get-Process Calculator -ErrorAction SilentlyContinue | Out-String"}
   success: {type: custom}
+  state_update:
+    active_app: "calc"
 
 - id: CMD_OPEN_EXPLORER
   intents: ["открой проводник", "открой папки", "explorer"]
@@ -277,6 +281,8 @@ commands:
       $path = Join-Path $desktop "{{filename}}"
       if (Test-Path $path) { "OK" } else { exit 1 }
   success: {type: file_exists}
+  state_update:
+    active_file: "{{desktop}}\\{{filename}}"
 
 - id: CMD_CREATE_DOCX_DESKTOP
   intents: ["создай ворд файл *", "создай docx *", "создай документ word *", "создай документ ворд *"]
@@ -305,6 +311,8 @@ commands:
       print("OK" if p.exists() else "FAIL")
       if not p.exists(): raise RuntimeError("docx not found")
   success: {type: file_exists}
+  state_update:
+    active_file: "{{desktop}}\\{{filename}}"
 
 # ======== BROWSER / SEARCH ========
 - id: CMD_OPEN_URL
@@ -314,9 +322,11 @@ commands:
   execute: {lang: powershell, script: "Start-Process \"{{url}}\""}
   verify: {lang: powershell, script: "OK"}
   success: {type: none}
+  state_update:
+    active_url: "{{url}}"
 
 - id: CMD_GOOGLE_SEARCH
-  intents: ["погугли *", "найди в гугле *", "google *", "поиск *"]
+  intents: ["погугли *", "найди в гугле *", "google *", "поиск *", "найди * в гугле"]
   description_short: "Открывает Google поиск по запросу."
   params: [{name: query, from_user: true}]
   execute:
@@ -328,14 +338,24 @@ commands:
   success: {type: none}
 
 - id: CMD_YOUTUBE_OPEN
-  intents: ["открой ютуб", "youtube", "youtube.com"]
+  intents: ["открой ютуб", "youtube", "youtube.com", "открой youtube", "ютуб открой"]
   description_short: "Открывает YouTube."
   execute: {lang: powershell, script: "Start-Process \"https://www.youtube.com/\""}
   verify: {lang: powershell, script: "OK"}
   success: {type: none}
+  state_update:
+    active_url: "https://www.youtube.com/"
 
 - id: CMD_YOUTUBE_SEARCH
-  intents: ["найди на ютубе *", "поиск ютуб *", "youtube search *"]
+  intents:
+    [
+      "найди на ютубе *",
+      "поиск ютуб *",
+      "youtube search *",
+      "открой ютуб и найди *",
+      "найди видео * на ютубе",
+      "ютуб найди *",
+    ]
   description_short: "Открывает результаты поиска YouTube."
   params: [{name: query, from_user: true}]
   execute:
@@ -345,6 +365,8 @@ commands:
       Start-Process "https://www.youtube.com/results?search_query=$q"
   verify: {lang: powershell, script: "OK"}
   success: {type: none}
+  state_update:
+    active_url: "https://www.youtube.com/results?search_query={{query}}"
 
 - id: CMD_BROWSER_NEW_TAB
   intents: ["новая вкладка", "открой новую вкладку", "ctrl t"]

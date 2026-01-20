@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -98,13 +99,27 @@ def render_template(script: str, params: dict[str, str]) -> str:
     return rendered
 
 
+def render_updates(updates: dict[str, Any] | None, params: dict[str, str]) -> dict[str, Any] | None:
+    if not updates:
+        return updates
+    rendered: dict[str, Any] = {}
+    desktop_path = str(Path.home() / "Desktop")
+    for key, value in updates.items():
+        if isinstance(value, str):
+            value = value.replace("{{desktop}}", desktop_path)
+            for param_key, param_value in params.items():
+                value = value.replace(f"{{{{{param_key}}}}}", str(param_value))
+        rendered[key] = value
+    return rendered
+
+
 def run_command(command: dict[str, Any], params: dict[str, str]) -> CommandResult:
     execute = command.get("execute") or {}
     verify = command.get("verify") or {}
     action = Action(
         language=execute.get("lang"),
         script=render_template(execute.get("script") or "", params),
-        updates=command.get("state_update"),
+        updates=render_updates(command.get("state_update"), params),
         name=command.get("id"),
     )
 
