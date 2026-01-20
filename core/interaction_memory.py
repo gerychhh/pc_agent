@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
@@ -81,3 +82,18 @@ def record_history(query: str, response: str, resolved_query: str) -> None:
     if len(history) > MAX_HISTORY:
         memory["history"] = history[-MAX_HISTORY:]
     save_memory(memory)
+
+
+def find_similar_routes(query: str, limit: int = 3) -> list[dict[str, Any]]:
+    if not query:
+        return []
+    memory = load_memory()
+    routes = memory.get("routes", {})
+    results: list[dict[str, Any]] = []
+    for stored_query, resolved in routes.items():
+        if not isinstance(stored_query, str) or not isinstance(resolved, str):
+            continue
+        score = SequenceMatcher(None, query.lower(), stored_query.lower()).ratio()
+        results.append({"query": stored_query, "resolved": resolved, "score": score})
+    results.sort(key=lambda item: item["score"], reverse=True)
+    return results[:limit]

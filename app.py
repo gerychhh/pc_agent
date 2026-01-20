@@ -32,7 +32,7 @@ from core.state import (
     set_active_file,
     set_voice_device,
 )
-from core.interaction_memory import delete_route, get_route, record_history, set_route
+from core.interaction_memory import delete_route, find_similar_routes, get_route, record_history, set_route
 from core.llm_client import LLMClient
 from core.config import FAST_MODEL
 
@@ -115,6 +115,9 @@ def _parse_cancel(text: str) -> bool:
 
 
 def _resolve_request(user_text: str) -> tuple[str, bool]:
+    similar = find_similar_routes(user_text, limit=3)
+    if similar and similar[0]["score"] >= 0.92:
+        return similar[0]["resolved"], False
     prompt = (
         "Ты классификатор пользовательских запросов для Windows-агента. "
         "Определи тип запроса и верни JSON:\n"
@@ -130,11 +133,18 @@ def _resolve_request(user_text: str) -> tuple[str, bool]:
         "- other: любая другая задача.\n"
         "- resolved должен быть коротким и ясным действием на русском.\n"
         "- force_llm=true для site/youtube/other, false для app.\n"
+        "- Если есть похожие примеры, адаптируй resolved по аналогии.\n"
         "- Верни только JSON."
+    )
+    examples = "\n".join(
+        f"- user: {item['query']} -> resolved: {item['resolved']} (score={item['score']:.2f})" for item in similar
     )
     try:
         response = LLMClient().chat(
-            [{"role": "system", "content": prompt}, {"role": "user", "content": user_text}],
+            [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Запрос: {user_text}\nПохожие примеры:\n{examples or 'нет'}"},
+            ],
             tools=[],
             model_name=FAST_MODEL,
             tool_choice="none",
