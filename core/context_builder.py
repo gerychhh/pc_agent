@@ -14,58 +14,25 @@ def build_command_index(commands: list[dict[str, Any]], limit: int = 25) -> str:
     return "\n".join(lines)
 
 
-def ctx_planner(
-    state: dict[str, Any],
-    command_index: str,
-    user_text: str,
-    last_run: list[dict[str, Any]] | None = None,
-) -> str:
-    last_payload = last_run or []
+def ctx_action(state: dict[str, Any], command_index: str, user_text: str) -> str:
     return (
-        "[SYSTEM] Ты — планировщик шагов для управления Windows-ПК. "
-        "Верни один шаг в JSON без пояснений.\n"
-        "[ENV] Windows 10/11, локальный запуск, нет system-role, ответ только user-message.\n"
-        "[FORMAT] {\n"
-        "  \"step_id\": \"...\",\n"
-        "  \"use_command_id\": \"CMD_OPEN_NOTEPAD\" | null,\n"
-        "  \"execute\": { \"lang\": \"powershell|python\", \"script\": \"...\" } | null,\n"
-        "  \"verify\": { \"lang\": \"powershell|python\", \"script\": \"...\" } | null,\n"
-        "  \"stop_if_failed\": true|false,\n"
-        "  \"notes\": \"коротко\"\n"
-        "}\n"
-        "[RULES] Используй Command Library если возможно. После каждого шага обязательно verify.\n"
-        f"[STATE] ACTIVE_FILE={state.get('active_file')} | ACTIVE_URL={state.get('active_url')} | "
-        f"ACTIVE_APP={state.get('active_app')}\n"
-        f"[COMMAND_INDEX]\n{command_index}\n"
-        f"[TASK] {user_text}\n"
-        f"[LAST_RUN] {last_payload}"
-    )
-
-
-def ctx_smart_fix(
-    state: dict[str, Any],
-    command_index: str,
-    step: dict[str, Any],
-    last_exec: dict[str, Any],
-    user_text: str,
-) -> str:
-    return (
-        "[SYSTEM] Исправь шаг, который упал. Верни новый шаг JSON без пояснений.\n"
+        "[SYSTEM] Ты — исполнитель для управления Windows-ПК. "
+        "Верни один JSON без пояснений.\n"
         "[ENV] Windows 10/11, локальный запуск.\n"
         "[FORMAT] {\n"
-        "  \"step_id\": \"...\",\n"
         "  \"use_command_id\": \"CMD_OPEN_NOTEPAD\" | null,\n"
-        "  \"execute\": { \"lang\": \"powershell|python\", \"script\": \"...\" },\n"
-        "  \"verify\": { \"lang\": \"powershell|python\", \"script\": \"...\" },\n"
-        "  \"stop_if_failed\": true|false,\n"
-        "  \"notes\": \"коротко\"\n"
+        "  \"params\": {\"text\": \"...\"} | null,\n"
+        "  \"execute\": { \"lang\": \"powershell|python\", \"script\": \"...\" } | null,\n"
+        "  \"verify\": { \"lang\": \"powershell|python\", \"script\": \"...\" } | null\n"
         "}\n"
+        "[RULES] Если есть подходящая команда — верни use_command_id и params. "
+        "Если нет — верни execute (и verify при необходимости). "
+        "Не используй опасные действия: удаление, shutdown, реестр, системные каталоги.\n"
         f"[STATE] ACTIVE_FILE={state.get('active_file')} | ACTIVE_URL={state.get('active_url')} | "
         f"ACTIVE_APP={state.get('active_app')}\n"
         f"[COMMAND_INDEX]\n{command_index}\n"
         f"[TASK] {user_text}\n"
-        f"[LAST_RUN] {last_exec}\n"
-        f"[STEP] {step}"
+        "[OUTPUT] Верни только JSON."
     )
 
 
