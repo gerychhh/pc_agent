@@ -77,6 +77,9 @@ class Orchestrator:
         execute = action.get("execute") or {}
         if not execute:
             return None
+        steps = execute.get("steps")
+        if steps:
+            return _run_compound_steps(steps)
         lang = execute.get("lang")
         script = execute.get("script")
         if not lang or not script:
@@ -87,6 +90,28 @@ class Orchestrator:
         result = run_python(script, TIMEOUT_SEC) if lang == "python" else run_powershell(script, TIMEOUT_SEC)
         update_active_window_state()
         return {"id": "LLM_SCRIPT", "ok": bool(result.get("ok")), "stdout": result.get("stdout"), "stderr": result.get("stderr")}, _format_script_action(lang, script)
+
+
+def _run_compound_steps(steps: list[dict[str, Any]]) -> tuple[dict[str, Any], str] | None:
+    outputs: list[str] = []
+    for index, step in enumerate(steps, start=1):
+        lang = step.get("lang")
+        script = step.get("script")
+        if not lang or not script:
+            return None
+        errors = validate_python(script) if lang == "python" else validate_powershell(script)
+        if errors:
+            return {"id": "LLM_SCRIPT", "ok": False, "stderr": "\n".join(errors), "blocked": True}, _format_script_action(lang, script)
+        result = run_python(script, TIMEOUT_SEC) if lang == "python" else run_powershell(script, TIMEOUT_SEC)
+        update_active_window_state()
+        ok = bool(result.get("ok"))
+        outputs.append(f"step {index} ({lang}) ok={ok}")
+        if not ok:
+            return (
+                {"id": "LLM_SCRIPT", "ok": False, "stdout": "\n".join(outputs), "stderr": result.get("stderr")},
+                _format_script_action(lang, script),
+            )
+    return {"id": "LLM_SCRIPT", "ok": True, "stdout": "\n".join(outputs), "stderr": ""}, "SCRIPT[compound]"
 
 
 def _format_command_action(command_id: str | None, params: dict[str, str]) -> str:

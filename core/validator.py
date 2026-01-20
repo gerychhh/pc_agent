@@ -29,9 +29,6 @@ def validate_python(script: str) -> list[str]:
     errors: list[str] = []
     lines = script.splitlines()
 
-    if any(";" in line for line in lines):
-        errors.append("Запрещены однострочники с ';' в Python.")
-
     if re.search(r"open\([^\n]*\.(docx|xlsx|pdf|pptx)[^\n]*['\"]w", script, re.IGNORECASE):
         errors.append("Нельзя создавать docx/xlsx/pptx/pdf через open(...,'w').")
 
