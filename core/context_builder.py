@@ -42,7 +42,7 @@ def ctx_action(state: dict[str, Any], command_index: str, user_text: str) -> str
 
 def ctx_reporter(state: dict[str, Any], results: list[dict[str, Any]], user_text: str) -> str:
     return (
-        "[SYSTEM] Ты — репортёр выполнения команд на ПК. Отвечай кратко, без code blocks.\n"
+        "[SYSTEM] Ты — репортёр выполнения команд на ПК. Отвечай кратко по-русски, без code blocks.\n"
         "[ENV] Windows 10/11.\n"
         f"[STATE] ACTIVE_FILE={state.get('active_file')} | ACTIVE_URL={state.get('active_url')} | "
         f"ACTIVE_APP={state.get('active_app')}\n"

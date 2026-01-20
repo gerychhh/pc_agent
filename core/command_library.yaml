@@ -496,50 +496,6 @@ commands:
   success: {type: custom}
 
 # ======== APPS ========
-- id: CMD_OPEN_NOTEPAD
-  intents: ["открой блокнот", "запусти блокнот", "notepad"]
-  description_short: "Открывает Блокнот и переводит фокус в окно (чтобы печать работала)."
-  execute:
-    lang: python
-    script: |
-      import time
-      import subprocess
-      from core.window_manager import click_center_active_window, ensure_focus
-
-      subprocess.Popen(["notepad.exe"])
-      time.sleep(0.8)
-      ok = ensure_focus({"process": "notepad.exe"})
-      if not ok:
-        ok = ensure_focus({"title_contains": "Блокнот"})
-      if not ok:
-        ok = ensure_focus({"title_contains": "Notepad"})
-      if not ok:
-        raise RuntimeError("Notepad window not found")
-      click_center_active_window()
-
-      print("OK: notepad opened")
-  verify:
-    lang: python
-    script: |
-      import psutil
-      from core.window_manager import log_verify
-      names = []
-      for p in psutil.process_iter(["name"]):
-        try:
-          names.append((p.info.get("name") or "").lower())
-        except Exception:
-          pass
-      ok = any(n in ("notepad.exe", "notepad") for n in names)
-      log_verify(ok, "process=notepad")
-      if ok:
-        print("OK")
-      else:
-        raise RuntimeError("notepad not running")
-  success:
-    type: custom
-  state_update:
-    active_app: "notepad"
-
 - id: CMD_FOCUS_NOTEPAD
   intents: ["сфокусируй блокнот", "переключись на блокнот", "focus notepad"]
   description_short: "Активирует окно Блокнота (если уже открыто)."
