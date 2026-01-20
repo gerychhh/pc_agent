@@ -4,57 +4,30 @@ from typing import Any
 
 from openai import OpenAI
 
-from .config import API_KEY, BASE_URL, MODEL_NAME
+from .config import API_KEY, BASE_URL
 
 
 class LLMClient:
     def __init__(self) -> None:
         self.client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
-        self.model = MODEL_NAME
-
-    def _resolve_model(self) -> str:
-        try:
-            models = self.client.models.list()
-        except Exception:  # pragma: no cover - network/runtime dependent
-            return self.model
-        available = [item.id for item in getattr(models, "data", []) if getattr(item, "id", None)]
-        if not available:
-            return self.model
-        if self.model in available:
-            return self.model
-        return available[0]
+        self.model: str | None = None
 
     def chat(
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        model_name: str,
         tool_choice: str = "auto",
     ) -> Any:
-        model = self._resolve_model()
-        self.model = model
-        try:
-            if tool_choice == "none":
-                return self.client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                )
+        self.model = model_name
+        if tool_choice == "none":
             return self.client.chat.completions.create(
-                model=model,
+                model=model_name,
                 messages=messages,
-                tools=tools,
-                tool_choice=tool_choice,
             )
-        except Exception:  # pragma: no cover - network/runtime dependent
-            fallback_model = self._resolve_model()
-            self.model = fallback_model
-            if tool_choice == "none":
-                return self.client.chat.completions.create(
-                    model=fallback_model,
-                    messages=messages,
-                )
-            return self.client.chat.completions.create(
-                model=fallback_model,
-                messages=messages,
-                tools=tools,
-                tool_choice=tool_choice,
-            )
+        return self.client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+        )

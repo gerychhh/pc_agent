@@ -5,11 +5,12 @@ from pathlib import Path
 
 BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
 API_KEY = os.getenv("LMSTUDIO_API_KEY", "not-needed")
-MODEL_NAME = os.getenv("MODEL_NAME", "local-model")
+FAST_MODEL = os.getenv("FAST_MODEL", "qwen2.5-3b-instruct")
+SMART_MODEL = os.getenv("SMART_MODEL", "mistral-7b-instruct-v0.3")
 
 MODE = "script"
 DEBUG = os.getenv("DEBUG") == "1"
-MAX_RETRIES = 2
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
 TIMEOUT_SEC = 30
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

@@ -88,9 +88,12 @@ def _run_command(command: list[str], script_path: Path, timeout_sec: int) -> dic
         )
         duration_ms = int((time.perf_counter() - start) * 1000)
         ok = completed.returncode == 0
+        stderr_text = completed.stderr or ""
+        if not ok and "NoProcessFoundForGivenName" in stderr_text:
+            ok = True
         return _result(
             ok,
-            returncode=completed.returncode,
+            returncode=0 if ok else completed.returncode,
             stdout=completed.stdout,
             stderr=completed.stderr,
             duration_ms=duration_ms,

@@ -18,7 +18,7 @@ from core.config import (
 )
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.voice import VoiceInput
-from core.state import clear_state, get_active_file, load_state, set_active_file
+from core.state import clear_state, get_active_app, get_active_file, get_active_url, load_state, set_active_file
 
 
 HELP_TEXT = """
@@ -27,9 +27,10 @@ Commands:
   /exit    Exit the application
   /reset   Reset conversation context
   /screens List recent screenshots
-  /active  Show current active file
+  /active  Show current active file/url/app
   /files   List recent files
   /urls    List recent URLs
+  /apps    List recent apps
   /use     Set active file by index or path
   /clear   Clear active state
 """.strip()
@@ -198,11 +199,12 @@ def main() -> None:
             print("Context reset.")
             continue
         if user_input == "/active":
-            active = get_active_file()
-            if active:
-                print(f"Active file: {active}")
-            else:
-                print("Active file: (none)")
+            active_file = get_active_file()
+            active_url = get_active_url()
+            active_app = get_active_app()
+            print(f"Active file: {active_file or '(none)'}")
+            print(f"Active url: {active_url or '(none)'}")
+            print(f"Active app: {active_app or '(none)'}")
             continue
         if user_input == "/files":
             state = load_state()
@@ -211,6 +213,10 @@ def main() -> None:
         if user_input == "/urls":
             state = load_state()
             _print_recent("urls", state.get("recent_urls", []))
+            continue
+        if user_input == "/apps":
+            state = load_state()
+            _print_recent("apps", state.get("recent_apps", []))
             continue
         if user_input.startswith("/use"):
             raw = user_input[len("/use") :].strip()
