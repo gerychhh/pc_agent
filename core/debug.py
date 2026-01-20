@@ -30,6 +30,7 @@ _DEBUG_ENABLED = os.getenv("PC_AGENT_DEBUG", "0") == "1"
 def set_debug(enabled: bool) -> None:
     global _DEBUG_ENABLED
     _DEBUG_ENABLED = enabled
+    os.environ["PC_AGENT_DEBUG"] = "1" if enabled else "0"
     _LOGGER.setLevel(logging.DEBUG if enabled else logging.INFO)
 
 

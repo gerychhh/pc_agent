@@ -11,6 +11,7 @@ from .llm_parser import parse_step_json
 from .validator import validate_powershell, validate_python
 from .config import SMART_MODEL, TIMEOUT_SEC
 from .executor import run_powershell, run_python
+from .state import update_active_window_state
 
 
 @dataclass
@@ -132,6 +133,7 @@ class PlannerLoop:
                 else:
                     verify_result = _run_action(verify_action)
                     ok = ok and verify_result.get("ok", False)
+        update_active_window_state()
         return StepExecution(
             step=step,
             action=action,

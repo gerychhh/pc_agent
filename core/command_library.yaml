@@ -1,21 +1,19 @@
 commands:
 
 # ======== ACTIVE WINDOW / FOCUS / TYPE ========
-- id: CMD_GET_ACTIVE_WINDOW_TITLE
-  intents: ["какое активное окно", "активное окно", "active window title", "проверь активное окно"]
-  description_short: "Показывает заголовок активного окна."
+- id: CMD_GET_ACTIVE_WINDOW
+  intents: ["какое активное окно", "активное окно", "active window", "проверь активное окно"]
+  description_short: "Показывает заголовок и процесс активного окна."
   execute:
     lang: python
     script: |
-      import pygetwindow as gw
-      win = gw.getActiveWindow()
-      print("ACTIVE_WINDOW:", win.title if win else "NONE")
+      from core.window_manager import get_active_window_info
+      info = get_active_window_info()
+      print(f"ACTIVE_WINDOW title=\"{info.get('title','')}\" process=\"{info.get('process','')}\" pid={info.get('pid')} hwnd={info.get('hwnd')}")
   verify:
     lang: python
     script: |
-      import pygetwindow as gw
-      win = gw.getActiveWindow()
-      print("OK" if win else "NONE")
+      print("OK")
   success:
     type: custom
 
@@ -28,11 +26,13 @@ commands:
   execute:
     lang: python
     script: |
-      import pygetwindow as gw
+      from core.window_manager import get_active_window_info, log_verify
       target = "{{text}}".lower()
-      win = gw.getActiveWindow()
-      title = (win.title if win else "").lower()
-      if target in title:
+      info = get_active_window_info()
+      title = (info.get("title") or "").lower()
+      ok = target in title
+      log_verify(ok, f"title=\"{info.get('title','')}\" target=\"{target}\"")
+      if ok:
         print("OK: active window contains", target)
       else:
         raise RuntimeError(f"Active window mismatch: '{title}' not contains '{target}'")
@@ -42,6 +42,82 @@ commands:
       print("OK")
   success:
     type: custom
+
+- id: CMD_FOCUS_WINDOW_TITLE_CONTAINS
+  intents: ["сфокусируй окно *", "фокус окна *", "активируй окно *", "focus window *"]
+  description_short: "Фокусирует окно по части заголовка."
+  params:
+    - name: text
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import ensure_focus, get_active_window_info
+      text = "{{text}}"
+      ok = ensure_focus({"title_contains": text})
+      if not ok:
+        raise RuntimeError("Window not found")
+      info = get_active_window_info()
+      print(f"OK: focused title=\"{info.get('title','')}\"")
+  verify:
+    lang: python
+    script: |
+      from core.window_manager import get_active_window_info, log_verify
+      target = "{{text}}".lower()
+      info = get_active_window_info()
+      title = (info.get("title") or "").lower()
+      ok = target in title
+      log_verify(ok, f"title=\"{info.get('title','')}\" target=\"{target}\"")
+      if ok:
+        print("OK")
+      else:
+        raise RuntimeError("Active window mismatch")
+  success:
+    type: custom
+
+- id: CMD_FOCUS_PROCESS
+  intents: ["сфокусируй процесс *", "фокус процесса *", "focus process *"]
+  description_short: "Фокусирует окно по имени процесса."
+  params:
+    - name: process_name
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import ensure_focus, get_active_window_info
+      process = "{{process_name}}"
+      ok = ensure_focus({"process": process})
+      if not ok:
+        raise RuntimeError("Process window not found")
+      info = get_active_window_info()
+      print(f"OK: focused process=\"{info.get('process','')}\"")
+  verify:
+    lang: python
+    script: |
+      from core.window_manager import get_active_window_info, log_verify
+      target = "{{process_name}}".lower()
+      info = get_active_window_info()
+      process_name = (info.get("process") or "").lower()
+      ok = target in process_name
+      log_verify(ok, f"process=\"{info.get('process','')}\" target=\"{target}\"")
+      if ok:
+        print("OK")
+      else:
+        raise RuntimeError("Process mismatch")
+  success:
+    type: custom
+
+- id: CMD_CLICK_CENTER
+  intents: ["кликни по центру", "кликни в центр", "click center", "кликни центр активного окна"]
+  description_short: "Клик по центру активного окна."
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import click_center_active_window
+      click_center_active_window()
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
 
 - id: CMD_TYPE_ACTIVE_TEXT
   intents: ["напиши *", "впиши *", "введи *", "пиши *", "в активное поле *"]
@@ -53,21 +129,20 @@ commands:
     lang: python
     script: |
       import time
-      import pyautogui
-      import pygetwindow as gw
+      from core.window_manager import get_active_window_info, type_text
       text = "{{text}}"
-      win = gw.getActiveWindow()
-      if not win:
+      info = get_active_window_info()
+      if not info.get("hwnd"):
         raise RuntimeError("No active window")
-      time.sleep(0.15)
-      pyautogui.typewrite(text, interval=0.01)
+      time.sleep(0.1)
+      type_text(text, interval=0.01)
       print("OK: typed")
   verify:
     lang: python
     script: |
-      import pygetwindow as gw
-      win = gw.getActiveWindow()
-      print("OK: active_window=" + (win.title if win else "NONE"))
+      from core.window_manager import get_active_window_info
+      info = get_active_window_info()
+      print("OK: active_window=" + (info.get("title") or "NONE"))
   success:
     type: custom
 
@@ -77,8 +152,8 @@ commands:
   execute:
     lang: python
     script: |
-      import pyautogui
-      pyautogui.press("enter")
+      from core.window_manager import press_key
+      press_key("enter")
       print("OK")
   verify: {lang: python, script: "print('OK')"}
   success: {type: custom}
@@ -89,8 +164,8 @@ commands:
   execute:
     lang: python
     script: |
-      import pyautogui
-      pyautogui.press("esc")
+      from core.window_manager import press_key
+      press_key("esc")
       print("OK")
   verify: {lang: python, script: "print('OK')"}
   success: {type: custom}
@@ -164,6 +239,201 @@ commands:
   verify: {lang: python, script: "print('OK')"}
   success: {type: custom}
 
+# ======== BROWSER / TABS / YOUTUBE ========
+- id: CMD_BROWSER_CTRL_L
+  intents: ["в адресную строку", "адресная строка", "ctrl l"]
+  description_short: "Фокус адресной строки браузера (Ctrl+L)."
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import press_hotkey
+      press_hotkey("ctrl", "l")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_OPEN_IN_ADDRESS_BAR
+  intents: ["в адресную строку введи * и открой", "в адресной строке введи * и открой"]
+  description_short: "Вводит адрес в адресную строку и открывает."
+  params:
+    - name: text
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import time
+      from core.window_manager import press_hotkey, press_key, type_text
+      text = "{{text}}"
+      press_hotkey("ctrl", "l")
+      time.sleep(0.05)
+      type_text(text, interval=0.01)
+      press_key("enter")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_CLOSE_TAB
+  intents: ["закрой вкладку", "закрой текущую вкладку", "close tab"]
+  description_short: "Закрывает активную вкладку (Ctrl+W)."
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import press_hotkey
+      press_hotkey("ctrl", "w")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_NEXT_TAB
+  intents: ["следующая вкладка", "переключи вкладку вперед", "next tab"]
+  description_short: "Переключает на следующую вкладку (Ctrl+Tab)."
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import press_hotkey
+      press_hotkey("ctrl", "tab")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_PREV_TAB
+  intents: ["предыдущая вкладка", "переключи вкладку назад", "prev tab"]
+  description_short: "Переключает на предыдущую вкладку (Ctrl+Shift+Tab)."
+  execute:
+    lang: python
+    script: |
+      from core.window_manager import press_hotkey
+      press_hotkey("ctrl", "shift", "tab")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_BROWSER_SEARCH
+  intents: ["найди в гугле *", "погугли *", "поиск *"]
+  description_short: "Ищет запрос через адресную строку браузера."
+  params:
+    - name: query
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import time
+      from core.window_manager import press_hotkey, press_key, type_text
+      query = "{{query}}"
+      press_hotkey("ctrl", "l")
+      time.sleep(0.05)
+      type_text(query, interval=0.01)
+      press_key("enter")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_TOGGLE_PLAY
+  intents: ["поставь на паузу", "пауза", "останови видео", "play", "pause", "продолжи видео", "продолжи"]
+  description_short: "YouTube play/pause (K) с фокусом и кликом по плееру."
+  execute:
+    lang: python
+    script: |
+      import time
+      from core.window_manager import click_center_active_window, ensure_focus, press_key
+
+      focused = False
+      if ensure_focus({"title_contains": "YouTube"}):
+        focused = True
+      if not focused:
+        for name in ("chrome.exe", "msedge.exe", "firefox.exe"):
+          if ensure_focus({"process": name}):
+            focused = True
+            break
+      if not focused:
+        raise RuntimeError("Не нашёл окно браузера, открой YouTube и повтори.")
+
+      time.sleep(0.05)
+      click_center_active_window()
+      time.sleep(0.05)
+      press_key("k")
+      print("OK")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_BACK_SECONDS
+  intents: ["перемотай назад *", "отмотай *", "перемотай на * назад", "назад на *"]
+  description_short: "YouTube назад на N секунд (J)."
+  params:
+    - name: seconds
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import math
+      import re
+      import time
+      from core.window_manager import click_center_active_window, ensure_focus, press_key
+
+      raw = "{{seconds}}"
+      match = re.search(r"(\\d+)", raw)
+      seconds = int(match.group(1)) if match else 10
+      presses = max(1, int(math.ceil(seconds / 10)))
+
+      focused = False
+      if ensure_focus({"title_contains": "YouTube"}):
+        focused = True
+      if not focused:
+        for name in ("chrome.exe", "msedge.exe", "firefox.exe"):
+          if ensure_focus({"process": name}):
+            focused = True
+            break
+      if not focused:
+        raise RuntimeError("Не нашёл окно браузера, открой YouTube и повтори.")
+
+      time.sleep(0.05)
+      click_center_active_window()
+      time.sleep(0.05)
+      for _ in range(presses):
+        press_key("j")
+      print(f"OK: back {presses}")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
+- id: CMD_YT_FORWARD_SECONDS
+  intents: ["перемотай вперед *", "перемотай вперёд *", "промотай *", "вперёд на *"]
+  description_short: "YouTube вперед на N секунд (L)."
+  params:
+    - name: seconds
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import math
+      import re
+      import time
+      from core.window_manager import click_center_active_window, ensure_focus, press_key
+
+      raw = "{{seconds}}"
+      match = re.search(r"(\\d+)", raw)
+      seconds = int(match.group(1)) if match else 10
+      presses = max(1, int(math.ceil(seconds / 10)))
+
+      focused = False
+      if ensure_focus({"title_contains": "YouTube"}):
+        focused = True
+      if not focused:
+        for name in ("chrome.exe", "msedge.exe", "firefox.exe"):
+          if ensure_focus({"process": name}):
+            focused = True
+            break
+      if not focused:
+        raise RuntimeError("Не нашёл окно браузера, открой YouTube и повтори.")
+
+      time.sleep(0.05)
+      click_center_active_window()
+      time.sleep(0.05)
+      for _ in range(presses):
+        press_key("l")
+      print(f"OK: forward {presses}")
+  verify: {lang: python, script: "print('OK')"}
+  success: {type: custom}
+
 # ======== WINDOW MANAGEMENT ========
 - id: CMD_CLOSE_ACTIVE_WINDOW
   intents: ["закрой окно", "закрой активное окно", "закрой текущее"]
@@ -234,53 +504,34 @@ commands:
     script: |
       import time
       import subprocess
-      import pyautogui
-      import pygetwindow as gw
+      from core.window_manager import click_center_active_window, ensure_focus
 
       subprocess.Popen(["notepad.exe"])
-      time.sleep(0.6)
-
-      wins = []
-      try:
-        wins += gw.getWindowsWithTitle("Блокнот")
-      except Exception:
-        pass
-      try:
-        wins += gw.getWindowsWithTitle("Notepad")
-      except Exception:
-        pass
-
-      if wins:
-        w = wins[0]
-        try:
-          w.restore()
-        except Exception:
-          pass
-        try:
-          w.activate()
-        except Exception:
-          pass
-        time.sleep(0.2)
-        # Клик в центр, чтобы курсор точно оказался в поле ввода
-        try:
-          x = w.left + w.width // 2
-          y = w.top + w.height // 2
-          pyautogui.click(x, y)
-        except Exception:
-          pass
+      time.sleep(0.8)
+      ok = ensure_focus({"process": "notepad.exe"})
+      if not ok:
+        ok = ensure_focus({"title_contains": "Блокнот"})
+      if not ok:
+        ok = ensure_focus({"title_contains": "Notepad"})
+      if not ok:
+        raise RuntimeError("Notepad window not found")
+      click_center_active_window()
 
       print("OK: notepad opened")
   verify:
     lang: python
     script: |
       import psutil
+      from core.window_manager import log_verify
       names = []
       for p in psutil.process_iter(["name"]):
         try:
           names.append((p.info.get("name") or "").lower())
         except Exception:
           pass
-      if any(n in ("notepad.exe", "notepad") for n in names):
+      ok = any(n in ("notepad.exe", "notepad") for n in names)
+      log_verify(ok, "process=notepad")
+      if ok:
         print("OK")
       else:
         raise RuntimeError("notepad not running")
@@ -295,41 +546,25 @@ commands:
   execute:
     lang: python
     script: |
-      import time
-      import pyautogui
-      import pygetwindow as gw
-
-      wins = []
-      try:
-        wins += gw.getWindowsWithTitle("Блокнот")
-      except Exception:
-        pass
-      try:
-        wins += gw.getWindowsWithTitle("Notepad")
-      except Exception:
-        pass
-
-      if not wins:
+      from core.window_manager import click_center_active_window, ensure_focus
+      ok = ensure_focus({"process": "notepad.exe"})
+      if not ok:
+        ok = ensure_focus({"title_contains": "Блокнот"})
+      if not ok:
+        ok = ensure_focus({"title_contains": "Notepad"})
+      if not ok:
         raise RuntimeError("Notepad window not found")
-      w = wins[0]
-      try:
-        w.restore()
-      except Exception:
-        pass
-      w.activate()
-      time.sleep(0.2)
-      # клик по центру, чтобы курсор был в редакторе
-      x = w.left + w.width // 2
-      y = w.top + w.height // 2
-      pyautogui.click(x, y)
+      click_center_active_window()
       print("OK: focused notepad")
   verify:
     lang: python
     script: |
-      import pygetwindow as gw
-      w = gw.getActiveWindow()
-      title = (w.title if w else "").lower()
-      if "блокнот" in title or "notepad" in title:
+      from core.window_manager import get_active_window_info, log_verify
+      info = get_active_window_info()
+      title = (info.get("title") or "").lower()
+      ok = "блокнот" in title or "notepad" in title
+      log_verify(ok, f"title=\"{info.get('title','')}\"")
+      if ok:
         print("OK")
       else:
         raise RuntimeError("Notepad is not active")
@@ -348,49 +583,31 @@ commands:
     lang: python
     script: |
       import time
-      import pyautogui
-      import pygetwindow as gw
-
+      from core.window_manager import click_center_active_window, ensure_focus, type_text
       text = "{{text}}"
 
-      wins = []
-      try:
-        wins += gw.getWindowsWithTitle("Блокнот")
-      except Exception:
-        pass
-      try:
-        wins += gw.getWindowsWithTitle("Notepad")
-      except Exception:
-        pass
-
-      if not wins:
+      ok = ensure_focus({"process": "notepad.exe"})
+      if not ok:
+        ok = ensure_focus({"title_contains": "Блокнот"})
+      if not ok:
+        ok = ensure_focus({"title_contains": "Notepad"})
+      if not ok:
         raise RuntimeError("Notepad window not found")
 
-      w = wins[0]
-      try:
-        w.restore()
-      except Exception:
-        pass
-      try:
-        w.activate()
-      except Exception:
-        pass
-
-      time.sleep(0.2)
-      # клик в центр редактора
-      x = w.left + w.width // 2
-      y = w.top + w.height // 2
-      pyautogui.click(x, y)
+      time.sleep(0.1)
+      click_center_active_window()
       time.sleep(0.05)
-      pyautogui.typewrite(text, interval=0.01)
+      type_text(text, interval=0.01)
       print("OK: typed into notepad")
   verify:
     lang: python
     script: |
-      import pygetwindow as gw
-      w = gw.getActiveWindow()
-      title = (w.title if w else "").lower()
-      if "блокнот" in title or "notepad" in title:
+      from core.window_manager import get_active_window_info, log_verify
+      info = get_active_window_info()
+      title = (info.get("title") or "").lower()
+      ok = "блокнот" in title or "notepad" in title
+      log_verify(ok, f"title=\"{info.get('title','')}\"")
+      if ok:
         print("OK")
       else:
         raise RuntimeError("Notepad is not active")

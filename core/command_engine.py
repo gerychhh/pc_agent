@@ -10,7 +10,15 @@ import yaml
 from .config import PROJECT_ROOT, TIMEOUT_SEC
 from .debug import debug_event, truncate_text
 from .executor import run_powershell, run_python
-from .state import add_recent_app, add_recent_file, add_recent_url, set_active_app, set_active_file, set_active_url
+from .state import (
+    add_recent_app,
+    add_recent_file,
+    add_recent_url,
+    set_active_app,
+    set_active_file,
+    set_active_url,
+    update_active_window_state,
+)
 from .validator import validate_powershell, validate_python
 
 
@@ -147,6 +155,8 @@ def run_command(command: dict[str, Any], params: dict[str, str]) -> CommandResul
 
     if ok and action.updates:
         _apply_state_updates(action.updates)
+
+    update_active_window_state()
 
     return CommandResult(action=action, execute_result=exec_result, verify_result=verify_result, ok=ok)
 

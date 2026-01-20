@@ -4,6 +4,8 @@ import json
 from typing import Any
 
 from .config import PROJECT_ROOT
+from .debug import debug_event
+from .window_manager import get_active_window_info
 
 
 STATE_PATH = PROJECT_ROOT / "state.json"
@@ -11,6 +13,10 @@ DEFAULT_STATE: dict[str, Any] = {
     "active_file": None,
     "active_url": None,
     "active_app": None,
+    "active_window_title": None,
+    "active_window_process": None,
+    "active_window_hwnd": None,
+    "active_window_pid": None,
     "recent_files": [],
     "recent_urls": [],
     "recent_apps": [],
@@ -92,6 +98,29 @@ def get_active_app() -> str | None:
     state = load_state()
     active = state.get("active_app")
     return str(active) if active else None
+
+
+def set_active_window(info: dict[str, Any]) -> None:
+    state = load_state()
+    state["active_window_title"] = info.get("title") or None
+    state["active_window_process"] = info.get("process") or None
+    state["active_window_hwnd"] = info.get("hwnd") or None
+    state["active_window_pid"] = info.get("pid") or None
+    save_state(state)
+
+
+def update_active_window_state() -> dict[str, Any] | None:
+    try:
+        info = get_active_window_info()
+    except Exception as exc:
+        debug_event("ACTIVE_WINDOW", f"error={exc}")
+        return None
+    set_active_window(info)
+    debug_event(
+        "ACTIVE_WINDOW",
+        f"title=\"{info.get('title','')}\" process=\"{info.get('process','')}\" pid={info.get('pid')} hwnd={info.get('hwnd')}",
+    )
+    return info
 
 
 def add_recent_file(path: str, max_items: int = 20) -> None:

@@ -10,9 +10,15 @@ from .debug import debug_event, truncate_text
 from .llm_client import LLMClient
 from .planner_loop import PlannerLoop
 from .state import load_state
+from .window_manager import ensure_focus, get_active_window_info
 
 
 BLOCKED_MESSAGE = "Команда заблокирована по безопасности (опасная операция)."
+
+PAUSE_WORDS = ("пауза", "поставь на паузу", "останови видео", "play", "pause", "продолжи")
+SEEK_BACK_WORDS = ("назад", "перемотай назад", "отмотай", "перемотай на", "перемотай обратно")
+SEEK_FORWARD_WORDS = ("вперёд", "вперед", "перемотай вперед", "перемотай вперёд", "промотай")
+BROWSER_PROCESSES = ("chrome.exe", "msedge.exe", "firefox.exe")
 
 
 def sanitize_assistant_text(text: str) -> str:
@@ -71,6 +77,10 @@ class Orchestrator:
         state = load_state()
         debug_event("USER_IN", user_text)
 
+        media_response = self._handle_media_control(user_text, state)
+        if media_response is not None:
+            return media_response
+
         best_match, matches = match_command(user_text, self.commands)
         has_multiple = _contains_multiple_actions(user_text)
         if best_match and best_match.score >= 2 and not has_multiple:
@@ -124,6 +134,31 @@ class Orchestrator:
         summary = [_summarize_step_execution(step) for step in plan_results]
         return self._report(user_text, state, summary)
 
+    def _handle_media_control(self, user_text: str, state: dict[str, Any]) -> str | None:
+        lowered = user_text.lower()
+        if not _is_media_control(lowered):
+            return None
+        if not _ensure_browser_focus():
+            return "Не нашёл окно браузера, открой YouTube и повтори."
+        if any(token in lowered for token in PAUSE_WORDS):
+            return self._run_command_by_id("CMD_YT_TOGGLE_PLAY", {}, user_text, state)
+        if any(token in lowered for token in SEEK_BACK_WORDS):
+            seconds = _parse_seek_seconds(lowered) or 10
+            return self._run_command_by_id("CMD_YT_BACK_SECONDS", {"seconds": str(seconds)}, user_text, state)
+        if any(token in lowered for token in SEEK_FORWARD_WORDS):
+            seconds = _parse_seek_seconds(lowered) or 10
+            return self._run_command_by_id("CMD_YT_FORWARD_SECONDS", {"seconds": str(seconds)}, user_text, state)
+        return None
+
+    def _run_command_by_id(self, command_id: str, params: dict[str, str], user_text: str, state: dict[str, Any]) -> str:
+        command = next((cmd for cmd in self.commands if cmd.get("id") == command_id), None)
+        if not command:
+            return "Не нашёл команду для управления медиа."
+        result = run_command(command, params)
+        if _is_blocked_result(result):
+            return BLOCKED_MESSAGE
+        return self._report(user_text, state, [_summarize_command_result(result)])
+
     def _report(self, user_text: str, state: dict[str, Any], results: list[dict[str, Any]]) -> str:
         payload = ctx_reporter(state, results, user_text)
         model = SMART_MODEL if any(not r.get("ok") for r in results) else FAST_MODEL
@@ -141,6 +176,36 @@ class Orchestrator:
             if all(r.get("ok") for r in results):
                 return "Готово."
             return "Не удалось выполнить запрос."
+
+
+def _is_media_control(lowered: str) -> bool:
+    return any(token in lowered for token in PAUSE_WORDS + SEEK_BACK_WORDS + SEEK_FORWARD_WORDS)
+
+
+def _ensure_browser_focus() -> bool:
+    active = get_active_window_info()
+    active_title = (active.get("title") or "").lower()
+    active_process = (active.get("process") or "").lower()
+    if "youtube" in active_title or active_process in BROWSER_PROCESSES:
+        return True
+    if ensure_focus({"title_contains": "YouTube"}):
+        return True
+    for process in BROWSER_PROCESSES:
+        if ensure_focus({"process": process}):
+            return True
+    return False
+
+
+def _parse_seek_seconds(text: str) -> int | None:
+    match = re.search(r"(\\d+)\\s*(секунд|сек|с)", text)
+    if match:
+        return int(match.group(1))
+    match = re.search(r"(\\d+)\\s*(минут|минуты|минута|мин)", text)
+    if match:
+        return int(match.group(1)) * 60
+    if "минут" in text or "минута" in text:
+        return 60
+    return None
 
 
 def _summarize_command_result(result: CommandResult) -> dict[str, Any]:
