@@ -11,3 +11,4 @@ python-pptx
 vosk
 sounddevice
 numpy
+pywin32

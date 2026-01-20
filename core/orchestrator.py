@@ -27,9 +27,25 @@ from .validator import validate_powershell, validate_python
 SYSTEM_PROMPT = """
 Ты — локальный ассистент управления Windows-ПК через PowerShell и Python.
 Отвечай кратко.
-Если нужно действие — верни ровно один code block (powershell или python) и ничего больше.
+Если запрос содержит действие (открой/запусти/напиши/нажми/закрой и т.п.) — верни ровно один code block (powershell или python) и ничего больше.
+Всегда возвращай РОВНО ОДИН fenced code block без дополнительного текста. Язык блока строго python или powershell.
 Никогда не смешивай Python в PowerShell.
 Никогда не выводи служебные блоки вроде [TOOL_RESULT].
+
+SINGLE ACTION SCRIPT:
+- Если запрос включает несколько шагов, сгенерируй ОДИН скрипт, который выполняет все шаги последовательно.
+- Если нужны действия в UI (ввод текста, горячие клавиши, управление окном) — всегда используй Python (pyautogui + pygetwindow).
+- Если нужно только открыть сайт/приложение без дальнейшего взаимодействия — PowerShell допустим.
+
+ЭТАЛОННЫЙ ПАТТЕРН (Блокнот + ввод текста):
+1) import time, subprocess, pyautogui, pygetwindow
+2) subprocess.Popen(["notepad.exe"])
+3) подожди 3-5 секунд, пока появится окно
+4) найди окно и активируй его (Window.activate())
+5) набери текст (pyautogui.typewrite(...))
+6) опционально нажми Enter (pyautogui.press("enter"))
+7) print("OK: <что сделано>")
+ВАЖНО: нельзя печатать без активации окна. Нельзя писать “успешно” без фактического выполнения. Обязательно импортируй все используемое.
 
 ФАЙЛЫ:
 - .docx → только python-docx
@@ -79,6 +95,12 @@ def is_action_like(user_input: str) -> bool:
         "создай",
         "измени",
         "сделай",
+        "напиши",
+        "введи",
+        "нажми",
+        "нажать",
+        "клик",
+        "кликни",
         "удали",
         "скачай",
         "перемотай",
@@ -114,8 +136,13 @@ class Orchestrator:
     def _extract_script(content: str) -> tuple[str | None, str | None]:
         if not content:
             return None, None
-        python_match = re.search(r"```python\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
-        ps_match = re.search(r"```powershell\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        stripped = content.strip()
+        python_match = re.fullmatch(
+            r"```python\s*([\s\S]*?)```", stripped, re.IGNORECASE
+        )
+        ps_match = re.fullmatch(
+            r"```powershell\s*([\s\S]*?)```", stripped, re.IGNORECASE
+        )
         if python_match and ps_match:
             return None, None
         if python_match:
@@ -357,44 +384,41 @@ class Orchestrator:
                 self._store_history(user_input, response)
             return response
         if not language or not script:
-            if is_action_like(user_input):
-                format_prompt = (
-                    "Ты вернул команду без code block. Верни то же самое, но строго в одном "
-                    "fenced code block (python или powershell) и без текста."
-                )
+            format_prompt = (
+                "Ты вернул ответ без code block. Верни то же самое, но строго в одном "
+                "fenced code block (python или powershell) и без текста."
+            )
+            language, script, raw_content = self._run_llm(
+                f"{user_input}\n{format_prompt}",
+                model_name,
+                stateless=True,
+                use_state=use_state,
+                state=state,
+            )
+            if raw_content.startswith("LLM error:"):
+                response = raw_content
+                if not stateless:
+                    self._store_history(user_input, response)
+                return response
+            if not language or not script:
+                self._print_smart_banner()
                 language, script, raw_content = self._run_llm(
                     f"{user_input}\n{format_prompt}",
-                    model_name,
-                    stateless=True,
-                    use_state=use_state,
+                    SMART_MODEL,
+                    stateless=False,
+                    use_state=True,
                     state=state,
                 )
-                if raw_content.startswith("LLM error:"):
-                    response = raw_content
-                    if not stateless:
-                        self._store_history(user_input, response)
-                    return response
-                if not language or not script:
-                    self._print_smart_banner()
-                    language, script, raw_content = self._run_llm(
-                        f"{user_input}\n{format_prompt}",
-                        SMART_MODEL,
-                        stateless=False,
-                        use_state=True,
-                        state=state,
-                    )
-                if raw_content.startswith("LLM error:"):
-                    response = raw_content
-                    if not stateless:
-                        self._store_history(user_input, response)
-                    return response
-                if not language or not script:
-                    response = "Не смог сформировать команду. Скажи точнее что сделать."
-                    if not stateless:
-                        self._store_history(user_input, response)
-                    return response
-            else:
-                response = sanitize_assistant_text(raw_content)
+            if raw_content.startswith("LLM error:"):
+                response = raw_content
+                if not stateless:
+                    self._store_history(user_input, response)
+                return response
+            if not language or not script:
+                if is_action_like(user_input):
+                    response = "Не смог сформировать команду для выполнения."
+                else:
+                    response = sanitize_assistant_text(raw_content)
                 if not stateless:
                     self._store_history(user_input, response)
                 return response
