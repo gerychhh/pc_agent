@@ -23,6 +23,7 @@ _ALIASES = {
     "дота": "dota 2",
     "доту": "dota 2",
     "dota": "dota 2",
+    "блокнот": "notepad",
     "ворд": "word",
     "эксель": "excel",
     "дискорд": "discord",
