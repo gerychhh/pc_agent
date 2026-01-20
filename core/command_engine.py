@@ -91,9 +91,9 @@ def match_command(user_text: str, commands: list[dict[str, Any]]) -> tuple[Comma
             )
     matches.sort(key=lambda m: m.score, reverse=True)
     best = matches[0] if matches else None
-    if best and best.command.get("id") == "CMD_OPEN_APP":
+    if best and best.command.get("id") == "CMD_OPEN_APP_SEARCH":
         for candidate in matches[1:]:
-            if candidate.command.get("id") != "CMD_OPEN_APP" and candidate.score >= 2:
+            if candidate.command.get("id") != "CMD_OPEN_APP_SEARCH" and candidate.score >= 2:
                 best = candidate
                 break
     debug_event("CMD_MATCH", f"matches={len(matches)} best={best.command.get('id') if best else 'NONE'}")

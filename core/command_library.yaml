@@ -640,7 +640,7 @@ commands:
   verify: {lang: powershell, script: "Get-Process explorer -ErrorAction SilentlyContinue | Out-String"}
   success: {type: process_running, process_name: explorer}
 
-- id: CMD_OPEN_APP
+- id: CMD_OPEN_APP_SEARCH
   intents: ["открой *", "запусти *", "включи *"]
   description_short: "Открывает приложение через Windows Search с вставкой из буфера."
   params:

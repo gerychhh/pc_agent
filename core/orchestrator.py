@@ -10,6 +10,7 @@ from .context_builder import build_command_index, ctx_action, ctx_reporter
 from .debug import debug_event, truncate_text
 from .llm_client import LLMClient
 from .executor import run_powershell, run_python
+from .router_llm import RouterLLM
 from .state import load_state, update_active_window_state
 from .validator import validate_powershell, validate_python
 from .window_manager import ensure_focus, get_active_window_info
@@ -70,6 +71,7 @@ class Orchestrator:
         self.client = LLMClient()
         self.commands = load_commands()
         self.command_index = build_command_index(self.commands)
+        self.router = RouterLLM(self.client, FAST_MODEL, _router_allowlist())
 
     def reset(self) -> None:
         return None
@@ -77,6 +79,10 @@ class Orchestrator:
     def run(self, user_text: str, stateless: bool = False) -> str:
         state = load_state()
         debug_event("USER_IN", user_text)
+
+        router_response = self._maybe_route(user_text, stateless)
+        if router_response is not None:
+            return router_response
 
         media_response = self._handle_media_control(user_text, state)
         if media_response is not None:
@@ -146,6 +152,31 @@ class Orchestrator:
         if any(token in lowered for token in SEEK_FORWARD_WORDS):
             seconds = _parse_seek_seconds(lowered) or 10
             return self._run_command_by_id("CMD_YT_FORWARD_SECONDS", {"seconds": str(seconds)}, user_text, state)
+        return None
+
+    def _maybe_route(self, user_text: str, stateless: bool) -> str | None:
+        lowered = user_text.strip().lower()
+        keywords = ("открой", "найди", "погугли", "сайт", "страниц", "пауза")
+        should_route = stateless or any(lowered.startswith(token) for token in keywords)
+        if not should_route:
+            return None
+        print(f"[ROUTER_IN] {user_text}")
+        route = self.router.route(user_text)
+        print(f"[ROUTER_OUT] {route.raw}")
+        if route.type == "ask":
+            return route.ask_text or "Что сделать?"
+        if route.type == "command" and route.cmd_id:
+            print(f"[ROUTER_CMD] {route.cmd_id} {route.params or {}}")
+            command = next((cmd for cmd in self.commands if cmd.get("id") == route.cmd_id), None)
+            if not command:
+                return None
+            params = route.params or extract_params_best(command, user_text)
+            action_desc = _format_command_action(route.cmd_id, params)
+            result = run_command(command, params)
+            if _is_blocked_result(result):
+                return BLOCKED_MESSAGE
+            state = load_state()
+            return _format_action_output(action_desc, self._report(user_text, state, [_summarize_command_result(result)]))
         return None
 
     def _run_command_by_id(self, command_id: str, params: dict[str, str], user_text: str, state: dict[str, Any]) -> str:
@@ -333,3 +364,17 @@ def _parse_action_json(content: str) -> dict[str, Any] | None:
         return json.loads(match.group(0))
     except json.JSONDecodeError:
         return None
+
+
+def _router_allowlist() -> set[str]:
+    return {
+        "CMD_OPEN_URL",
+        "CMD_GOOGLE_SEARCH",
+        "CMD_OPEN_APP_SEARCH",
+        "CMD_YT_TOGGLE_PLAY",
+        "CMD_YT_BACK_SECONDS",
+        "CMD_YT_FORWARD_SECONDS",
+        "CMD_BROWSER_CLOSE_TAB",
+        "CMD_BROWSER_OPEN_IN_ADDRESS_BAR",
+        "CMD_BROWSER_SEARCH",
+    }
