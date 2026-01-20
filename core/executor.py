@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import time
 from pathlib import Path
@@ -76,7 +77,7 @@ def _result(ok: bool, **kwargs: Any) -> dict[str, Any]:
     return payload
 
 
-def _run_command(command: list[str], script_path: Path, timeout_sec: int) -> dict[str, Any]:
+def _run_command(command: list[str], script_path: Path, timeout_sec: int, env: dict[str, str] | None = None) -> dict[str, Any]:
     start = time.perf_counter()
     exec_cmd = " ".join(command)
     try:
@@ -85,6 +86,7 @@ def _run_command(command: list[str], script_path: Path, timeout_sec: int) -> dic
             capture_output=True,
             text=True,
             timeout=timeout_sec,
+            env=env,
         )
         duration_ms = int((time.perf_counter() - start) * 1000)
         ok = completed.returncode == 0
@@ -131,7 +133,9 @@ def run_python(code: str, timeout_sec: int) -> dict[str, Any]:
     timestamp = int(time.time() * 1000)
     script_path = SCRIPTS_DIR / f"tmp_{timestamp}.py"
     script_path.write_text(code, encoding="utf-8")
-    result = _run_command(["python", str(script_path)], script_path, timeout_sec)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(PROJECT_ROOT)
+    result = _run_command(["python", str(script_path)], script_path, timeout_sec, env=env)
     _track_result("python", code, result)
     return result
 
