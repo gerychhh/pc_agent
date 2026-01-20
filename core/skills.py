@@ -47,6 +47,22 @@ def _powershell_start_process(target: str) -> str:
     return f'Start-Process "{target}"'
 
 
+def generate_word_doc_ps(text: str, filename: str = "me.docx") -> str:
+    safe_text = text.replace('"', '""')
+    return (
+        "$desktop = [Environment]::GetFolderPath('Desktop')\n"
+        f"$path = Join-Path $desktop '{filename}'\n"
+        "$word = New-Object -ComObject Word.Application\n"
+        "$word.Visible = $false\n"
+        "$doc = $word.Documents.Add()\n"
+        f"$doc.Content.Text = @\"\n{safe_text}\n\"@\n"
+        "$doc.SaveAs([ref]$path, [ref]16)\n"
+        "$doc.Close()\n"
+        "$word.Quit()\n"
+        'Write-Host "SAVED: $path"\n'
+    )
+
+
 def match_skill(user_text: str, state: dict[str, Any]) -> Action | str | None:
     lowered = user_text.lower().strip()
 
@@ -70,9 +86,8 @@ def match_skill(user_text: str, state: dict[str, Any]) -> Action | str | None:
 
         if "включи видео" in lowered or "открой видео" in lowered:
             active_url = state.get("active_url") or ""
+            url = DEFAULT_VIDEO_URL
             if "results?search_query=" in active_url:
-                url = DEFAULT_VIDEO_URL
-            else:
                 url = DEFAULT_VIDEO_URL
             return Action(
                 language="powershell",

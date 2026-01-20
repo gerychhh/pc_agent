@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from typing import Any
 
@@ -28,6 +29,7 @@ SYSTEM_PROMPT = """
 Отвечай кратко.
 Если нужно действие — верни ровно один code block (powershell или python) и ничего больше.
 Никогда не смешивай Python в PowerShell.
+Никогда не выводи служебные блоки вроде [TOOL_RESULT].
 
 ФАЙЛЫ:
 - .docx → только python-docx
@@ -94,6 +96,7 @@ class Orchestrator:
         self.logger = SessionLogger()
         self.history_limit = history_limit
         self.system_message = {"role": "system", "content": SYSTEM_PROMPT}
+        self._smart_banner_printed = False
         self.reset()
 
     def reset(self) -> None:
@@ -151,8 +154,10 @@ class Orchestrator:
 
     def _execute_action(self, action: Action) -> dict[str, Any]:
         if action.language == "python":
-            return run_python(action.script, TIMEOUT_SEC)
-        return run_powershell(action.script, TIMEOUT_SEC)
+            result = run_python(action.script, TIMEOUT_SEC)
+        else:
+            result = run_powershell(action.script, TIMEOUT_SEC)
+        return self._check_saved_output(result)
 
     def _update_state_from_action(self, action: Action) -> None:
         if not action.updates:
@@ -206,6 +211,29 @@ class Orchestrator:
         except Exception as exc:
             return f"LLM error: {exc}"
 
+    def _print_smart_banner(self) -> None:
+        if self._smart_banner_printed:
+            return
+        print("🧠 Сложная задача — подключаю умную модель...")
+        self._smart_banner_printed = True
+
+    @staticmethod
+    def _check_saved_output(result: dict[str, Any]) -> dict[str, Any]:
+        stdout = result.get("stdout") or ""
+        match = re.search(r"^(?:SAVED|OK):\\s*(.+)$", stdout, re.MULTILINE)
+        if not match:
+            return result
+        path = match.group(1).strip()
+        if os.path.exists(path):
+            return result
+        updated = dict(result)
+        updated["ok"] = False
+        stderr = (result.get("stderr") or "").strip()
+        missing_msg = f"Файл не найден по пути: {path}"
+        updated["stderr"] = f"{stderr}\n{missing_msg}".strip()
+        updated["returncode"] = result.get("returncode") or 1
+        return updated
+
     def _build_report_payload(
         self,
         user_input: str,
@@ -258,7 +286,7 @@ class Orchestrator:
     ) -> str:
         report_model = SMART_MODEL if (not result.get("ok") or complex_task) else FAST_MODEL
         if report_model == SMART_MODEL:
-            print("🧠 Сложная задача — подключаю умную модель...")
+            self._print_smart_banner()
         payload = self._build_report_payload(user_input, language, script, result, action=action)
         return self._run_report(payload, report_model)
 
@@ -266,6 +294,7 @@ class Orchestrator:
         return confirm_if_needed(action.language, action.script)
 
     def run(self, user_input: str, stateless: bool = False) -> str:
+        self._smart_banner_printed = False
         state = load_state()
         skill_result = match_skill(user_input, state)
         if isinstance(skill_result, str):
@@ -304,7 +333,7 @@ class Orchestrator:
         model_name = FAST_MODEL if complexity == "simple" else SMART_MODEL
         use_state = model_name == SMART_MODEL
         if model_name == SMART_MODEL:
-            print("🧠 Сложная задача — подключаю умную модель...")
+            self._print_smart_banner()
 
         language, script, raw_content = self._run_llm(
             user_input,
@@ -337,7 +366,7 @@ class Orchestrator:
                         self._store_history(user_input, response)
                     return response
                 if not language or not script:
-                    print("🧠 Сложная задача — подключаю умную модель...")
+                    self._print_smart_banner()
                     language, script, raw_content = self._run_llm(
                         f"{user_input}\n{format_prompt}",
                         SMART_MODEL,
@@ -446,13 +475,13 @@ class Orchestrator:
     def _escalate_with_errors(
         self, user_input: str, script: str, errors: list[str], state: dict[str, Any]
     ) -> tuple[str, str | None]:
-        print("🧠 Сложная задача — подключаю умную модель...")
         error_text = "\n".join(f"- {err}" for err in errors)
         prompt = (
             "Скрипт не прошёл валидацию:\n"
             f"{error_text}\n"
             "Исправь и верни только один корректный code block."
         )
+        self._print_smart_banner()
         language, new_script, _ = self._run_llm(
             f"{user_input}\n{prompt}",
             SMART_MODEL,
@@ -490,7 +519,7 @@ class Orchestrator:
         stderr: str,
         state: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]] | None:
-        print("🧠 Сложная задача — подключаю умную модель...")
+        self._print_smart_banner()
         last_language = language
         last_script = script
         last_result = {"ok": False, "stdout": stdout, "stderr": stderr, "returncode": None}

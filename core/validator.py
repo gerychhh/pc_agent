@@ -33,4 +33,8 @@ def validate_powershell(script: str) -> list[str]:
         errors.append("Remove-Item -Recurse запрещен.")
     if re.search(r"Format-Volume|Clear-Disk", script, re.IGNORECASE):
         errors.append("Команды форматирования диска запрещены.")
+    if re.search(r"Set-Location\s+['\"]Desktop['\"]", script, re.IGNORECASE):
+        errors.append(
+            "Нельзя использовать Set-Location \"Desktop\". Используй GetFolderPath('Desktop') и Join-Path."
+        )
     return errors
