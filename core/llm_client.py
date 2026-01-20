@@ -38,6 +38,7 @@ class LLMClient:
         model_name: str,
         tool_choice: str = "auto",
     ) -> Any:
+        model_name = self._resolve_model_name(model_name)
         self.model = model_name
         normalized_messages = self._normalize_messages(messages)
         debug_event("LLM_REQ", f"model={model_name} tool_choice={tool_choice}")
@@ -57,3 +58,16 @@ class LLMClient:
         content = response.choices[0].message.content or ""
         debug_context("LLM_RES", content, limit=1200)
         return response
+
+    def _resolve_model_name(self, model_name: str) -> str:
+        if model_name:
+            return model_name
+        if self.model:
+            return self.model
+        try:
+            models = self.client.models.list()
+            if models.data:
+                return models.data[0].id
+        except Exception:
+            pass
+        return "default"

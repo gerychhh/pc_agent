@@ -5,7 +5,7 @@ from pathlib import Path
 
 BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
 API_KEY = os.getenv("LMSTUDIO_API_KEY", "not-needed")
-FAST_MODEL = os.getenv("FAST_MODEL", "qwen2.5-3b-instruct")
+FAST_MODEL = os.getenv("FAST_MODEL", "")
 
 MODE = "script"
 DEBUG = os.getenv("DEBUG") == "1"
