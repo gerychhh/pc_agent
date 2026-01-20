@@ -1,0 +1,1 @@
+﻿$process = Start-Process -FilePath 'searchhost.exe' -PassThru; $process.WaitForExit()

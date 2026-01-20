@@ -1,1 +1,0 @@
-Invoke-WebRequest -Uri 'https://api.exchangeratesapi.io/latest' | ConvertFrom-Json

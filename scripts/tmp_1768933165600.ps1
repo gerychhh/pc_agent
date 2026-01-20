@@ -1,1 +1,0 @@
-Start-Process 'Microsoft.Windows.Explorer' -ArgumentList 'https://music.yandex.ru'

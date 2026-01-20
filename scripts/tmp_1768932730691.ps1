@@ -1,1 +1,0 @@
-powershell -Command '(Get-Process AudioEndPointBuilder).Threads | Select-Object @{ Name = "Id"; Expression = {$_.Id} } | Where-Object Id -eq (Get-WmiObject -Class Win32_MultimediaAudioEndpoint -Filter "Name='Speakers'

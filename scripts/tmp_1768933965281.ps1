@@ -1,1 +1,0 @@
-Get-Process notepad -ErrorAction SilentlyContinue | Out-String

@@ -1,1 +1,0 @@
-Invoke-WebRequest -Uri 'https://www.google.com/search?q=курс+доллара' | Invoke-Expression

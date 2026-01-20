@@ -1,1 +1,0 @@
-powershell -Command 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SystemSounds]::Volume = 10'

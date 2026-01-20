@@ -1,0 +1,1 @@
+﻿$process = Start-Process -FilePath 'searchapp.exe' -PassThru; $process.WaitForExit()

@@ -1,1 +1,0 @@
-Start-Process "https://www.youtube.com/results?search_query=%D0%BA%D0%BE%D1%81%D0%BC%D0%BE%D1%81"

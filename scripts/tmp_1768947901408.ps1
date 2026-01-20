@@ -1,0 +1,1 @@
+﻿$file = "$Env:ACTIVE_FILE"; if (Test-Path $file) { Start-MpScan -ScanPath $file } else { Write-Host "File not found: $file" }
