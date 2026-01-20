@@ -4,6 +4,7 @@ from typing import Any
 
 import psutil
 import pyautogui
+import pyperclip
 import win32gui
 import win32process
 
@@ -118,6 +119,14 @@ def type_text(text: str, interval: float = 0.01) -> None:
     log_active_window("WIN_BEFORE")
     pyautogui.typewrite(text, interval=interval)
     debug_event("WIN_KEY", "key=type_text")
+    log_active_window("WIN_AFTER")
+
+
+def paste_text(text: str) -> None:
+    log_active_window("WIN_BEFORE")
+    pyperclip.copy(text)
+    pyautogui.hotkey("ctrl", "v")
+    debug_event("WIN_KEY", "key=ctrl+v")
     log_active_window("WIN_AFTER")
 
 

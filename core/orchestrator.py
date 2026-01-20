@@ -157,7 +157,7 @@ class Orchestrator:
     def _maybe_route(self, user_text: str, stateless: bool) -> str | None:
         lowered = user_text.strip().lower()
         keywords = ("открой", "найди", "погугли", "сайт", "страниц", "пауза")
-        should_route = stateless or any(lowered.startswith(token) for token in keywords)
+        should_route = any(lowered.startswith(token) for token in keywords)
         if not should_route:
             return None
         print(f"[ROUTER_IN] {user_text}")

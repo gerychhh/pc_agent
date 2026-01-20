@@ -262,11 +262,11 @@ commands:
     lang: python
     script: |
       import time
-      from core.window_manager import press_hotkey, press_key, type_text
+      from core.window_manager import paste_text, press_hotkey, press_key
       text = "{{text}}"
       press_hotkey("ctrl", "l")
       time.sleep(0.05)
-      type_text(text, interval=0.01)
+      paste_text(text)
       press_key("enter")
       print("OK")
   verify: {lang: python, script: "print('OK')"}
@@ -318,11 +318,11 @@ commands:
     lang: python
     script: |
       import time
-      from core.window_manager import press_hotkey, press_key, type_text
+      from core.window_manager import paste_text, press_hotkey, press_key
       query = "{{query}}"
       press_hotkey("ctrl", "l")
       time.sleep(0.05)
-      type_text(query, interval=0.01)
+      paste_text(query)
       press_key("enter")
       print("OK")
   verify: {lang: python, script: "print('OK')"}
