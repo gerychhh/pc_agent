@@ -8,6 +8,8 @@ psutil
 python-docx
 openpyxl
 python-pptx
+pywin32
+pyyaml
 vosk
 sounddevice
 numpy

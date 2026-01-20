@@ -1,0 +1,176 @@
+- id: CMD_OPEN_NOTEPAD
+  intents:
+    - "открой блокнот"
+    - "open notepad"
+    - "notepad"
+  description_short: "Открыть Блокнот"
+  execute:
+    lang: powershell
+    script: |
+      Start-Process notepad.exe
+  verify:
+    lang: powershell
+    script: |
+      $p = Get-Process notepad -ErrorAction SilentlyContinue
+      if ($p) { exit 0 } else { Write-Output "NOT RUNNING"; exit 1 }
+  success:
+    type: process_running
+    process_name: notepad
+  state_update:
+    active_app: notepad
+
+- id: CMD_CLOSE_NOTEPAD
+  intents:
+    - "закрой блокнот"
+    - "close notepad"
+  description_short: "Закрыть Блокнот"
+  execute:
+    lang: powershell
+    script: |
+      Stop-Process -Name notepad -ErrorAction SilentlyContinue
+  verify:
+    lang: powershell
+    script: |
+      $p = Get-Process notepad -ErrorAction SilentlyContinue
+      if ($p) { Write-Output "STILL RUNNING"; exit 1 } else { exit 0 }
+  success:
+    type: custom
+
+- id: CMD_OPEN_YOUTUBE
+  intents:
+    - "открой ютуб"
+    - "открой youtube"
+    - "open youtube"
+  description_short: "Открыть YouTube"
+  execute:
+    lang: powershell
+    script: |
+      Start-Process "https://www.youtube.com/"
+  verify:
+    lang: powershell
+    script: |
+      exit 0
+  success:
+    type: none
+  state_update:
+    active_url: "https://www.youtube.com/"
+
+- id: CMD_SEARCH_YOUTUBE
+  intents:
+    - "найди на ютубе"
+    - "поиск ютуб"
+    - "search youtube"
+  description_short: "Поиск на YouTube"
+  execute:
+    lang: powershell
+    script: |
+      Start-Process "https://www.youtube.com/results?search_query={query}"
+  verify:
+    lang: powershell
+    script: |
+      exit 0
+  success:
+    type: none
+
+- id: CMD_CREATE_TXT_DESKTOP
+  intents:
+    - "создай txt"
+    - "txt на рабочем столе"
+    - "создай тхт"
+    - "создай ткст"
+    - "re:создай\\s+.*txt"
+    - "re:файл\\s+.*txt"
+  description_short: "Создать TXT на рабочем столе"
+  execute:
+    lang: powershell
+    script: |
+      $desktop = [Environment]::GetFolderPath('Desktop')
+      $path = Join-Path $desktop '{filename}'
+      @'
+      {content}
+      '@ | Set-Content -Path $path -Encoding UTF8
+      Write-Output "SAVED: $path"
+  verify:
+    lang: powershell
+    script: |
+      $desktop = [Environment]::GetFolderPath('Desktop')
+      $path = Join-Path $desktop '{filename}'
+      if (Test-Path $path) { exit 0 } else { exit 1 }
+  success:
+    type: file_exists
+
+- id: CMD_CREATE_DOCX_DESKTOP
+  intents:
+    - "создай docx"
+    - "создай ворд файл"
+    - "создай word файл"
+    - "docx на рабочем столе"
+    - "re:создай\\s+.*docx"
+    - "re:файл\\s+.*docx"
+  description_short: "Создать DOCX на рабочем столе"
+  execute:
+    lang: python
+    script: |
+      import os
+      from pathlib import Path
+      from docx import Document
+
+      def pick_desktop() -> Path:
+          candidates = []
+          for key in ('OneDriveConsumer', 'OneDrive'):
+              val = os.environ.get(key)
+              if val:
+                  candidates.append(Path(val) / 'Desktop')
+          candidates.append(Path.home() / 'Desktop')
+          user = os.environ.get('USERPROFILE')
+          if user:
+              candidates.append(Path(user) / 'Desktop')
+          for p in candidates:
+              if p.exists():
+                  return p
+          return Path.home()
+
+      content = {content}
+      filename = {filename}
+      desktop = pick_desktop()
+      path = desktop / filename
+      doc = Document()
+      if content:
+          doc.add_paragraph(str(content))
+      doc.save(str(path))
+      print(f"SAVED: {path}")
+  verify:
+    lang: python
+    script: |
+      import os
+      from pathlib import Path
+
+      filename = {filename}
+      desktop = Path.home() / 'Desktop'
+      path = desktop / filename
+      if path.exists():
+          raise SystemExit(0)
+      raise SystemExit(1)
+  success:
+    type: file_exists
+
+- id: CMD_OPEN_WORD
+  intents:
+    - "открой ворд"
+    - "открой word"
+    - "open word"
+  description_short: "Открыть Microsoft Word"
+  execute:
+    lang: powershell
+    script: |
+      Start-Process winword.exe
+  verify:
+    lang: powershell
+    script: |
+      $p = Get-Process WINWORD -ErrorAction SilentlyContinue
+      if ($p) { exit 0 } else { exit 1 }
+  success:
+    type: process_running
+    process_name: WINWORD
+  state_update:
+    active_app: WINWORD

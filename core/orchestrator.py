@@ -1,75 +1,34 @@
 from __future__ import annotations
 
-import hashlib
-import os
 import re
 from typing import Any
 
-from .config import DEBUG, FAST_MODEL, MAX_RETRIES, SMART_MODEL, TIMEOUT_SEC
-from .executor import run_powershell, run_python
+from .command_engine import CommandResult, load_commands, match_command, run_command
+from .config import FAST_MODEL, SMART_MODEL
+from .context_builder import build_command_index, ctx_fast, ctx_reporter
 from .llm_client import LLMClient
 from .logger import SessionLogger
-from .policy import confirm_if_needed
-from .router import route_task
-from .skills import Action, match_skill
-from .state import (
-    add_recent_app,
-    add_recent_file,
-    add_recent_url,
-    load_state,
-    set_active_app,
-    set_active_file,
-    set_active_url,
-)
-from .validator import validate_powershell, validate_python
+from .planner_loop import PlannerLoop
+from .state import load_state
 
 
-SYSTEM_PROMPT = """
-Ты — локальный ассистент управления Windows-ПК через PowerShell и Python.
-Отвечай кратко.
-Если нужно действие — верни ровно один code block (powershell или python) и ничего больше.
-Никогда не смешивай Python в PowerShell.
-Никогда не выводи служебные блоки вроде [TOOL_RESULT].
-
-ФАЙЛЫ:
-- .docx → только python-docx
-- .xlsx → только openpyxl
-- .pdf → только reportlab
-- Нельзя создавать docx/xlsx/pdf через open(...,"w")
-
-ACTIVE_FILE:
-- Если ACTIVE_FILE задан и задача "измени/шрифт/формат", работай с ним.
-- Для .docx открывай Document(active_file) и сохраняй в тот же файл.
-""".strip()
-
-REPORT_PROMPT = """
-Ты — ассистент-репортёр выполнения команд на ПК.
-Тебе дают: запрос пользователя, язык (python/powershell), выполненный скрипт, returncode, stdout, stderr, и состояние (active_file/url/app).
-Напиши КОРОТКИЙ ответ пользователю на русском: что произошло.
-- Если ok: 1-2 предложения, что сделано (например: "Открыл YouTube", "Создал файл на рабочем столе: ...")
-- Если ошибка: коротко причина + 1 следующий шаг (без кода, если не просят)
-Если есть строка "SKILL: youtube_video" — ответ должен быть: "Открыл видео на YouTube."
-Никаких code block.
-""".strip()
+BLOCKED_MESSAGE = "Команда заблокирована по безопасности (опасная операция)."
 
 
 def sanitize_assistant_text(text: str) -> str:
     if not text:
         return ""
-    cleaned = (
-        text.replace("[TOOL_RESULT]", "")
-        .replace("[END_TOOL_RESULT]", "")
-        .replace("[/TOOL_RESULT]", "")
-    )
-    filtered_lines: list[str] = []
-    for line in cleaned.splitlines():
-        if any(marker in line for marker in ("<|channel|>", "<|constrain|>", "<|message|>")):
-            continue
-        filtered_lines.append(line)
-    return "\n".join(filtered_lines).strip()
+    cleaned = text.replace("[TOOL_RESULT]", "").replace("[/TOOL_RESULT]", "")
+    cleaned = re.sub(r"```.*?```", "", cleaned, flags=re.DOTALL)
+    return cleaned.strip()
 
 
-def is_action_like(user_input: str) -> bool:
+def _contains_multiple_actions(text: str) -> bool:
+    lowered = text.lower()
+    return any(token in lowered for token in (" и ", " затем ", " потом ", ","))
+
+
+def _is_action_like(user_input: str) -> bool:
     verbs = (
         "открой",
         "закрой",
@@ -82,498 +41,95 @@ def is_action_like(user_input: str) -> bool:
         "удали",
         "скачай",
         "перемотай",
-        "пауза",
-        "громче",
-        "тише",
+        "напиши",
+        "впиши",
     )
     lowered = user_input.lower()
     return any(verb in lowered for verb in verbs)
 
 
 class Orchestrator:
-    def __init__(self, history_limit: int = 4) -> None:
+    def __init__(self) -> None:
         self.client = LLMClient()
         self.logger = SessionLogger()
-        self.history_limit = history_limit
-        self.system_message = {"role": "system", "content": SYSTEM_PROMPT}
-        self._smart_banner_printed = False
-        self.reset()
+        self.commands = load_commands()
+        self.command_index = build_command_index(self.commands)
+        self.planner = PlannerLoop()
 
-    def reset(self) -> None:
-        self.history: list[dict[str, Any]] = []
+    def run(self, user_text: str, stateless: bool = False) -> str:
+        state = load_state()
+        self.logger.log_user_input(user_text, 1)
+        match = match_command(user_text, self.commands)
+        if match and not match.missing and not _contains_multiple_actions(user_text):
+            result = run_command(match)
+            if _is_blocked_result(result):
+                return BLOCKED_MESSAGE
+            return self._report(user_text, state, [_summarize_command_result(result)])
 
-    def _log_debug(self, label: str, value: str) -> None:
-        if DEBUG:
-            print(f"[{label}] {value}")
+        if not match and not _is_action_like(user_text):
+            return self._fast_reply(user_text, state)
 
-    @staticmethod
-    def _script_hash(script: str) -> str:
-        return hashlib.sha256(script.encode("utf-8")).hexdigest()[:8]
+        plan_results = self.planner.run(user_text, state, self.command_index)
+        if not plan_results:
+            return "Не удалось построить план."
+        if any(item.blocked for item in plan_results):
+            return BLOCKED_MESSAGE
 
-    @staticmethod
-    def _extract_script(content: str) -> tuple[str | None, str | None]:
-        if not content:
-            return None, None
-        python_match = re.search(r"```python\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
-        ps_match = re.search(r"```powershell\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
-        if python_match and ps_match:
-            return None, None
-        if python_match:
-            return "python", python_match.group(1).strip()
-        if ps_match:
-            return "powershell", ps_match.group(1).strip()
-        return None, None
+        summary = [_summarize_step_execution(step) for step in plan_results]
+        return self._report(user_text, state, summary)
 
-    def _build_messages(
-        self,
-        user_input: str,
-        stateless: bool,
-        use_state: bool,
-        state: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        messages: list[dict[str, Any]] = [self.system_message]
-        if use_state:
-            context_lines = []
-            if state.get("active_file"):
-                context_lines.append(f"ACTIVE_FILE: {state['active_file']}")
-            if state.get("active_url"):
-                context_lines.append(f"ACTIVE_URL: {state['active_url']}")
-            if state.get("active_app"):
-                context_lines.append(f"ACTIVE_APP: {state['active_app']}")
-            if context_lines:
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": "[STATE]\n" + "\n".join(context_lines) + "\n[/STATE]",
-                    }
-                )
-        if not stateless and self.history:
-            messages.extend(self.history[-self.history_limit :])
-        messages.append({"role": "user", "content": user_input})
-        return messages
-
-    def _execute_action(self, action: Action) -> dict[str, Any]:
-        if action.language == "python":
-            result = run_python(action.script, TIMEOUT_SEC)
-        else:
-            result = run_powershell(action.script, TIMEOUT_SEC)
-        result = self._check_saved_output(result)
-        saved_path = result.get("saved_path")
-        if saved_path and result.get("ok"):
-            # Если скрипт сообщил SAVED: <path>, сохраняем его как ACTIVE_FILE
-            set_active_file(str(saved_path))
-            add_recent_file(str(saved_path))
-        return result
-
-
-    def _update_state_from_action(self, action: Action) -> None:
-        if not action.updates:
-            return
-        if "active_url" in action.updates:
-            url = action.updates["active_url"]
-            set_active_url(url)
-            add_recent_url(url)
-        if "active_app" in action.updates:
-            app = action.updates["active_app"]
-            set_active_app(app)
-            add_recent_app(app)
-        if "active_file" in action.updates:
-            path = action.updates["active_file"]
-            set_active_file(path)
-            add_recent_file(path)
-
-    def _validate_script(self, language: str, script: str) -> list[str]:
-        if language == "python":
-            return validate_python(script)
-        return validate_powershell(script)
-
-    def _run_llm(
-        self,
-        user_input: str,
-        model_name: str,
-        stateless: bool,
-        use_state: bool,
-        state: dict[str, Any],
-    ) -> tuple[str | None, str | None, str]:
-        messages = self._build_messages(user_input, stateless, use_state, state)
-        self.logger.log_user_input(user_input, len(messages))
+    def _report(self, user_text: str, state: dict[str, Any], results: list[dict[str, Any]]) -> str:
+        payload = ctx_reporter(state, results, user_text)
+        model = SMART_MODEL if any(not r.get("ok") for r in results) else FAST_MODEL
         try:
-            response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
-            raw_content = response.choices[0].message.content or ""
-        except Exception as exc:
-            raw_content = f"LLM error: {exc}"
-        self._log_debug("LLM_RAW", sanitize_assistant_text(raw_content)[:300])
-        language, script = self._extract_script(raw_content)
-        return language, script, raw_content
-
-    def _run_report(self, payload: str, model_name: str) -> str:
-        messages = [
-            {"role": "system", "content": REPORT_PROMPT},
-            {"role": "user", "content": payload},
-        ]
-        try:
-            response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
+            response = self.client.chat(
+                [{"role": "user", "content": payload}],
+                tools=[],
+                model_name=model,
+                tool_choice="none",
+            )
             content = response.choices[0].message.content or ""
             return sanitize_assistant_text(content)
-        except Exception as exc:
-            return f"LLM error: {exc}"
+        except Exception:
+            if all(r.get("ok") for r in results):
+                return "Готово."
+            return "Не удалось выполнить запрос."
 
-    def _print_smart_banner(self) -> None:
-        if self._smart_banner_printed:
-            return
-        print("🧠 Сложная задача — подключаю умную модель...")
-        self._smart_banner_printed = True
-
-    @staticmethod
-    def _check_saved_output(result: dict[str, Any]) -> dict[str, Any]:
-        stdout = result.get("stdout") or ""
-        match = re.search(r"^(?:SAVED|OK):\\s*(.+)$", stdout, re.MULTILINE)
-        if not match:
-            return result
-        path = match.group(1).strip()
-        if os.path.exists(path):
-            updated = dict(result)
-            updated["saved_path"] = path
-            return updated
-        updated = dict(result)
-        updated["ok"] = False
-        stderr = (result.get("stderr") or "").strip()
-        missing_msg = f"Файл не найден по пути: {path}"
-        updated["stderr"] = f"{stderr}\n{missing_msg}".strip()
-        updated["returncode"] = result.get("returncode") or 1
-        return updated
-
-    def _build_report_payload(
-        self,
-        user_input: str,
-        language: str,
-        script: str,
-        result: dict[str, Any],
-        action: Action | None = None,
-    ) -> str:
-        state = load_state()
-        active_file = state.get("active_file") or ""
-        active_url = state.get("active_url") or ""
-        active_app = state.get("active_app") or ""
-        lines = [
-            f"USER: {user_input}",
-            f"LANG: {language}",
-            f"SCRIPT: {script}",
-            f"RESULT_OK: {str(result.get('ok', False)).lower()}",
-            f"RETURNCODE: {result.get('returncode')}",
-            f"STDOUT: {result.get('stdout') or ''}",
-            f"STDERR: {result.get('stderr') or ''}",
-            f"STATE: ACTIVE_FILE={active_file} | ACTIVE_URL={active_url} | ACTIVE_APP={active_app}",
-        ]
-        if action and action.name:
-            lines.append(f"SKILL: {action.name}")
-        return "\n".join(lines)
-
-    def _build_tool_result_block(
-        self, language: str, script: str, result: dict[str, Any]
-    ) -> str:
-        return (
-            "[TOOL_RESULT]\n"
-            f"LANG: {language}\n"
-            f"SCRIPT: {script}\n"
-            f"RESULT_OK: {str(result.get('ok', False)).lower()}\n"
-            f"RETURNCODE: {result.get('returncode')}\n"
-            f"STDOUT: {result.get('stdout') or ''}\n"
-            f"STDERR: {result.get('stderr') or ''}\n"
-            "[/TOOL_RESULT]"
-        )
-
-    def _report_action(
-        self,
-        user_input: str,
-        language: str,
-        script: str,
-        result: dict[str, Any],
-        *,
-        action: Action | None = None,
-        complex_task: bool = False,
-    ) -> str:
-        report_model = SMART_MODEL if (not result.get("ok") or complex_task) else FAST_MODEL
-        if report_model == SMART_MODEL:
-            self._print_smart_banner()
-        payload = self._build_report_payload(user_input, language, script, result, action=action)
-        return self._run_report(payload, report_model)
-
-    def _confirm_action(self, action: Action) -> bool:
-        return confirm_if_needed(action.language, action.script)
-
-    def run(self, user_input: str, stateless: bool = False) -> str:
-        self._smart_banner_printed = False
-        state = load_state()
-        skill_result = match_skill(user_input, state)
-        if isinstance(skill_result, str):
-            response = skill_result
-            if not stateless:
-                self._store_history(user_input, response)
-            return response
-        if isinstance(skill_result, Action):
-            if not self._confirm_action(skill_result):
-                response = "Отменено пользователем."
-                if not stateless:
-                    self._store_history(user_input, response)
-                return response
-            result = self._execute_action(skill_result)
-            if result.get("ok"):
-                self._update_state_from_action(skill_result)
-            response = self._report_action(
-                user_input,
-                skill_result.language,
-                skill_result.script,
-                result,
-                action=skill_result,
+    def _fast_reply(self, user_text: str, state: dict[str, Any]) -> str:
+        payload = ctx_fast(state, self.command_index, user_text)
+        try:
+            response = self.client.chat(
+                [{"role": "user", "content": payload}],
+                tools=[],
+                model_name=FAST_MODEL,
+                tool_choice="none",
             )
-            if not stateless:
-                tool_result = self._build_tool_result_block(
-                    skill_result.language,
-                    skill_result.script,
-                    result,
-                )
-                self._store_history(user_input, response, tool_result=tool_result)
-            return response
+            content = response.choices[0].message.content or ""
+            return sanitize_assistant_text(content)
+        except Exception:
+            return "Уточни, что нужно сделать."
 
-        route = route_task(user_input)
-        complexity = route["complexity"]
-        force_lang = route["force_lang"]
-        model_name = FAST_MODEL if complexity == "simple" else SMART_MODEL
-        use_state = model_name == SMART_MODEL
-        if model_name == SMART_MODEL:
-            self._print_smart_banner()
 
-        language, script, raw_content = self._run_llm(
-            user_input,
-            model_name,
-            stateless=stateless or model_name == FAST_MODEL,
-            use_state=use_state,
-            state=state,
-        )
-        if raw_content.startswith("LLM error:"):
-            response = raw_content
-            if not stateless:
-                self._store_history(user_input, response)
-            return response
-        if not language or not script:
-            if is_action_like(user_input):
-                format_prompt = (
-                    "Ты вернул команду без code block. Верни то же самое, но строго в одном "
-                    "fenced code block (python или powershell) и без текста."
-                )
-                language, script, raw_content = self._run_llm(
-                    f"{user_input}\n{format_prompt}",
-                    model_name,
-                    stateless=True,
-                    use_state=use_state,
-                    state=state,
-                )
-                if raw_content.startswith("LLM error:"):
-                    response = raw_content
-                    if not stateless:
-                        self._store_history(user_input, response)
-                    return response
-                if not language or not script:
-                    self._print_smart_banner()
-                    language, script, raw_content = self._run_llm(
-                        f"{user_input}\n{format_prompt}",
-                        SMART_MODEL,
-                        stateless=False,
-                        use_state=True,
-                        state=state,
-                    )
-                if raw_content.startswith("LLM error:"):
-                    response = raw_content
-                    if not stateless:
-                        self._store_history(user_input, response)
-                    return response
-                if not language or not script:
-                    response = "Не смог сформировать команду. Скажи точнее что сделать."
-                    if not stateless:
-                        self._store_history(user_input, response)
-                    return response
-            else:
-                response = sanitize_assistant_text(raw_content)
-                if not stateless:
-                    self._store_history(user_input, response)
-                return response
-        if force_lang and language != force_lang:
-            response, tool_result = self._escalate_with_errors(
-                user_input,
-                script,
-                [f"Нужен язык {force_lang}, но получен {language}."],
-                state,
-            )
-            if not stateless:
-                self._store_history(user_input, response, tool_result=tool_result)
-            return response
+def _summarize_command_result(result: CommandResult) -> dict[str, Any]:
+    return {
+        "id": result.action.name,
+        "ok": result.ok,
+        "stdout": result.execute_result.get("stdout"),
+        "stderr": result.execute_result.get("stderr"),
+    }
 
-        errors = self._validate_script(language, script)
-        if errors:
-            response, tool_result = self._escalate_with_errors(user_input, script, errors, state)
-            if not stateless:
-                self._store_history(user_input, response, tool_result=tool_result)
-            return response
 
-        action = Action(language=language, script=script)
-        if not self._confirm_action(action):
-            response = "Отменено пользователем."
-            if not stateless:
-                self._store_history(user_input, response)
-            return response
-        result = self._execute_action(action)
-        if result.get("ok"):
-            self._maybe_track_success(language, script)
-            response = self._report_action(
-                user_input,
-                language,
-                script,
-                result,
-                complex_task=complexity == "complex",
-            )
-            if not stateless:
-                tool_result = self._build_tool_result_block(language, script, result)
-                self._store_history(user_input, response, tool_result=tool_result)
-            return response
+def _summarize_step_execution(step: Any) -> dict[str, Any]:
+    return {
+        "step_id": step.step.get("step_id"),
+        "ok": step.ok,
+        "stdout": (step.execute_result or {}).get("stdout"),
+        "stderr": (step.execute_result or {}).get("stderr"),
+    }
 
-        stdout = result.get("stdout") or ""
-        stderr = result.get("stderr") or ""
-        retry_outcome = self._retry_with_smart(user_input, language, script, stdout, stderr, state)
-        if retry_outcome is None:
-            response = "Отменено пользователем."
-            if not stateless:
-                self._store_history(user_input, response)
-            return response
-        retry_language, retry_script, retry_result = retry_outcome
-        response = self._report_action(
-            user_input,
-            retry_language,
-            retry_script,
-            retry_result,
-            complex_task=True,
-        )
-        if not stateless:
-            tool_result = self._build_tool_result_block(retry_language, retry_script, retry_result)
-            self._store_history(user_input, response, tool_result=tool_result)
-        return response
 
-    def _store_history(self, user_input: str, response: str, tool_result: str | None = None) -> None:
-        entries = [{"role": "user", "content": user_input}]
-        if tool_result:
-            entries.append({"role": "assistant", "content": tool_result})
-        entries.append({"role": "assistant", "content": response})
-        self.history.extend(entries)
-        self.history = self.history[-self.history_limit :]
-
-    def _maybe_track_success(self, language: str, script: str) -> None:
-        if language != "powershell":
-            return
-        match = re.search(r"Start-Process\s+['\"](https?://[^'\"]+)['\"]", script, re.IGNORECASE)
-        if match:
-            url = match.group(1)
-            set_active_url(url)
-            add_recent_url(url)
-            return
-        app_match = re.search(r"Start-Process\s+([\\w.\\\\-]+)", script, re.IGNORECASE)
-        if app_match:
-            app = app_match.group(1)
-            set_active_app(app)
-            add_recent_app(app)
-
-    def _escalate_with_errors(
-        self, user_input: str, script: str, errors: list[str], state: dict[str, Any]
-    ) -> tuple[str, str | None]:
-        error_text = "\n".join(f"- {err}" for err in errors)
-        prompt = (
-            "Скрипт не прошёл валидацию:\n"
-            f"{error_text}\n"
-            "Исправь и верни только один корректный code block."
-        )
-        self._print_smart_banner()
-        language, new_script, _ = self._run_llm(
-            f"{user_input}\n{prompt}",
-            SMART_MODEL,
-            stateless=False,
-            use_state=True,
-            state=state,
-        )
-        if not language or not new_script:
-            return "Не удалось получить корректный скрипт.", None
-        errors = self._validate_script(language, new_script)
-        if errors:
-            return "Скрипт все еще невалиден.", None
-        action = Action(language=language, script=new_script)
-        if not self._confirm_action(action):
-            return "Отменено пользователем.", None
-        result = self._execute_action(action)
-        if result.get("ok"):
-            self._maybe_track_success(language, new_script)
-        response = self._report_action(
-            user_input,
-            language,
-            new_script,
-            result,
-            complex_task=True,
-        )
-        tool_result = self._build_tool_result_block(language, new_script, result)
-        return response, tool_result
-
-    def _retry_with_smart(
-        self,
-        user_input: str,
-        language: str,
-        script: str,
-        stdout: str,
-        stderr: str,
-        state: dict[str, Any],
-    ) -> tuple[str, str, dict[str, Any]] | None:
-        self._print_smart_banner()
-        last_language = language
-        last_script = script
-        last_result = {"ok": False, "stdout": stdout, "stderr": stderr, "returncode": None}
-        for attempt in range(MAX_RETRIES):
-            print("🔁 Ошибка выполнения — пробую исправить...")
-            script_to_fix = last_script
-            prompt = (
-                "Скрипт упал. Исправь и верни только новый корректный code block.\n"
-                f"USER:\n{user_input}\n"
-                f"SCRIPT:\n{script_to_fix}\n"
-                f"STDOUT:\n{stdout}\n"
-                f"STDERR:\n{stderr}\n"
-            )
-            language, new_script, _ = self._run_llm(
-                prompt,
-                SMART_MODEL,
-                stateless=False,
-                use_state=True,
-                state=state,
-            )
-            if not language or not new_script:
-                continue
-            errors = self._validate_script(language, new_script)
-            if errors:
-                stdout = ""
-                stderr = "\n".join(errors)
-                last_language = language
-                last_script = new_script
-                last_result = {
-                    "ok": False,
-                    "stdout": stdout,
-                    "stderr": stderr,
-                    "returncode": None,
-                }
-                continue
-            action = Action(language=language, script=new_script)
-            if not self._confirm_action(action):
-                return None
-            result = self._execute_action(action)
-            if result.get("ok"):
-                self._maybe_track_success(language, new_script)
-                return language, new_script, result
-            stdout = result.get("stdout") or ""
-            stderr = result.get("stderr") or ""
-            last_language = language
-            last_script = new_script
-            last_result = result
-        return last_language, last_script, last_result
+def _is_blocked_result(result: CommandResult) -> bool:
+    stderr = result.execute_result.get("stderr") or ""
+    if result.execute_result.get("error") == "blocked":
+        return True
+    return "запрещ" in stderr.lower()
