@@ -133,6 +133,13 @@ def match_skill(user_text: str, state: dict[str, Any]) -> Action | str | None:
             updates={"active_app": "notepad"},
         )
 
+    if "открой ворд" in lowered or "открой word" in lowered:
+        return Action(
+            language="powershell",
+            script="Start-Process winword.exe",
+            updates={"active_app": "winword.exe"},
+        )
+
     if "закрой блокнот" in lowered:
         return Action(
             language="powershell",

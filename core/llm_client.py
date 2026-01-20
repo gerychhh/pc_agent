@@ -12,6 +12,24 @@ class LLMClient:
         self.client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
         self.model: str | None = None
 
+    @staticmethod
+    def _normalize_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for message in messages:
+            role = message.get("role", "user")
+            content = message.get("content") or ""
+            if role == "assistant":
+                normalized.append({"role": "assistant", "content": content})
+                continue
+            if role == "user":
+                normalized.append({"role": "user", "content": content})
+                continue
+            if role == "system":
+                normalized.append({"role": "user", "content": f"[SYSTEM]\n{content}".strip()})
+                continue
+            normalized.append({"role": "user", "content": f"[{role.upper()}]\n{content}".strip()})
+        return normalized
+
     def chat(
         self,
         messages: list[dict[str, Any]],
@@ -20,14 +38,15 @@ class LLMClient:
         tool_choice: str = "auto",
     ) -> Any:
         self.model = model_name
+        normalized_messages = self._normalize_messages(messages)
         if tool_choice == "none":
             return self.client.chat.completions.create(
                 model=model_name,
-                messages=messages,
+                messages=normalized_messages,
             )
         return self.client.chat.completions.create(
             model=model_name,
-            messages=messages,
+            messages=normalized_messages,
             tools=tools,
             tool_choice=tool_choice,
         )

@@ -185,8 +185,11 @@ class Orchestrator:
     ) -> tuple[str | None, str | None, str]:
         messages = self._build_messages(user_input, stateless, use_state, state)
         self.logger.log_user_input(user_input, len(messages))
-        response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
-        raw_content = response.choices[0].message.content or ""
+        try:
+            response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
+            raw_content = response.choices[0].message.content or ""
+        except Exception as exc:
+            raw_content = f"LLM error: {exc}"
         self._log_debug("LLM_RAW", sanitize_assistant_text(raw_content)[:300])
         language, script = self._extract_script(raw_content)
         return language, script, raw_content
@@ -196,9 +199,12 @@ class Orchestrator:
             {"role": "system", "content": REPORT_PROMPT},
             {"role": "user", "content": payload},
         ]
-        response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
-        content = response.choices[0].message.content or ""
-        return sanitize_assistant_text(content)
+        try:
+            response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
+            content = response.choices[0].message.content or ""
+            return sanitize_assistant_text(content)
+        except Exception as exc:
+            return f"LLM error: {exc}"
 
     def _build_report_payload(
         self,
@@ -307,6 +313,11 @@ class Orchestrator:
             use_state=use_state,
             state=state,
         )
+        if raw_content.startswith("LLM error:"):
+            response = raw_content
+            if not stateless:
+                self._store_history(user_input, response)
+            return response
         if not language or not script:
             if is_action_like(user_input):
                 format_prompt = (
@@ -320,6 +331,11 @@ class Orchestrator:
                     use_state=use_state,
                     state=state,
                 )
+                if raw_content.startswith("LLM error:"):
+                    response = raw_content
+                    if not stateless:
+                        self._store_history(user_input, response)
+                    return response
                 if not language or not script:
                     print("🧠 Сложная задача — подключаю умную модель...")
                     language, script, raw_content = self._run_llm(
@@ -329,6 +345,11 @@ class Orchestrator:
                         use_state=True,
                         state=state,
                     )
+                if raw_content.startswith("LLM error:"):
+                    response = raw_content
+                    if not stateless:
+                        self._store_history(user_input, response)
+                    return response
                 if not language or not script:
                     response = "Не смог сформировать команду. Скажи точнее что сделать."
                     if not stateless:
