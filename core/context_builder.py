@@ -28,7 +28,7 @@ def ctx_action(state: dict[str, Any], command_index: str, user_text: str) -> str
         "[RULES]\n"
         "- Если есть подходящая команда — ОБЯЗАТЕЛЬНО верни use_command_id и params.\n"
         "- Если нет команды — верни execute (и verify при необходимости).\n"
-        "- НЕ используй Start-Process для открытия приложений. Для запуска приложений используй CMD_OPEN_APP_SEARCH.\n"
+        "- Для открытия приложений используй CMD_OPEN_APP_SEARCH (через Пуск).\n"
         "- Для поиска в интернете используй CMD_BROWSER_SEARCH или CMD_OPEN_URL.\n"
         "- Не используй опасные действия: удаление, shutdown, реестр, системные каталоги.\n"
         "- Пример: \"открой блокнот\" -> use_command_id=CMD_OPEN_APP_SEARCH, params={\"app_name\":\"блокнот\"}.\n"

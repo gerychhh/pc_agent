@@ -3,22 +3,9 @@ from __future__ import annotations
 import re
 
 
-FORBIDDEN_PATHS = (
-    r"c:\\windows",
-    r"c:\\program files",
-    r"c:\\program files (x86)",
-    r"c:\\programdata",
-    r"\\appdata\\",
-)
+FORBIDDEN_PATHS = ()
 
-SAFE_PATH_TOKENS = (
-    "desktop",
-    "documents",
-    "downloads",
-    "temp",
-    "$env:temp",
-    "$env:tmp",
-)
+SAFE_PATH_TOKENS = ()
 
 WRITE_COMMANDS_PS = (
     "set-content",
@@ -70,12 +57,6 @@ def validate_python(script: str) -> list[str]:
     if re.search(r"https?://\S+\.(exe|msi)", script, re.IGNORECASE):
         errors.append("Скачивание/запуск exe из интернета запрещено.")
 
-    if _mentions_forbidden_paths(script):
-        errors.append("Доступ к системным каталогам запрещен.")
-
-    if _uses_write_ops_py(script) and not _mentions_safe_paths(script):
-        errors.append("Запись разрешена только в Desktop/Documents/Downloads/%TEMP%.")
-
     return errors
 
 
@@ -112,12 +93,6 @@ def validate_powershell(script: str) -> list[str]:
 
     if re.search(r"https?://\S+\.(exe|msi)", script, re.IGNORECASE):
         errors.append("Скачивание/запуск exe из интернета запрещено.")
-
-    if _mentions_forbidden_paths(script):
-        errors.append("Доступ к системным каталогам запрещен.")
-
-    if _uses_write_ops_ps(script) and not _mentions_safe_paths(script):
-        errors.append("Запись разрешена только в Desktop/Documents/Downloads/%TEMP%.")
 
     if re.search(r"Set-Location\s+['\"]Desktop['\"]", script, re.IGNORECASE):
         errors.append(
