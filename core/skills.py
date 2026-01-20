@@ -20,6 +20,7 @@ class Action:
     language: str
     script: str
     updates: dict[str, Any] | None = None
+    name: str | None = None
 
 
 def _focus_window(keywords: tuple[str, ...]) -> bool:
@@ -77,6 +78,7 @@ def match_skill(user_text: str, state: dict[str, Any]) -> Action | str | None:
                 language="powershell",
                 script=_powershell_start_process(url),
                 updates={"active_url": url},
+                name="youtube_video",
             )
 
     if any(term in lowered for term in ("пауза", "стоп", "продолжи")) and (

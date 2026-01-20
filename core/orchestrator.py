@@ -8,6 +8,7 @@ from .config import DEBUG, FAST_MODEL, MAX_RETRIES, SMART_MODEL, TIMEOUT_SEC
 from .executor import run_powershell, run_python
 from .llm_client import LLMClient
 from .logger import SessionLogger
+from .policy import confirm_if_needed
 from .router import route_task
 from .skills import Action, match_skill
 from .state import (
@@ -39,17 +40,52 @@ ACTIVE_FILE:
 - Для .docx открывай Document(active_file) и сохраняй в тот же файл.
 """.strip()
 
+REPORT_PROMPT = """
+Ты — ассистент-репортёр выполнения команд на ПК.
+Тебе дают: запрос пользователя, язык (python/powershell), выполненный скрипт, returncode, stdout, stderr, и состояние (active_file/url/app).
+Напиши КОРОТКИЙ ответ пользователю на русском: что произошло.
+- Если ok: 1-2 предложения, что сделано (например: "Открыл YouTube", "Создал файл на рабочем столе: ...")
+- Если ошибка: коротко причина + 1 следующий шаг (без кода, если не просят)
+Если есть строка "SKILL: youtube_video" — ответ должен быть: "Открыл видео на YouTube."
+Никаких code block.
+""".strip()
+
 
 def sanitize_assistant_text(text: str) -> str:
     if not text:
         return ""
-    cleaned = text.replace("[TOOL_RESULT]", "").replace("[END_TOOL_RESULT]", "")
+    cleaned = (
+        text.replace("[TOOL_RESULT]", "")
+        .replace("[END_TOOL_RESULT]", "")
+        .replace("[/TOOL_RESULT]", "")
+    )
     filtered_lines: list[str] = []
     for line in cleaned.splitlines():
         if any(marker in line for marker in ("<|channel|>", "<|constrain|>", "<|message|>")):
             continue
         filtered_lines.append(line)
     return "\n".join(filtered_lines).strip()
+
+
+def is_action_like(user_input: str) -> bool:
+    verbs = (
+        "открой",
+        "закрой",
+        "найди",
+        "включи",
+        "запусти",
+        "создай",
+        "измени",
+        "сделай",
+        "удали",
+        "скачай",
+        "перемотай",
+        "пауза",
+        "громче",
+        "тише",
+    )
+    lowered = user_input.lower()
+    return any(verb in lowered for verb in verbs)
 
 
 class Orchestrator:
@@ -76,9 +112,11 @@ class Orchestrator:
         if not content:
             return None, None
         python_match = re.search(r"```python\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        ps_match = re.search(r"```powershell\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        if python_match and ps_match:
+            return None, None
         if python_match:
             return "python", python_match.group(1).strip()
-        ps_match = re.search(r"```powershell\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
         if ps_match:
             return "powershell", ps_match.group(1).strip()
         return None, None
@@ -153,6 +191,74 @@ class Orchestrator:
         language, script = self._extract_script(raw_content)
         return language, script, raw_content
 
+    def _run_report(self, payload: str, model_name: str) -> str:
+        messages = [
+            {"role": "system", "content": REPORT_PROMPT},
+            {"role": "user", "content": payload},
+        ]
+        response = self.client.chat(messages, tools=[], model_name=model_name, tool_choice="none")
+        content = response.choices[0].message.content or ""
+        return sanitize_assistant_text(content)
+
+    def _build_report_payload(
+        self,
+        user_input: str,
+        language: str,
+        script: str,
+        result: dict[str, Any],
+        action: Action | None = None,
+    ) -> str:
+        state = load_state()
+        active_file = state.get("active_file") or ""
+        active_url = state.get("active_url") or ""
+        active_app = state.get("active_app") or ""
+        lines = [
+            f"USER: {user_input}",
+            f"LANG: {language}",
+            f"SCRIPT: {script}",
+            f"RESULT_OK: {str(result.get('ok', False)).lower()}",
+            f"RETURNCODE: {result.get('returncode')}",
+            f"STDOUT: {result.get('stdout') or ''}",
+            f"STDERR: {result.get('stderr') or ''}",
+            f"STATE: ACTIVE_FILE={active_file} | ACTIVE_URL={active_url} | ACTIVE_APP={active_app}",
+        ]
+        if action and action.name:
+            lines.append(f"SKILL: {action.name}")
+        return "\n".join(lines)
+
+    def _build_tool_result_block(
+        self, language: str, script: str, result: dict[str, Any]
+    ) -> str:
+        return (
+            "[TOOL_RESULT]\n"
+            f"LANG: {language}\n"
+            f"SCRIPT: {script}\n"
+            f"RESULT_OK: {str(result.get('ok', False)).lower()}\n"
+            f"RETURNCODE: {result.get('returncode')}\n"
+            f"STDOUT: {result.get('stdout') or ''}\n"
+            f"STDERR: {result.get('stderr') or ''}\n"
+            "[/TOOL_RESULT]"
+        )
+
+    def _report_action(
+        self,
+        user_input: str,
+        language: str,
+        script: str,
+        result: dict[str, Any],
+        *,
+        action: Action | None = None,
+        complex_task: bool = False,
+    ) -> str:
+        report_model = SMART_MODEL if (not result.get("ok") or complex_task) else FAST_MODEL
+        if report_model == SMART_MODEL:
+            print("🧠 Сложная задача — подключаю умную модель...")
+        payload = self._build_report_payload(user_input, language, script, result, action=action)
+        return self._run_report(payload, report_model)
+
+    def _confirm_action(self, action: Action) -> bool:
+        return confirm_if_needed(action.language, action.script)
+
     def run(self, user_input: str, stateless: bool = False) -> str:
         state = load_state()
         skill_result = match_skill(user_input, state)
@@ -162,18 +268,28 @@ class Orchestrator:
                 self._store_history(user_input, response)
             return response
         if isinstance(skill_result, Action):
-            result = self._execute_action(skill_result)
-            if result.get("ok"):
-                self._update_state_from_action(skill_result)
-                response = "✅ Готово"
+            if not self._confirm_action(skill_result):
+                response = "Отменено пользователем."
                 if not stateless:
                     self._store_history(user_input, response)
                 return response
-            stdout = result.get("stdout") or ""
-            stderr = result.get("stderr") or ""
-            response = f"❌ Ошибка выполнения\nstdout=\n{stdout}\nstderr=\n{stderr}"
+            result = self._execute_action(skill_result)
+            if result.get("ok"):
+                self._update_state_from_action(skill_result)
+            response = self._report_action(
+                user_input,
+                skill_result.language,
+                skill_result.script,
+                result,
+                action=skill_result,
+            )
             if not stateless:
-                self._store_history(user_input, response)
+                tool_result = self._build_tool_result_block(
+                    skill_result.language,
+                    skill_result.script,
+                    result,
+                )
+                self._store_history(user_input, response, tool_result=tool_result)
             return response
 
         route = route_task(user_input)
@@ -182,7 +298,7 @@ class Orchestrator:
         model_name = FAST_MODEL if complexity == "simple" else SMART_MODEL
         use_state = model_name == SMART_MODEL
         if model_name == SMART_MODEL:
-            print("🧠 Подключаю умную модель...")
+            print("🧠 Сложная задача — подключаю умную модель...")
 
         language, script, raw_content = self._run_llm(
             user_input,
@@ -192,50 +308,103 @@ class Orchestrator:
             state=state,
         )
         if not language or not script:
-            response = sanitize_assistant_text(raw_content)
-            if not stateless:
-                self._store_history(user_input, response)
-            return response
+            if is_action_like(user_input):
+                format_prompt = (
+                    "Ты вернул команду без code block. Верни то же самое, но строго в одном "
+                    "fenced code block (python или powershell) и без текста."
+                )
+                language, script, raw_content = self._run_llm(
+                    f"{user_input}\n{format_prompt}",
+                    model_name,
+                    stateless=True,
+                    use_state=use_state,
+                    state=state,
+                )
+                if not language or not script:
+                    print("🧠 Сложная задача — подключаю умную модель...")
+                    language, script, raw_content = self._run_llm(
+                        f"{user_input}\n{format_prompt}",
+                        SMART_MODEL,
+                        stateless=False,
+                        use_state=True,
+                        state=state,
+                    )
+                if not language or not script:
+                    response = "Не смог сформировать команду. Скажи точнее что сделать."
+                    if not stateless:
+                        self._store_history(user_input, response)
+                    return response
+            else:
+                response = sanitize_assistant_text(raw_content)
+                if not stateless:
+                    self._store_history(user_input, response)
+                return response
         if force_lang and language != force_lang:
-            response = self._escalate_with_errors(
+            response, tool_result = self._escalate_with_errors(
                 user_input,
                 script,
                 [f"Нужен язык {force_lang}, но получен {language}."],
                 state,
             )
             if not stateless:
-                self._store_history(user_input, response)
+                self._store_history(user_input, response, tool_result=tool_result)
             return response
 
         errors = self._validate_script(language, script)
         if errors:
-            response = self._escalate_with_errors(user_input, script, errors, state)
+            response, tool_result = self._escalate_with_errors(user_input, script, errors, state)
+            if not stateless:
+                self._store_history(user_input, response, tool_result=tool_result)
+            return response
+
+        action = Action(language=language, script=script)
+        if not self._confirm_action(action):
+            response = "Отменено пользователем."
             if not stateless:
                 self._store_history(user_input, response)
             return response
-
-        result = self._execute_action(Action(language=language, script=script))
+        result = self._execute_action(action)
         if result.get("ok"):
             self._maybe_track_success(language, script)
-            response = "✅ Готово"
+            response = self._report_action(
+                user_input,
+                language,
+                script,
+                result,
+                complex_task=complexity == "complex",
+            )
             if not stateless:
-                self._store_history(user_input, response)
+                tool_result = self._build_tool_result_block(language, script, result)
+                self._store_history(user_input, response, tool_result=tool_result)
             return response
 
         stdout = result.get("stdout") or ""
         stderr = result.get("stderr") or ""
-        response = self._retry_with_smart(user_input, script, stdout, stderr, state)
+        retry_outcome = self._retry_with_smart(user_input, language, script, stdout, stderr, state)
+        if retry_outcome is None:
+            response = "Отменено пользователем."
+            if not stateless:
+                self._store_history(user_input, response)
+            return response
+        retry_language, retry_script, retry_result = retry_outcome
+        response = self._report_action(
+            user_input,
+            retry_language,
+            retry_script,
+            retry_result,
+            complex_task=True,
+        )
         if not stateless:
-            self._store_history(user_input, response)
+            tool_result = self._build_tool_result_block(retry_language, retry_script, retry_result)
+            self._store_history(user_input, response, tool_result=tool_result)
         return response
 
-    def _store_history(self, user_input: str, response: str) -> None:
-        self.history.extend(
-            [
-                {"role": "user", "content": user_input},
-                {"role": "assistant", "content": response},
-            ]
-        )
+    def _store_history(self, user_input: str, response: str, tool_result: str | None = None) -> None:
+        entries = [{"role": "user", "content": user_input}]
+        if tool_result:
+            entries.append({"role": "assistant", "content": tool_result})
+        entries.append({"role": "assistant", "content": response})
+        self.history.extend(entries)
         self.history = self.history[-self.history_limit :]
 
     def _maybe_track_success(self, language: str, script: str) -> None:
@@ -253,8 +422,10 @@ class Orchestrator:
             set_active_app(app)
             add_recent_app(app)
 
-    def _escalate_with_errors(self, user_input: str, script: str, errors: list[str], state: dict[str, Any]) -> str:
-        print("🧠 Подключаю умную модель...")
+    def _escalate_with_errors(
+        self, user_input: str, script: str, errors: list[str], state: dict[str, Any]
+    ) -> tuple[str, str | None]:
+        print("🧠 Сложная задача — подключаю умную модель...")
         error_text = "\n".join(f"- {err}" for err in errors)
         prompt = (
             "Скрипт не прошёл валидацию:\n"
@@ -269,25 +440,46 @@ class Orchestrator:
             state=state,
         )
         if not language or not new_script:
-            return "Не удалось получить корректный скрипт."
+            return "Не удалось получить корректный скрипт.", None
         errors = self._validate_script(language, new_script)
         if errors:
-            return "Скрипт все еще невалиден."
-        result = self._execute_action(Action(language=language, script=new_script))
+            return "Скрипт все еще невалиден.", None
+        action = Action(language=language, script=new_script)
+        if not self._confirm_action(action):
+            return "Отменено пользователем.", None
+        result = self._execute_action(action)
         if result.get("ok"):
             self._maybe_track_success(language, new_script)
-            return "✅ Готово"
-        stdout = result.get("stdout") or ""
-        stderr = result.get("stderr") or ""
-        return f"❌ Ошибка выполнения\nstdout=\n{stdout}\nstderr=\n{stderr}"
+        response = self._report_action(
+            user_input,
+            language,
+            new_script,
+            result,
+            complex_task=True,
+        )
+        tool_result = self._build_tool_result_block(language, new_script, result)
+        return response, tool_result
 
-    def _retry_with_smart(self, user_input: str, script: str, stdout: str, stderr: str, state: dict[str, Any]) -> str:
+    def _retry_with_smart(
+        self,
+        user_input: str,
+        language: str,
+        script: str,
+        stdout: str,
+        stderr: str,
+        state: dict[str, Any],
+    ) -> tuple[str, str, dict[str, Any]] | None:
+        print("🧠 Сложная задача — подключаю умную модель...")
+        last_language = language
+        last_script = script
+        last_result = {"ok": False, "stdout": stdout, "stderr": stderr, "returncode": None}
         for attempt in range(MAX_RETRIES):
             print("🔁 Ошибка выполнения — пробую исправить...")
+            script_to_fix = last_script
             prompt = (
                 "Скрипт упал. Исправь и верни только новый корректный code block.\n"
                 f"USER:\n{user_input}\n"
-                f"SCRIPT:\n{script}\n"
+                f"SCRIPT:\n{script_to_fix}\n"
                 f"STDOUT:\n{stdout}\n"
                 f"STDERR:\n{stderr}\n"
             )
@@ -304,11 +496,25 @@ class Orchestrator:
             if errors:
                 stdout = ""
                 stderr = "\n".join(errors)
+                last_language = language
+                last_script = new_script
+                last_result = {
+                    "ok": False,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "returncode": None,
+                }
                 continue
-            result = self._execute_action(Action(language=language, script=new_script))
+            action = Action(language=language, script=new_script)
+            if not self._confirm_action(action):
+                return None
+            result = self._execute_action(action)
             if result.get("ok"):
                 self._maybe_track_success(language, new_script)
-                return "✅ Готово"
+                return language, new_script, result
             stdout = result.get("stdout") or ""
             stderr = result.get("stderr") or ""
-        return f"❌ Ошибка выполнения\nstdout=\n{stdout}\nstderr=\n{stderr}"
+            last_language = language
+            last_script = new_script
+            last_result = result
+        return last_language, last_script, last_result
