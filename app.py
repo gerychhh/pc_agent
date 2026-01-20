@@ -21,7 +21,22 @@ from core.config import (
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.debug import set_debug
 from core.voice import VoiceInput
-from core.state import clear_state, get_active_app, get_active_file, get_active_url, load_state, set_active_file, get_voice_device, set_voice_device
+from core.state import (
+    clear_pending_app,
+    clear_state,
+    get_active_app,
+    get_active_file,
+    get_active_url,
+    get_pending_app,
+    get_voice_device,
+    load_state,
+    set_active_file,
+    set_pending_app,
+    set_voice_device,
+)
+from core.app_aliases import set_alias
+from core.app_normalizer import normalize_alias_key, normalize_app_query
+from core.windows_search import windows_search_open
 
 
 HELP_TEXT = """
@@ -85,6 +100,42 @@ def _should_speak(response: str) -> bool:
     if response.startswith(("✅", "❌")):
         return False
     return True
+
+
+def _parse_yes_no(text: str) -> bool | None:
+    normalized = text.strip().lower()
+    if normalized in {"да", "ага", "верно", "yes", "y"}:
+        return True
+    if normalized in {"нет", "не", "неверно", "no", "n", "неправильно", "не то"}:
+        return False
+    return None
+
+
+def _handle_app_confirmation() -> None:
+    while True:
+        pending = get_pending_app()
+        if not pending:
+            return
+        query, guess = pending
+        answer = input(f"Мы открыли '{guess}'. Это верное приложение? (да/нет)> ").strip()
+        verdict = _parse_yes_no(answer)
+        if verdict is None:
+            print("Ответь 'да' или 'нет'.")
+            continue
+        if verdict:
+            alias_key = normalize_alias_key(query)
+            if alias_key:
+                set_alias(alias_key, guess)
+                print(f"Запомнил: '{alias_key}' = '{guess}'.")
+            clear_pending_app()
+            return
+        correct = input("Какое приложение нужно было открыть? > ").strip()
+        if not correct:
+            print("Нужно указать название приложения.")
+            continue
+        normalized = normalize_app_query(correct, use_llm=False)
+        set_pending_app(query, normalized)
+        windows_search_open(normalized)
 
 
 def _extract_voice_command(text: str, wake_name: str | None) -> str | None:
@@ -318,6 +369,7 @@ def main() -> None:
         if not output:
             output = "(no output)"
         print(f"Agent> {output}")
+        _handle_app_confirmation()
         if voice_enabled and _should_speak(output):
             try:
                 speak_text(output)

@@ -606,12 +606,14 @@ commands:
     lang: python
     script: |
       from core.app_normalizer import normalize_app_query
+      from core.state import set_pending_app
       from core.windows_search import windows_search_open
       raw = "{{app_name}}"
       normalized = normalize_app_query(raw)
       print(f'[APP_OPEN] raw="{raw}"')
       print(f'[APP_OPEN] normalized="{normalized}"')
       print('[APP_OPEN] strategy="windows_search"')
+      set_pending_app(raw, normalized)
       windows_search_open(normalized)
   verify:
     lang: python

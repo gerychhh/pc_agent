@@ -21,6 +21,8 @@ DEFAULT_STATE: dict[str, Any] = {
     "recent_urls": [],
     "recent_apps": [],
     "voice_device": None,
+    "pending_app_query": None,
+    "pending_app_guess": None,
 }
 
 
@@ -143,6 +145,29 @@ def add_recent_app(app: str, max_items: int = 20) -> None:
 
 def clear_state() -> None:
     save_state(DEFAULT_STATE.copy())
+
+
+def set_pending_app(query: str, guess: str) -> None:
+    state = load_state()
+    state["pending_app_query"] = query
+    state["pending_app_guess"] = guess
+    save_state(state)
+
+
+def clear_pending_app() -> None:
+    state = load_state()
+    state["pending_app_query"] = None
+    state["pending_app_guess"] = None
+    save_state(state)
+
+
+def get_pending_app() -> tuple[str, str] | None:
+    state = load_state()
+    query = state.get("pending_app_query")
+    guess = state.get("pending_app_guess")
+    if isinstance(query, str) and query and isinstance(guess, str) and guess:
+        return query, guess
+    return None
 
 
 def set_voice_device(device_index: int | None) -> None:
