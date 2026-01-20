@@ -258,6 +258,38 @@ commands:
   verify: {lang: powershell, script: "Get-Process explorer -ErrorAction SilentlyContinue | Out-String"}
   success: {type: process_running, process_name: explorer}
 
+- id: CMD_OPEN_APP_SEARCH
+  intents: ["открой *", "запусти *", "open *", "launch *"]
+  description_short: "Открывает приложение через Windows Search."
+  params:
+    - name: app
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import time
+      import pyautogui
+      app = "{{app}}"
+      pyautogui.press("win")
+      time.sleep(0.2)
+      pyautogui.typewrite(app, interval=0.02)
+      time.sleep(0.1)
+      pyautogui.press("enter")
+      print("OK: launched", app)
+  verify:
+    lang: python
+    script: |
+      import pygetwindow as gw
+      target = "{{app}}".lower()
+      win = gw.getActiveWindow()
+      title = (win.title if win else "").lower()
+      if target in title:
+        print("OK: active window contains", target)
+      else:
+        print("WARN: active window not matched", title)
+  success:
+    type: custom
+
 # ======== FILES SAFE ========
 - id: CMD_CREATE_TXT_DESKTOP
   intents: ["создай txt *", "создай текстовый файл *", "создай файл ткст *"]

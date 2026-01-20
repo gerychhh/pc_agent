@@ -83,6 +83,11 @@ def match_command(user_text: str, commands: list[dict[str, Any]]) -> tuple[Comma
             )
     matches.sort(key=lambda m: m.score, reverse=True)
     best = matches[0] if matches else None
+    if best and best.command.get("id") == "CMD_OPEN_APP_SEARCH":
+        for candidate in matches[1:]:
+            if candidate.command.get("id") != "CMD_OPEN_APP_SEARCH" and candidate.score >= 2:
+                best = candidate
+                break
     debug_event("CMD_MATCH", f"matches={len(matches)} best={best.command.get('id') if best else 'NONE'}")
     for match in matches[:5]:
         debug_event(
@@ -165,6 +170,10 @@ def extract_params(command: dict[str, Any], user_text: str, intent_text: str) ->
             if extracted_query:
                 params[name] = extracted_query
                 continue
+        if name == "app":
+            if wildcard_value:
+                params[name] = wildcard_value
+                continue
         if name == "filename":
             extracted_name = _extract_filename(user_text)
             if extracted_name:
@@ -184,6 +193,8 @@ def extract_params(command: dict[str, Any], user_text: str, intent_text: str) ->
 
     if "query" in params:
         params["query"] = params["query"].strip()
+    if "app" in params:
+        params["app"] = params["app"].strip()
     if "text" in params:
         params["text"] = params["text"].strip()
     if "content" in params:
