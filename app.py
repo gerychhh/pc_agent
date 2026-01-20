@@ -22,21 +22,16 @@ from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.debug import set_debug
 from core.voice import VoiceInput
 from core.state import (
-    clear_pending_app,
     clear_state,
     get_active_app,
     get_active_file,
     get_active_url,
-    get_pending_app,
     get_voice_device,
     load_state,
     set_active_file,
-    set_pending_app,
     set_voice_device,
 )
-from core.app_aliases import set_alias
-from core.app_normalizer import normalize_alias_key, normalize_app_query
-from core.windows_search import windows_search_open
+from core.interaction_memory import get_route, record_history, set_route
 
 
 HELP_TEXT = """
@@ -111,31 +106,36 @@ def _parse_yes_no(text: str) -> bool | None:
     return None
 
 
-def _handle_app_confirmation() -> None:
+def _confirm_request(
+    original_query: str,
+    resolved_query: str,
+    response: str,
+    orchestrator: Orchestrator,
+    voice_enabled: bool,
+) -> None:
     while True:
-        pending = get_pending_app()
-        if not pending:
-            return
-        query, guess = pending
-        answer = input(f"Мы открыли '{guess}'. Это верное приложение? (да/нет)> ").strip()
+        answer = input("Я верно всё сделал? (да/нет)> ").strip()
         verdict = _parse_yes_no(answer)
         if verdict is None:
             print("Ответь 'да' или 'нет'.")
             continue
         if verdict:
-            alias_key = normalize_alias_key(query)
-            if alias_key:
-                set_alias(alias_key, guess)
-                print(f"Запомнил: '{alias_key}' = '{guess}'.")
-            clear_pending_app()
+            if resolved_query != original_query:
+                set_route(original_query, resolved_query)
+            record_history(original_query, response, resolved_query)
             return
-        correct = input("Какое приложение нужно было открыть? > ").strip()
-        if not correct:
-            print("Нужно указать название приложения.")
+        correction = input("Что нужно было сделать? Опиши подробнее> ").strip()
+        if not correction:
+            print("Нужно описание корректного действия.")
             continue
-        normalized = normalize_app_query(correct, use_llm=False)
-        set_pending_app(query, normalized)
-        windows_search_open(normalized)
+        set_route(original_query, correction)
+        response_text = orchestrator.run(correction, stateless=voice_enabled)
+        output = sanitize_assistant_text(response_text)
+        if not output:
+            output = "(no output)"
+        print(f"Agent> {output}")
+        response = output
+        resolved_query = correction
 
 
 def _extract_voice_command(text: str, wake_name: str | None) -> str | None:
@@ -364,12 +364,14 @@ def main() -> None:
                 print("Usage: /voice [on|off]")
             continue
 
-        response = orchestrator.run(user_input, stateless=voice_enabled)
+        original_query = user_input
+        resolved_query = get_route(user_input) or user_input
+        response = orchestrator.run(resolved_query, stateless=voice_enabled)
         output = sanitize_assistant_text(response)
         if not output:
             output = "(no output)"
         print(f"Agent> {output}")
-        _handle_app_confirmation()
+        _confirm_request(original_query, resolved_query, output, orchestrator, voice_enabled)
         if voice_enabled and _should_speak(output):
             try:
                 speak_text(output)
