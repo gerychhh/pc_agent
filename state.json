@@ -1,13 +1,19 @@
 {
-  "active_file": null,
-  "active_url": "https://www.youtube.com/",
+  "active_file": "C:\\Users\\ger-2\\Desktop\\о_себе.docx",
+  "active_url": "https://www.youtube.com/results?search_query=%D0%BA%D0%BE%D1%81%D0%BC%D0%BE%D1%81",
   "active_app": "notepad",
-  "recent_files": [],
+  "recent_files": [
+    "C:\\Users\\ger-2\\Desktop\\о_себе.docx"
+  ],
   "recent_urls": [
+    "https://www.youtube.com/results?search_query=%D0%BA%D0%BE%D1%81%D0%BC%D0%BE%D1%81",
     "https://www.youtube.com/",
+    "https://music.yandex.ru",
     "https://www.youtube.com"
   ],
   "recent_apps": [
-    "notepad"
+    "notepad",
+    "-W",
+    "winword.exe"
   ]
 }

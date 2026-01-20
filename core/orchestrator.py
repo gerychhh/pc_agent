@@ -157,7 +157,14 @@ class Orchestrator:
             result = run_python(action.script, TIMEOUT_SEC)
         else:
             result = run_powershell(action.script, TIMEOUT_SEC)
-        return self._check_saved_output(result)
+        result = self._check_saved_output(result)
+        saved_path = result.get("saved_path")
+        if saved_path and result.get("ok"):
+            # Если скрипт сообщил SAVED: <path>, сохраняем его как ACTIVE_FILE
+            set_active_file(str(saved_path))
+            add_recent_file(str(saved_path))
+        return result
+
 
     def _update_state_from_action(self, action: Action) -> None:
         if not action.updates:
@@ -225,7 +232,9 @@ class Orchestrator:
             return result
         path = match.group(1).strip()
         if os.path.exists(path):
-            return result
+            updated = dict(result)
+            updated["saved_path"] = path
+            return updated
         updated = dict(result)
         updated["ok"] = False
         stderr = (result.get("stderr") or "").strip()
