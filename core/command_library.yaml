@@ -228,12 +228,177 @@ commands:
 # ======== APPS ========
 - id: CMD_OPEN_NOTEPAD
   intents: ["открой блокнот", "запусти блокнот", "notepad"]
-  description_short: "Открывает Блокнот."
-  execute: {lang: powershell, script: "Start-Process notepad.exe"}
-  verify: {lang: powershell, script: "Get-Process notepad -ErrorAction SilentlyContinue | Out-String"}
-  success: {type: process_running, process_name: notepad}
+  description_short: "Открывает Блокнот и переводит фокус в окно (чтобы печать работала)."
+  execute:
+    lang: python
+    script: |
+      import time
+      import subprocess
+      import pyautogui
+      import pygetwindow as gw
+
+      subprocess.Popen(["notepad.exe"])
+      time.sleep(0.6)
+
+      wins = []
+      try:
+        wins += gw.getWindowsWithTitle("Блокнот")
+      except Exception:
+        pass
+      try:
+        wins += gw.getWindowsWithTitle("Notepad")
+      except Exception:
+        pass
+
+      if wins:
+        w = wins[0]
+        try:
+          w.restore()
+        except Exception:
+          pass
+        try:
+          w.activate()
+        except Exception:
+          pass
+        time.sleep(0.2)
+        # Клик в центр, чтобы курсор точно оказался в поле ввода
+        try:
+          x = w.left + w.width // 2
+          y = w.top + w.height // 2
+          pyautogui.click(x, y)
+        except Exception:
+          pass
+
+      print("OK: notepad opened")
+  verify:
+    lang: python
+    script: |
+      import psutil
+      names = []
+      for p in psutil.process_iter(["name"]):
+        try:
+          names.append((p.info.get("name") or "").lower())
+        except Exception:
+          pass
+      if any(n in ("notepad.exe", "notepad") for n in names):
+        print("OK")
+      else:
+        raise RuntimeError("notepad not running")
+  success:
+    type: custom
   state_update:
     active_app: "notepad"
+
+- id: CMD_FOCUS_NOTEPAD
+  intents: ["сфокусируй блокнот", "переключись на блокнот", "focus notepad"]
+  description_short: "Активирует окно Блокнота (если уже открыто)."
+  execute:
+    lang: python
+    script: |
+      import time
+      import pyautogui
+      import pygetwindow as gw
+
+      wins = []
+      try:
+        wins += gw.getWindowsWithTitle("Блокнот")
+      except Exception:
+        pass
+      try:
+        wins += gw.getWindowsWithTitle("Notepad")
+      except Exception:
+        pass
+
+      if not wins:
+        raise RuntimeError("Notepad window not found")
+      w = wins[0]
+      try:
+        w.restore()
+      except Exception:
+        pass
+      w.activate()
+      time.sleep(0.2)
+      # клик по центру, чтобы курсор был в редакторе
+      x = w.left + w.width // 2
+      y = w.top + w.height // 2
+      pyautogui.click(x, y)
+      print("OK: focused notepad")
+  verify:
+    lang: python
+    script: |
+      import pygetwindow as gw
+      w = gw.getActiveWindow()
+      title = (w.title if w else "").lower()
+      if "блокнот" in title or "notepad" in title:
+        print("OK")
+      else:
+        raise RuntimeError("Notepad is not active")
+  success:
+    type: custom
+  state_update:
+    active_app: "notepad"
+
+- id: CMD_TYPE_IN_NOTEPAD
+  intents: ["в блокноте *", "в блокнот *", "в блокноте напиши *", "в блокнот напиши *"]
+  description_short: "Пишет текст именно в Блокнот (активирует окно и печатает)."
+  params:
+    - name: text
+      from_user: true
+  execute:
+    lang: python
+    script: |
+      import time
+      import pyautogui
+      import pygetwindow as gw
+
+      text = "{{text}}"
+
+      wins = []
+      try:
+        wins += gw.getWindowsWithTitle("Блокнот")
+      except Exception:
+        pass
+      try:
+        wins += gw.getWindowsWithTitle("Notepad")
+      except Exception:
+        pass
+
+      if not wins:
+        raise RuntimeError("Notepad window not found")
+
+      w = wins[0]
+      try:
+        w.restore()
+      except Exception:
+        pass
+      try:
+        w.activate()
+      except Exception:
+        pass
+
+      time.sleep(0.2)
+      # клик в центр редактора
+      x = w.left + w.width // 2
+      y = w.top + w.height // 2
+      pyautogui.click(x, y)
+      time.sleep(0.05)
+      pyautogui.typewrite(text, interval=0.01)
+      print("OK: typed into notepad")
+  verify:
+    lang: python
+    script: |
+      import pygetwindow as gw
+      w = gw.getActiveWindow()
+      title = (w.title if w else "").lower()
+      if "блокнот" in title or "notepad" in title:
+        print("OK")
+      else:
+        raise RuntimeError("Notepad is not active")
+  success:
+    type: custom
+  state_update:
+    active_app: "notepad"
+
 
 - id: CMD_CLOSE_NOTEPAD
   intents: ["закрой блокнот", "убей блокнот"]

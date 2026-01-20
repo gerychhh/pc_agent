@@ -1,0 +1,1 @@
+Get-Member | Where-Object {$_.Name -eq 'rates'} | Select-Object -ExpandProperty Name | Contains 'USD'

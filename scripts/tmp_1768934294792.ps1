@@ -1,0 +1,1 @@
+CMD_OPEN_URL - URL=https://www.nasa.gov

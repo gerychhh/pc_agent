@@ -14,6 +14,7 @@ DEFAULT_STATE: dict[str, Any] = {
     "recent_files": [],
     "recent_urls": [],
     "recent_apps": [],
+    "voice_device": None,
 }
 
 
@@ -113,3 +114,15 @@ def add_recent_app(app: str, max_items: int = 20) -> None:
 
 def clear_state() -> None:
     save_state(DEFAULT_STATE.copy())
+
+
+def set_voice_device(device_index: int | None) -> None:
+    state = load_state()
+    state["voice_device"] = device_index
+    save_state(state)
+
+
+def get_voice_device() -> int | None:
+    state = load_state()
+    value = state.get("voice_device")
+    return int(value) if isinstance(value, int) else None

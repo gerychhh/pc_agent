@@ -1,0 +1,1 @@
+Start-Process 'https://music.yandex.ru'

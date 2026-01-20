@@ -13,9 +13,10 @@ from .config import VOSK_MODEL_DIR, VOICE_SAMPLE_RATE
 
 
 class VoiceInput:
-    def __init__(self, model_dir: Path | None = None, sample_rate: int | None = None) -> None:
+    def __init__(self, model_dir: Path | None = None, sample_rate: int | None = None, device: int | None = None) -> None:
         self.model_dir = Path(model_dir) if model_dir else VOSK_MODEL_DIR
         self.sample_rate = sample_rate or VOICE_SAMPLE_RATE
+        self.device = device
         if not self.model_dir.exists():
             raise FileNotFoundError(
                 f"Vosk model not found at {self.model_dir}. "
@@ -26,16 +27,24 @@ class VoiceInput:
 
     def _callback(self, indata: bytes, frames: int, time_info: Any, status: sd.CallbackFlags) -> None:
         if status:
-            return
+            # не глушим полностью поток — иногда драйверы дают status, но данные приходят
+            pass
         self.queue.put(bytes(indata))
 
     def listen_once(self, timeout_sec: float = 8.0, silence_timeout_sec: float = 0.7) -> str | None:
+        # очистим очередь от старого мусора
+        while True:
+            try:
+                self.queue.get_nowait()
+            except queue.Empty:
+                break
         recognizer = KaldiRecognizer(self.model, self.sample_rate)
         start = time.monotonic()
         last_speech_at: float | None = None
         blocksize = 1600 if self.sample_rate == 16000 else 8000
         with sd.RawInputStream(
             samplerate=self.sample_rate,
+            device=self.device,
             blocksize=blocksize,
             dtype="int16",
             channels=1,

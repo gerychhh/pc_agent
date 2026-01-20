@@ -1,0 +1,1 @@
+if (Get-Process -Name 'chrome' -ErrorAction SilentlyContinue) { return $true } else { return $false }

@@ -1,0 +1,1 @@
+Start-Process -FilePath 'https://music.yandex.ru' -Wait

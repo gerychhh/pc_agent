@@ -105,8 +105,14 @@ class Orchestrator:
                     return self._report(user_text, state, results)
 
         if not _is_action_like(user_text):
-            debug_event("ROUTER", "not an action -> echo")
-            return sanitize_assistant_text(user_text)
+            # Не действие. Раньше мы просто эхо-повторяли текст пользователя — это выглядело как баг.
+            debug_event("ROUTER", "not an action -> assistant")
+            lowered = user_text.strip().lower()
+            if any(token in lowered for token in ("не сделал", "не получилось", "не работает", "ошибка")):
+                return "Понял. Давай попробуем ещё раз — скажи точную команду, что сделать на компьютере."
+            if lowered in {"что", "чего", "а", "?", "ээ", "эм", "мм"}:
+                return "Скажи команду: открой/закрой приложение, напиши текст, найди видео на YouTube и т.д."
+            return "Ок. Скажи команду, что сделать на компьютере."
 
         debug_event("ROUTER", "complex -> planner")
         plan_results = self.planner.run(user_text, state, self.command_index)

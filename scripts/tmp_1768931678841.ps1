@@ -1,0 +1,1 @@
+start edge 'https://en.wikipedia.org/wiki/Space'

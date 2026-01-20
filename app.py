@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import subprocess
 
+import sounddevice as sd
+
 from core.app_search_paths import (
     default_search_paths,
     load_search_paths,
@@ -19,7 +21,7 @@ from core.config import (
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.debug import set_debug
 from core.voice import VoiceInput
-from core.state import clear_state, get_active_app, get_active_file, get_active_url, load_state, set_active_file
+from core.state import clear_state, get_active_app, get_active_file, get_active_url, load_state, set_active_file, get_voice_device, set_voice_device
 
 
 HELP_TEXT = """
@@ -152,6 +154,7 @@ def ensure_app_search_paths() -> None:
 
 def main() -> None:
     print("PC Agent CLI. Type /help for commands.")
+    print("Tip: включить голосовой ввод → /voice on (и проверь микрофон: /voice devices)")
     ensure_app_search_paths()
     set_debug(os.getenv("PC_AGENT_DEBUG", "0") == "1")
     orchestrator = Orchestrator()
@@ -177,7 +180,8 @@ def main() -> None:
             else:
                 try:
                     if voice_input is None:
-                        voice_input = VoiceInput()
+                        device_idx = get_voice_device()
+                        voice_input = VoiceInput(device=device_idx)
                     voice_text = voice_input.listen_once()
                 except (EOFError, KeyboardInterrupt):
                     print("\nExiting.")
@@ -267,6 +271,28 @@ def main() -> None:
         if user_input == "/screens":
             list_screenshots()
             continue
+        if user_input == "/voice devices":
+            try:
+                devices = sd.query_devices()
+                print("Audio devices:")
+                for i, d in enumerate(devices):
+                    name = d.get("name")
+                    ins = d.get("max_input_channels")
+                    outs = d.get("max_output_channels")
+                    print(f"  {i}: {name} (in={ins}, out={outs})")
+            except Exception as exc:
+                print(f"Cannot query devices: {exc}")
+            continue
+        if user_input.startswith("/voice device"):
+            parts = user_input.split()
+            if len(parts) != 3 or not parts[2].isdigit():
+                print("Usage: /voice device <index>")
+                continue
+            set_voice_device(int(parts[2]))
+            voice_input = None
+            print(f"Voice input device set to {parts[2]} (re-init).")
+            continue
+
         if user_input.startswith("/voice"):
             if user_input == "/voice" or user_input.endswith("on"):
                 voice_enabled = True

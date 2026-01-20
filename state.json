@@ -1,19 +1,35 @@
 {
-  "active_file": "C:\\Users\\ger-2\\Desktop\\о_себе.docx",
-  "active_url": "https://www.youtube.com/results?search_query=%D0%BA%D0%BE%D1%81%D0%BC%D0%BE%D1%81",
+  "active_file": "launched веб версию яндекс музыки",
+  "active_url": "https://www.youtube.com/",
   "active_app": "notepad",
   "recent_files": [
+    "launched веб версию яндекс музыки",
+    "launched яндекс музыку",
+    "launched стим",
+    "launched pycharm",
+    "launched пуск",
+    "launched видео",
+    "active_window=pc_agent – command_library.yaml",
+    "typed",
+    "active_window=*Без имени — Блокнот",
+    "active_window=pc_agent – orchestrator.py",
     "C:\\Users\\ger-2\\Desktop\\о_себе.docx"
   ],
   "recent_urls": [
-    "https://www.youtube.com/results?search_query=%D0%BA%D0%BE%D1%81%D0%BC%D0%BE%D1%81",
     "https://www.youtube.com/",
+    "",
+    "https://www.youtube.com/results?search_query=видео про космос",
+    "https://www.youtube.com/results?search_query=$q",
     "https://music.yandex.ru",
+    "https://example.com",
+    "https://www.youtube.com/results?search_query=%D0%BA%D0%BE%D1%81%D0%BC%D0%BE%D1%81",
     "https://www.youtube.com"
   ],
   "recent_apps": [
     "notepad",
+    "WINWORD",
     "-W",
     "winword.exe"
-  ]
+  ],
+  "voice_device": 1
 }

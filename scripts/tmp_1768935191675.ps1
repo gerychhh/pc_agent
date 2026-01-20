@@ -1,0 +1,1 @@
+if ((Get-Process -Name 'Edge').Count -eq 1) {'ok': true, 'stderr': null} else {'ok': false, 'stderr': 'Browser not found.'}

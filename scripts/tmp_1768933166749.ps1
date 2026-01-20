@@ -1,0 +1,1 @@
+CMD_VERIFY_ACTIVE_WINDOW_CONTAINS 'Яндекс Музыка'
