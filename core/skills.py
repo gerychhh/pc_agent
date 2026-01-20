@@ -107,59 +107,47 @@ def _extract_docx_text(user_text: str) -> str | None:
     return None
 
 
-def _extract_txt_content(user_text: str) -> str | None:
-    match = re.search(
-        r"(?:впиши|напиши|запиши|вставь)\s*(?:туда|в файл|в тексте|текст)?\s*[:\-]?\s*(.+)$",
-        user_text,
-        re.IGNORECASE,
-    )
-    if not match:
-        return None
-    content = match.group(1).strip()
-    content = re.sub(
-        r"\s*(?:и\s+сохрани(?:ть)?|на\s+рабочем\s+столе)\s*$",
-        "",
-        content,
-        flags=re.IGNORECASE,
-    ).strip()
-    return content or None
-
-
 def _extract_txt_filename(user_text: str) -> str | None:
+    """Пытаемся вытащить имя .txt файла, если пользователь указал явно.
+
+    Примеры:
+    - "... назови файл note.txt"
+    - "... сохрани как 2026.txt"
+    """
     match = re.search(
-        r"(?:назови|имя|как|сохрани\s+как)\s+([\w\-а-яА-Я_]+)(?:\.txt)?",
+        r"(?:назови|имя|как|сохрани\s+как)\s+([\w\-а-яА-Я_]+\.txt)",
         user_text,
         re.IGNORECASE,
     )
-    if not match:
-        match = re.search(
-            r"файл\s+([\w\-а-яА-Я_]+)(?:\.txt)?",
-            user_text,
-            re.IGNORECASE,
-        )
     if match:
         name = match.group(1).strip()
-        if name:
-            return f"{name}.txt"
+        if name.lower().endswith(".txt"):
+            return name
     return None
 
 
-def _default_txt_filename(content: str | None, user_text: str) -> str:
-    number_source = content or user_text
-    match = re.search(r"\b(\d{2,})\b", number_source)
+def _extract_txt_content(user_text: str) -> str | None:
+    """Пытаемся вытащить содержимое .txt из фразы пользователя."""
+    match = re.search(
+        r"(?:впиши\s+туда|напиши\s+туда|запиши\s+туда|и\s+впиши|и\s+запиши|и\s+напиши)\s*[:\-]?\s*(.+)$",
+        user_text,
+        re.IGNORECASE,
+    )
     if match:
-        return f"{match.group(1)}.txt"
-    return "note.txt"
+        text = match.group(1).strip()
+        if text:
+            return text
+    return None
 
 
-def _powershell_create_txt(filename: str, content: str) -> str:
-    safe_filename = re.sub(r"[\\/]+", "_", filename)
-    safe_content = content.replace('"', '""')
+def _powershell_create_txt(filename: str, text: str) -> str:
+    """Создаёт реальный .txt на рабочем столе и пишет текст."""
+    safe_text = text.replace("`", "``").replace('"', '""')
+    safe_filename = filename.replace("'", "''")
     return (
         "$desktop = [Environment]::GetFolderPath('Desktop')\n"
-        f"$path = Join-Path $desktop \"{safe_filename}\"\n"
-        f"$content = @\"\n{safe_content}\n\"@\n"
-        "$content | Set-Content -Path $path -Encoding UTF8\n"
+        f"$path = Join-Path $desktop '{safe_filename}'\n"
+        f"@\"\n{safe_text}\n\"@ | Set-Content -Path $path -Encoding UTF8\n"
         'Write-Host "SAVED: $path"\n'
     )
 
@@ -210,32 +198,28 @@ def match_skill(user_text: str, state: dict[str, Any]) -> Action | str | None:
     lowered = user_text.lower().strip()
 
     # =============================
-    # TXT file creation on Desktop (железный скилл)
+    # TXT file creation (железный скилл)
     # =============================
-    txt_keywords = (
-        "файл txt",
-        "txt файл",
-        "файл текст",
-        "файл ткст",
-        "текстовый файл",
-    )
-    if any(term in lowered for term in txt_keywords) and "созд" in lowered:
+    txt_keywords = (".txt", "txt", "текстовый файл", "текстовый", "ткст", "тхт")
+    create_verbs = ("создай", "создать", "сделай", "сделать", "сгенерируй")
+    is_txt_request = any(k in lowered for k in txt_keywords) and any(v in lowered for v in create_verbs)
+    if is_txt_request:
+        filename = _extract_txt_filename(user_text) or "note.txt"
         content = _extract_txt_content(user_text) or ""
-        filename = _extract_txt_filename(user_text) or _default_txt_filename(content, user_text)
+        # Если пользователь просит "впиши туда 2026" без явного имени — сделаем 2026.txt
+        if filename == "note.txt" and content.strip().isdigit() and len(content.strip()) in (2, 4, 5, 6):
+            filename = f"{content.strip()}.txt"
+        if not content:
+            # Частый кейс: "впиши туда 2026" не распарсили — попробуем найти число
+            m = re.search(r"\b(\d{2,6})\b", user_text)
+            content = m.group(1) if m else ""
         script = _powershell_create_txt(filename, content)
-        return Action(language="powershell", script=script, name="create_txt_on_desktop")
-    if "на рабочем столе" in lowered and "созд" in lowered and "файл" in lowered:
-        content = _extract_txt_content(user_text) or ""
-        filename = _extract_txt_filename(user_text) or _default_txt_filename(content, user_text)
-        script = _powershell_create_txt(filename, content)
-        return Action(language="powershell", script=script, name="create_txt_on_desktop")
+        return Action(language="powershell", script=script, name="create_txt")
 
     # =============================
     # DOCX / Word document creation (железный скилл)
     # =============================
     docx_keywords = ("docx", "ворд", "word", "word файл", "ворд файл", "документ ворд")
-    create_verbs = ("создай", "создать", "сделай", "сделать", "сгенерируй")
-
     is_docx_request = any(k in lowered for k in docx_keywords) and (
         any(v in lowered for v in create_verbs) or "файл" in lowered or "документ" in lowered
     )

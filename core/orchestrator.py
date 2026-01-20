@@ -27,25 +27,9 @@ from .validator import validate_powershell, validate_python
 SYSTEM_PROMPT = """
 Ты — локальный ассистент управления Windows-ПК через PowerShell и Python.
 Отвечай кратко.
-Если запрос содержит действие (открой/запусти/напиши/нажми/закрой и т.п.) — верни ровно один code block (powershell или python) и ничего больше.
-Всегда возвращай РОВНО ОДИН fenced code block без дополнительного текста. Язык блока строго python или powershell.
+Если нужно действие — верни ровно один code block (powershell или python) и ничего больше.
 Никогда не смешивай Python в PowerShell.
 Никогда не выводи служебные блоки вроде [TOOL_RESULT].
-
-SINGLE ACTION SCRIPT:
-- Если запрос включает несколько шагов, сгенерируй ОДИН скрипт, который выполняет все шаги последовательно.
-- Если нужны действия в UI (ввод текста, горячие клавиши, управление окном) — всегда используй Python (pyautogui + pygetwindow).
-- Если нужно только открыть сайт/приложение без дальнейшего взаимодействия — PowerShell допустим.
-
-ЭТАЛОННЫЙ ПАТТЕРН (Блокнот + ввод текста):
-1) import time, subprocess, pyautogui, pygetwindow
-2) subprocess.Popen(["notepad.exe"])
-3) подожди 3-5 секунд, пока появится окно
-4) найди окно и активируй его (Window.activate())
-5) набери текст (pyautogui.typewrite(...))
-6) опционально нажми Enter (pyautogui.press("enter"))
-7) print("OK: <что сделано>")
-ВАЖНО: нельзя печатать без активации окна. Нельзя писать “успешно” без фактического выполнения. Обязательно импортируй все используемое.
 
 ФАЙЛЫ:
 - .docx → только python-docx
@@ -95,12 +79,6 @@ def is_action_like(user_input: str) -> bool:
         "создай",
         "измени",
         "сделай",
-        "напиши",
-        "введи",
-        "нажми",
-        "нажать",
-        "клик",
-        "кликни",
         "удали",
         "скачай",
         "перемотай",
@@ -134,57 +112,70 @@ class Orchestrator:
 
     @staticmethod
     def _extract_script(content: str) -> tuple[str | None, str | None]:
+        """Извлекает язык и скрипт из ответа модели.
+
+        Поддерживаем несколько форматов, потому что локальные модели часто
+        не соблюдают fenced code block строго:
+        1) ```python ...``` / ```powershell ...```
+        2) "python\n<code>" или "powershell\n<code>"
+        3) "powershell -Command \"...\"" (однострочник)
+        4) Обёртка вида [TOOL_RESULT] LANG: ... SCRIPT: ... [/TOOL_RESULT]
+        """
         if not content:
             return None, None
-        stripped = content.strip()
-        python_match = re.fullmatch(r"```python\s*([\s\S]*?)```", stripped, re.IGNORECASE)
-        ps_match = re.fullmatch(r"```powershell\s*([\s\S]*?)```", stripped, re.IGNORECASE)
+
+        text = (content or "").strip()
+
+        # 4) TOOL_RESULT wrapper (иногда SMART модели возвращают именно так)
+        tool_lang = re.search(r"LANG:\s*(python|powershell)", text, re.IGNORECASE)
+        tool_script = re.search(r"SCRIPT:\s*(.*?)(?:\n\[/TOOL_RESULT\]|\[/TOOL_RESULT\])", text, re.DOTALL | re.IGNORECASE)
+        if tool_lang and tool_script:
+            lang = tool_lang.group(1).lower()
+            inner = tool_script.group(1).strip()
+            # Если внутри ещё есть fenced блок — вытащим чистый код
+            inner_lang, inner_script = Orchestrator._extract_script(inner)
+            if inner_lang and inner_script:
+                return inner_lang, inner_script
+            return lang, inner
+
+        # 1) fenced blocks
+        python_match = re.search(r"```python\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
+        ps_match = re.search(r"```powershell\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
         if python_match and ps_match:
             return None, None
         if python_match:
             return "python", python_match.group(1).strip()
         if ps_match:
             return "powershell", ps_match.group(1).strip()
-        if "[TOOL_RESULT]" in stripped:
-            lang_match = re.search(r"LANG:\s*(python|powershell)", stripped, re.IGNORECASE)
-            script_match = re.search(
-                r"SCRIPT:\s*([\s\S]*?)(?:\n[A-Z_]+:|\[/TOOL_RESULT\]|$)",
-                stripped,
-                re.IGNORECASE,
-            )
-            script_block = script_match.group(1).strip() if script_match else ""
-            if script_block:
-                fenced_python = re.search(r"```python\s*([\s\S]*?)```", script_block, re.IGNORECASE)
-                fenced_ps = re.search(r"```powershell\s*([\s\S]*?)```", script_block, re.IGNORECASE)
-                if fenced_python:
-                    return "python", fenced_python.group(1).strip()
-                if fenced_ps:
-                    return "powershell", fenced_ps.group(1).strip()
-            if lang_match and script_block:
-                return lang_match.group(1).lower(), script_block
-        lines = stripped.splitlines()
-        if lines:
-            line_match = re.match(r"^(python|powershell)\s*$", lines[0], re.IGNORECASE)
-        else:
-            line_match = None
-        if line_match:
-            lang = line_match.group(1).lower()
-            lines = lines[1:]
-            script = "\n".join(lines).strip()
+
+        # generic fenced block without language
+        generic = re.search(r"```\s*(.*?)```", text, re.DOTALL)
+        if generic:
+            candidate = generic.group(1).strip()
+            if candidate:
+                if re.search(r"\bimport\b|\bdef\b|from\s+\w+\s+import", candidate):
+                    return "python", candidate
+                return "powershell", candidate
+
+        # 2) plain language header (first line: python/powershell)
+        header_match = re.match(r"^(python|powershell)\s*\n(.*)$", text, re.DOTALL | re.IGNORECASE)
+        if header_match:
+            lang = header_match.group(1).lower()
+            script = header_match.group(2).strip()
             if script:
                 return lang, script
-        command_match = re.match(
-            r"^powershell\s+-Command\s+(.+)$", stripped, re.IGNORECASE | re.DOTALL
-        )
-        if command_match:
-            payload = command_match.group(1).strip()
-            if (payload.startswith('"') and payload.endswith('"')) or (
-                payload.startswith("'") and payload.endswith("'")
-            ):
-                payload = payload[1:-1]
-            payload = payload.strip()
-            if payload:
-                return "powershell", payload
+
+        # 3) powershell -Command "..." one-liner
+        cmd_match = re.match(r"^powershell\s+-Command\s+([\"'])(.*)\1\s*$", text, re.DOTALL | re.IGNORECASE)
+        if cmd_match:
+            return "powershell", cmd_match.group(2).strip()
+
+        # raw script without wrappers: try to infer
+        if re.search(r"\bimport\b|\bdef\b|from\s+\w+\s+import", text):
+            return "python", text
+        if re.search(r"\b(Start-Process|New-Item|Set-Content|Add-Content|Stop-Process|\$env:|\$\w+)\b", text, re.IGNORECASE):
+            return "powershell", text
+
         return None, None
 
     def _build_messages(
@@ -420,41 +411,44 @@ class Orchestrator:
                 self._store_history(user_input, response)
             return response
         if not language or not script:
-            format_prompt = (
-                "Ты вернул ответ без code block. Верни то же самое, но строго в одном "
-                "fenced code block (python или powershell) и без текста."
-            )
-            language, script, raw_content = self._run_llm(
-                f"{user_input}\n{format_prompt}",
-                model_name,
-                stateless=True,
-                use_state=use_state,
-                state=state,
-            )
-            if raw_content.startswith("LLM error:"):
-                response = raw_content
-                if not stateless:
-                    self._store_history(user_input, response)
-                return response
-            if not language or not script:
-                self._print_smart_banner()
+            if is_action_like(user_input):
+                format_prompt = (
+                    "Ты вернул команду без code block. Верни то же самое, но строго в одном "
+                    "fenced code block (python или powershell) и без текста."
+                )
                 language, script, raw_content = self._run_llm(
                     f"{user_input}\n{format_prompt}",
-                    SMART_MODEL,
-                    stateless=False,
-                    use_state=True,
+                    model_name,
+                    stateless=True,
+                    use_state=use_state,
                     state=state,
                 )
-            if raw_content.startswith("LLM error:"):
-                response = raw_content
-                if not stateless:
-                    self._store_history(user_input, response)
-                return response
-            if not language or not script:
-                if is_action_like(user_input):
-                    response = "Не смог сформировать команду для выполнения."
-                else:
-                    response = sanitize_assistant_text(raw_content)
+                if raw_content.startswith("LLM error:"):
+                    response = raw_content
+                    if not stateless:
+                        self._store_history(user_input, response)
+                    return response
+                if not language or not script:
+                    self._print_smart_banner()
+                    language, script, raw_content = self._run_llm(
+                        f"{user_input}\n{format_prompt}",
+                        SMART_MODEL,
+                        stateless=False,
+                        use_state=True,
+                        state=state,
+                    )
+                if raw_content.startswith("LLM error:"):
+                    response = raw_content
+                    if not stateless:
+                        self._store_history(user_input, response)
+                    return response
+                if not language or not script:
+                    response = "Не смог сформировать команду. Скажи точнее что сделать."
+                    if not stateless:
+                        self._store_history(user_input, response)
+                    return response
+            else:
+                response = sanitize_assistant_text(raw_content)
                 if not stateless:
                     self._store_history(user_input, response)
                 return response
