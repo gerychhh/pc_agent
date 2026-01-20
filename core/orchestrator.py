@@ -33,15 +33,16 @@ class Orchestrator:
     def reset(self) -> None:
         return None
 
-    def run(self, user_text: str, stateless: bool = False) -> str:
+    def run(self, user_text: str, stateless: bool = False, force_llm: bool = False) -> str:
         state = load_state()
         debug_event("USER_IN", user_text)
-        match, _ = match_command(user_text, self.commands)
-        if match:
-            action_desc = _format_command_action(match.command.get("id"), match.params)
-            result = run_command(match.command, match.params)
-            summarized = _summarize_command_result(result)
-            return _format_action_output(action_desc, _format_simple_response(summarized))
+        if not force_llm:
+            match, _ = match_command(user_text, self.commands)
+            if match:
+                action_desc = _format_command_action(match.command.get("id"), match.params)
+                result = run_command(match.command, match.params)
+                summarized = _summarize_command_result(result)
+                return _format_action_output(action_desc, _format_simple_response(summarized))
 
         llm_action = self._run_llm_script(user_text, state)
         if llm_action is None:

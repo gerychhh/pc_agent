@@ -55,6 +55,16 @@ def set_route(query: str, corrected_query: str) -> None:
     save_memory(memory)
 
 
+def delete_route(query: str) -> None:
+    if not query:
+        return
+    memory = load_memory()
+    routes = memory.get("routes", {})
+    if query in routes:
+        routes.pop(query, None)
+        save_memory(memory)
+
+
 def record_history(query: str, response: str, resolved_query: str) -> None:
     if not query or not response:
         return

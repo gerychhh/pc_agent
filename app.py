@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 
@@ -31,7 +32,9 @@ from core.state import (
     set_active_file,
     set_voice_device,
 )
-from core.interaction_memory import get_route, record_history, set_route
+from core.interaction_memory import delete_route, get_route, record_history, set_route
+from core.llm_client import LLMClient
+from core.config import FAST_MODEL
 
 
 HELP_TEXT = """
@@ -106,6 +109,50 @@ def _parse_yes_no(text: str) -> bool | None:
     return None
 
 
+def _parse_cancel(text: str) -> bool:
+    normalized = text.strip().lower()
+    return normalized in {"отмена", "откажись", "забудь", "не надо", "стоп"}
+
+
+def _resolve_request(user_text: str) -> tuple[str, bool]:
+    prompt = (
+        "Ты классификатор пользовательских запросов для Windows-агента. "
+        "Определи тип запроса и верни JSON:\n"
+        "{\n"
+        "  \"kind\": \"app|site|youtube|other\",\n"
+        "  \"resolved\": \"переформулированный запрос\",\n"
+        "  \"force_llm\": true|false\n"
+        "}\n"
+        "Правила:\n"
+        "- app: если пользователь хочет открыть приложение (например, 'открой блокнот').\n"
+        "- site: если пользователь хочет открыть сайт/страницу.\n"
+        "- youtube: если запрос про поиск/видео/управление YouTube.\n"
+        "- other: любая другая задача.\n"
+        "- resolved должен быть коротким и ясным действием на русском.\n"
+        "- force_llm=true для site/youtube/other, false для app.\n"
+        "- Верни только JSON."
+    )
+    try:
+        response = LLMClient().chat(
+            [{"role": "system", "content": prompt}, {"role": "user", "content": user_text}],
+            tools=[],
+            model_name=FAST_MODEL,
+            tool_choice="none",
+        )
+    except Exception:
+        return user_text, False
+    content = response.choices[0].message.content or ""
+    try:
+        data = json.loads(content.strip())
+    except json.JSONDecodeError:
+        return user_text, False
+    resolved = data.get("resolved")
+    force_llm = bool(data.get("force_llm"))
+    if isinstance(resolved, str) and resolved.strip():
+        return resolved.strip(), force_llm
+    return user_text, force_llm
+
+
 def _confirm_request(
     original_query: str,
     resolved_query: str,
@@ -124,18 +171,23 @@ def _confirm_request(
                 set_route(original_query, resolved_query)
             record_history(original_query, response, resolved_query)
             return
-        correction = input("Что нужно было сделать? Опиши подробнее> ").strip()
+        correction = input("Что нужно было сделать? Опиши подробнее (или 'отмена')> ").strip()
+        if _parse_cancel(correction):
+            delete_route(original_query)
+            print("Команда забыта.")
+            return
         if not correction:
             print("Нужно описание корректного действия.")
             continue
-        set_route(original_query, correction)
-        response_text = orchestrator.run(correction, stateless=voice_enabled)
+        resolved_correction, force_llm = _resolve_request(correction)
+        set_route(original_query, resolved_correction)
+        response_text = orchestrator.run(resolved_correction, stateless=voice_enabled, force_llm=force_llm)
         output = sanitize_assistant_text(response_text)
         if not output:
             output = "(no output)"
         print(f"Agent> {output}")
         response = output
-        resolved_query = correction
+        resolved_query = resolved_correction
 
 
 def _extract_voice_command(text: str, wake_name: str | None) -> str | None:
@@ -365,8 +417,11 @@ def main() -> None:
             continue
 
         original_query = user_input
-        resolved_query = get_route(user_input) or user_input
-        response = orchestrator.run(resolved_query, stateless=voice_enabled)
+        resolved_query = get_route(user_input)
+        force_llm = False
+        if not resolved_query:
+            resolved_query, force_llm = _resolve_request(user_input)
+        response = orchestrator.run(resolved_query, stateless=voice_enabled, force_llm=force_llm)
         output = sanitize_assistant_text(response)
         if not output:
             output = "(no output)"
