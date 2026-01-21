@@ -12,7 +12,7 @@ custom_negative_phrases: []
 
 # Каталоги с RIR и фонами (wav, 16kHz mono).
 rir_paths:
-  - "data\\rir"
+  - "data\\negative"
 background_paths:
   - "data\\negative"
 background_paths_duplication_rate:

@@ -32,7 +32,7 @@ python scripts\\wake_word_console.py
 Перед запуском **обязательно** обновите пути:
 
 - `piper_sample_generator_path` — путь к каталогу, где лежит `generate_samples.py`.
-- `rir_paths` и `background_paths` — директории с аудио файлами.
+- `rir_paths` и `background_paths` — директории с аудио файлами (если нет RIR, можно указать `data\\negative`).
 
 Также можете изменить `target_phrase` под своё ключевое слово.
 
