@@ -370,14 +370,19 @@ def main() -> None:
     prompt_state = "command"
     prompt_shown = False
     prompt_spoken = False
+    last_prompt_key: str | None = None
     pending_task: PendingTask | None = None
     pending_confirmation: dict[str, str] | None = None
     queued_command: str | None = None
 
     def show_prompt(text: str, speak: bool = False) -> None:
-        nonlocal prompt_shown, prompt_spoken
+        nonlocal prompt_shown, prompt_spoken, last_prompt_key
+        prompt_key = f"{text}|{speak}"
+        if prompt_shown and last_prompt_key == prompt_key:
+            return
         print(_format_prompt(text), end="", flush=True)
         prompt_shown = True
+        last_prompt_key = prompt_key
         if speak and voice_enabled and not prompt_spoken:
             try:
                 speak_text(text.rstrip())
