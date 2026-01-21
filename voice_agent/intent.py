@@ -14,6 +14,7 @@ class Intent:
 class IntentRecognizer:
     def __init__(self, synonyms: dict[str, str]) -> None:
         self.synonyms = synonyms
+        self._wake_words = ("агент", "assistant")
         self._patterns = [
             ("open_app", re.compile(r"^(открой|запусти|включи)\s+(?P<app>.+)$")),
             ("close_app", re.compile(r"^(закрой|выключи)\s+(?P<app>.+)$")),
@@ -23,7 +24,11 @@ class IntentRecognizer:
         ]
 
     def normalize(self, text: str) -> str:
-        normalized = text.strip().lower()
+        normalized = re.sub(r"[^\w\s]+", " ", text.strip().lower())
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        for wake in self._wake_words:
+            if normalized.startswith(wake + " "):
+                normalized = normalized[len(wake) + 1 :]
         for key, value in self.synonyms.items():
             normalized = normalized.replace(key, value)
         return normalized
