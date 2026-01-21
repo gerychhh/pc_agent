@@ -8,6 +8,7 @@ from pathlib import Path
 from tkinter import ttk
 
 import yaml
+import sounddevice as sd
 
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.voice import VoiceInput
@@ -120,10 +121,19 @@ class AgentUI:
 
         device_label = ttk.Label(self.settings_frame, text="Индекс микрофона")
         device_label.grid(row=7, column=0, sticky=tk.W, pady=4)
+        self.device_options: list[tuple[int, str]] = []
         device_value = get_voice_device()
-        self.device_var = tk.StringVar(value="" if device_value is None else str(device_value))
-        device_entry = ttk.Entry(self.settings_frame, textvariable=self.device_var, width=12)
-        device_entry.grid(row=7, column=1, sticky=tk.W, pady=4)
+        self.device_var = tk.StringVar()
+        self.device_menu = ttk.Combobox(
+            self.settings_frame,
+            textvariable=self.device_var,
+            state="readonly",
+            width=28,
+        )
+        self.device_menu.grid(row=7, column=1, sticky=tk.W, pady=4)
+        refresh_button = ttk.Button(self.settings_frame, text="Обновить", command=self._refresh_devices)
+        refresh_button.grid(row=7, column=2, sticky=tk.W, padx=(6, 0))
+        self._refresh_devices(selected_index=device_value)
 
         audio_title = ttk.Label(self.settings_frame, text="Захват аудио")
         audio_title.grid(row=8, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
@@ -184,17 +194,28 @@ class AgentUI:
         self.recognition_status = ttk.Label(self.settings_frame, text="Распознавание: выключено")
         self.recognition_status.grid(row=23, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
+        self.noise_label = ttk.Label(self.settings_frame, text="Индикатор шума: --")
+        self.noise_label.grid(row=24, column=0, columnspan=2, sticky=tk.W, pady=(0, 4))
+        self.noise_bar = ttk.Progressbar(
+            self.settings_frame,
+            orient=tk.HORIZONTAL,
+            length=180,
+            mode="determinate",
+            maximum=100,
+        )
+        self.noise_bar.grid(row=25, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+
         load_button = ttk.Button(self.settings_frame, text="Загрузить модель", command=self._load_voice_model)
-        load_button.grid(row=24, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        load_button.grid(row=26, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         test_voice_button = ttk.Button(self.settings_frame, text="Проверить голос", command=self._test_voice)
-        test_voice_button.grid(row=25, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        test_voice_button.grid(row=27, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         save_button = ttk.Button(self.settings_frame, text="Сохранить настройки", command=self._save_settings)
-        save_button.grid(row=26, column=0, columnspan=2, sticky=tk.W, pady=8)
+        save_button.grid(row=28, column=0, columnspan=2, sticky=tk.W, pady=8)
 
         self.settings_status = ttk.Label(self.settings_frame, text="")
-        self.settings_status.grid(row=27, column=0, columnspan=2, sticky=tk.W)
+        self.settings_status.grid(row=29, column=0, columnspan=2, sticky=tk.W)
 
         self.settings_frame.columnconfigure(1, weight=1)
 
@@ -241,8 +262,7 @@ class AgentUI:
     def _save_settings(self) -> None:
         engine = self.engine_var.get().strip().lower()
         model_size = self.model_size_var.get().strip().lower()
-        device_text = self.device_var.get().strip()
-        device_index = int(device_text) if device_text else None
+        device_index = self._selected_device_index()
 
         if engine:
             set_voice_engine(engine)
@@ -252,6 +272,7 @@ class AgentUI:
 
         self.voice_config["audio"]["sample_rate"] = int(self.sample_rate_var.get() or 16000)
         self.voice_config["audio"]["chunk_ms"] = int(self.chunk_ms_var.get() or 20)
+        self.voice_config["audio"]["device"] = device_index
         self.voice_config["vad"]["threshold"] = float(self.vad_threshold_var.get() or 0.5)
         self.voice_config["vad"]["min_speech_ms"] = int(self.min_speech_var.get() or 200)
         self.voice_config["vad"]["end_silence_ms"] = int(self.end_silence_var.get() or 500)
@@ -278,6 +299,39 @@ class AgentUI:
             "asr": data.get("asr", {}),
             "voice": data.get("voice", {}),
         }
+
+    def _refresh_devices(self, selected_index: int | None = None) -> None:
+        devices = []
+        try:
+            for idx, device in enumerate(sd.query_devices()):
+                if device.get("max_input_channels", 0) > 0:
+                    name = str(device.get("name") or f"Device {idx}")
+                    devices.append((idx, f"{idx}: {name}"))
+        except Exception:
+            devices = []
+        self.device_options = devices
+        display_values = [label for _, label in devices]
+        self.device_menu.configure(values=display_values)
+        if selected_index is not None:
+            for idx, label in devices:
+                if idx == selected_index:
+                    self.device_var.set(label)
+                    break
+            else:
+                self.device_var.set("")
+        elif display_values:
+            self.device_var.set(display_values[0])
+        else:
+            self.device_var.set("")
+
+    def _selected_device_index(self) -> int | None:
+        current = self.device_var.get().strip()
+        if not current:
+            return None
+        try:
+            return int(current.split(":", 1)[0])
+        except ValueError:
+            return None
 
     def _save_voice_config(self, config: dict[str, dict[str, object]]) -> None:
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -338,9 +392,14 @@ class AgentUI:
                         return
                     self.ui_queue.put(lambda: self._run_request(cleaned))
 
+                def on_audio_level(rms: float) -> None:
+                    level = min(100, int(rms * 2))
+                    self.ui_queue.put(lambda: self._update_noise_level(level, rms))
+
                 runtime = VoiceAgentRuntime(
                     CONFIG_PATH,
                     on_final=on_final,
+                    on_audio_level=on_audio_level,
                     enable_actions=False,
                 )
                 runtime.start()
@@ -350,6 +409,10 @@ class AgentUI:
                 self._set_label_safe(self.recognition_status, f"Распознавание: ошибка ({exc})")
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _update_noise_level(self, level: int, rms: float) -> None:
+        self.noise_bar["value"] = level
+        self.noise_label.configure(text=f"Индикатор шума: {rms:.1f}")
 
     def run(self) -> None:
         self.root.mainloop()

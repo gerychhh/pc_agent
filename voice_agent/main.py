@@ -35,6 +35,7 @@ class VoiceAgentRuntime:
         *,
         on_final: Callable[[str], None] | None = None,
         on_partial: Callable[[str], None] | None = None,
+        on_audio_level: Callable[[float], None] | None = None,
         enable_actions: bool = True,
     ) -> None:
         self.config_path = config_path or Path(__file__).with_name("config.yaml")
@@ -50,6 +51,7 @@ class VoiceAgentRuntime:
         self._running = threading.Event()
         self._on_final_cb = on_final
         self._on_partial_cb = on_partial
+        self._on_audio_level_cb = on_audio_level
         self._enable_actions = enable_actions
 
         audio_cfg = self.cfg.get("audio", {})
@@ -119,6 +121,8 @@ class VoiceAgentRuntime:
     def _on_audio_level(self, event: Event) -> None:
         rms = event.payload["rms"]
         self.logger.debug("Audio RMS: %.4f", rms)
+        if self._on_audio_level_cb:
+            self._on_audio_level_cb(rms)
 
     def _on_vad_start(self, _event: Event) -> None:
         self.logger.info("VAD speech_start")
