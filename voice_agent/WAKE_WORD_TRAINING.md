@@ -84,6 +84,13 @@ openWakeWord. Запустите обучение из их репозитори
 `NoSuchFile: ... openwakeword\\resources\\models\\embedding_model.onnx`,
 значит пакет openwakeword установлен без весов. Решение:
 
+0. Проверьте, что активирован правильный venv (в проекте могут быть `.venv` и `venv`).
+   Узнайте, какой используется сейчас:
+
+   ```bash
+   python -c "import sys, openwakeword; print(sys.prefix); print(openwakeword.__file__)"
+   ```
+
 1. Переустановите пакет: `python -m pip install --force-reinstall openwakeword`.
 2. Либо скачайте `melspectrogram.onnx` и `embedding_model.onnx` из репозитория
    openWakeWord и положите их в

@@ -74,10 +74,12 @@ def _ensure_openwakeword_resources() -> None:
     if not missing:
         return
     details = ", ".join(str(path) for path in missing)
+    venv_root = Path(sys.prefix).resolve()
     raise SystemExit(
         "В пакете openwakeword отсутствуют модели (melspectrogram.onnx или "
-        "embedding_model.onnx). Переустановите пакет или скопируйте модели в "
-        f"каталог resources/models. Не найдены: {details}. "
+        "embedding_model.onnx). Проверьте, что активирован правильный venv, "
+        "затем переустановите пакет или скопируйте модели в каталог "
+        f"resources/models. Текущий venv: {venv_root}. Не найдены: {details}. "
         "Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
     )
 
