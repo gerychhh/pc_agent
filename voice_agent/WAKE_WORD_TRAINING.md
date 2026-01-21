@@ -67,6 +67,8 @@ FP-validation, если путь не задан.
 
 - `FileNotFoundError: configs/training_config.yaml` — запуск из неверного `cwd`.
 - `generate_samples.py NOT FOUND` — не клонирован `piper-sample-generator`.
+- `FileNotFoundError: data\\rir` или `data\\background` — не созданы папки с RIR/фонами
+  или не обновлены `rir_paths`/`background_paths`.
 - `TypeError: expected str, bytes or os.PathLike object, not NoneType` —
   не применён патч для `false_positive_validation_data_path`.
 

@@ -35,6 +35,40 @@ function Get-ConfigValue([string]$path, [string]$key) {
     return $null
 }
 
+function Get-ConfigListValues([string]$path, [string]$key) {
+    if (-not (Test-Path $path)) {
+        return @()
+    }
+
+    $lines = Get-Content -Path $path
+    $values = @()
+    $inBlock = $false
+    foreach ($line in $lines) {
+        if ($line -match "^\s*$key\s*:\s*$") {
+            $inBlock = $true
+            continue
+        }
+
+        if ($inBlock) {
+            if ($line -match "^\s*-\s*(.+)$") {
+                $value = $Matches[1]
+                $value = ($value -replace "#.*$", "").Trim()
+                $value = $value.Trim('"').Trim("'")
+                if ($value) {
+                    $values += $value
+                }
+                continue
+            }
+
+            if ($line -match "^\s*\S") {
+                break
+            }
+        }
+    }
+
+    return $values
+}
+
 Write-Host "openWakeWord training doctor" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 
@@ -121,6 +155,43 @@ if (-not $piperPath) {
             "Исправьте piper_sample_generator_path в configs\\training_config.yaml",
             "git clone https://github.com/rhasspy/piper-sample-generator $piperPath"
         )
+    }
+}
+
+# g) rir_paths и background_paths из training_config.yaml
+$rirPaths = Get-ConfigListValues -path $configPath -key "rir_paths"
+if ($rirPaths.Count -eq 0) {
+    Write-Fail "В configs\\training_config.yaml нет значений для rir_paths" @(
+        "Добавьте папку с RIR, например: rir_paths: [\"data\\\\rir\"]"
+    )
+} else {
+    foreach ($rirPath in $rirPaths) {
+        if (Test-Path $rirPath) {
+            Write-Ok "rir_paths существует: $rirPath"
+        } else {
+            Write-Fail "Путь из rir_paths не найден: $rirPath" @(
+                "Создайте папку с RIR: New-Item -ItemType Directory $rirPath",
+                "Или исправьте rir_paths в configs\\training_config.yaml"
+            )
+        }
+    }
+}
+
+$backgroundPaths = Get-ConfigListValues -path $configPath -key "background_paths"
+if ($backgroundPaths.Count -eq 0) {
+    Write-Fail "В configs\\training_config.yaml нет значений для background_paths" @(
+        "Добавьте папку с фонами, например: background_paths: [\"data\\\\background\"]"
+    )
+} else {
+    foreach ($backgroundPath in $backgroundPaths) {
+        if (Test-Path $backgroundPath) {
+            Write-Ok "background_paths существует: $backgroundPath"
+        } else {
+            Write-Fail "Путь из background_paths не найден: $backgroundPath" @(
+                "Создайте папку с фонами: New-Item -ItemType Directory $backgroundPath",
+                "Или исправьте background_paths в configs\\training_config.yaml"
+            )
+        }
     }
 }
 
