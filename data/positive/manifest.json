@@ -1,0 +1,102 @@
+[
+  {
+    "path": "data\\positive\\positive_0001.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0002.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0003.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0004.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0005.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0006.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0007.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0008.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0009.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0010.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0011.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0012.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0013.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0014.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0015.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0016.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0017.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0018.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0019.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  },
+  {
+    "path": "data\\positive\\positive_0020.wav",
+    "label": "positive",
+    "duration_s": 1.2
+  }
+]
