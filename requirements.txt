@@ -16,5 +16,8 @@ torch
 torchaudio
 sounddevice
 numpy
+scipy>=1.10
+soundfile
+librosa
 openwakeword
 onnxruntime
