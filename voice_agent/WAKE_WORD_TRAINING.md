@@ -75,6 +75,10 @@ python -m openwakeword.train --training_config configs/training_config.yaml --ge
 openWakeWord. Запустите обучение из их репозитория (или добавьте его в `PYTHONPATH`)
 и повторите команду.
 
+Если появляется `ModuleNotFoundError: No module named 'dp.phonemizer'`, в проекте
+есть встроенный shim `dp/phonemizer.py`, который закрывает эту зависимость и
+позволяет продолжить генерацию негативных фраз без внешнего пакета.
+
 Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
 `--training_config`, проверьте установленную версию openWakeWord в активном venv:
 
