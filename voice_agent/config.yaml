@@ -32,4 +32,4 @@ tts:
   voice: male
   engine: piper
 logging:
-  level: info
+  level: debug

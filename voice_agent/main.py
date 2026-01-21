@@ -89,6 +89,7 @@ class VoiceAgentRuntime:
         )
 
         self.bus.subscribe("audio.chunk", self._on_audio)
+        self.bus.subscribe("audio.level", self._on_audio_level)
         self.bus.subscribe("vad.speech_start", self._on_vad_start)
         self.bus.subscribe("vad.speech_end", self._on_vad_end)
         self.bus.subscribe("asr.partial", self._on_partial)
@@ -101,6 +102,10 @@ class VoiceAgentRuntime:
         ts = event.payload["ts"]
         self.vad.process_chunk(data, ts)
         self.asr.accept_audio(data, ts)
+
+    def _on_audio_level(self, event: Event) -> None:
+        rms = event.payload["rms"]
+        self.logger.debug("Audio RMS: %.4f", rms)
 
     def _on_vad_start(self, _event: Event) -> None:
         self.logger.info("VAD speech_start")
