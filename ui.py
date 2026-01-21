@@ -209,6 +209,9 @@ class AgentUI:
         if not text:
             return
         self.chat_entry.delete(0, tk.END)
+        self._run_request(text)
+
+    def _run_request(self, text: str) -> None:
         self._append_chat(f"You: {text}")
         self._append_chat("Agent: Сейчас разберусь с задачей.")
 
@@ -329,7 +332,17 @@ class AgentUI:
 
         def worker() -> None:
             try:
-                runtime = VoiceAgentRuntime(CONFIG_PATH)
+                def on_final(text: str) -> None:
+                    cleaned = text.strip()
+                    if not cleaned:
+                        return
+                    self.ui_queue.put(lambda: self._run_request(cleaned))
+
+                runtime = VoiceAgentRuntime(
+                    CONFIG_PATH,
+                    on_final=on_final,
+                    enable_actions=False,
+                )
                 runtime.start()
                 self.voice_runtime = runtime
                 self._set_label_safe(self.recognition_status, "Распознавание: активно")

@@ -5,7 +5,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
@@ -29,7 +29,14 @@ def _load_config(path: Path) -> dict[str, Any]:
 
 
 class VoiceAgentRuntime:
-    def __init__(self, config_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        config_path: Path | None = None,
+        *,
+        on_final: Callable[[str], None] | None = None,
+        on_partial: Callable[[str], None] | None = None,
+        enable_actions: bool = True,
+    ) -> None:
         self.config_path = config_path or Path(__file__).with_name("config.yaml")
         self.cfg = _load_config(self.config_path)
         logging.basicConfig(level=self.cfg.get("logging", {}).get("level", "info").upper())
@@ -41,6 +48,9 @@ class VoiceAgentRuntime:
         self.state = State()
         self._thread: threading.Thread | None = None
         self._running = threading.Event()
+        self._on_final = on_final
+        self._on_partial = on_partial
+        self._enable_actions = enable_actions
 
         audio_cfg = self.cfg.get("audio", {})
         vad_cfg = self.cfg.get("vad", {})
@@ -122,7 +132,10 @@ class VoiceAgentRuntime:
         self.asr.speech_end(event.payload["ts"])
 
     def _on_partial(self, event: Event) -> None:
-        self.logger.info("ASR partial: %s", event.payload["text"])
+        text = event.payload["text"]
+        self.logger.info("ASR partial: %s", text)
+        if self._on_partial:
+            self._on_partial(text)
 
     def _on_final(self, event: Event) -> None:
         text = event.payload["text"]
@@ -130,14 +143,17 @@ class VoiceAgentRuntime:
         self.logger.info("ASR final: %s", text)
         self.logger.info("ASR normalized: %s", normalized)
         self.state.name = "FINALIZING"
-        recognized = self.intent.recognize(text)
-        if recognized:
-            self.bus.publish(Event("agent.intent", {"name": recognized.name, "slots": recognized.slots}))
-            result = self.actions.run(recognized)
-            self.logger.info("Action: %s", result.message)
-            self.tts.speak("Готово")
-        else:
-            self.logger.info("Intent: not understood (normalized=%s)", normalized)
+        if self._on_final:
+            self._on_final(text)
+        if self._enable_actions:
+            recognized = self.intent.recognize(text)
+            if recognized:
+                self.bus.publish(Event("agent.intent", {"name": recognized.name, "slots": recognized.slots}))
+                result = self.actions.run(recognized)
+                self.logger.info("Action: %s", result.message)
+                self.tts.speak("Готово")
+            else:
+                self.logger.info("Intent: not understood (normalized=%s)", normalized)
         self.state.name = "IDLE"
 
     def start(self) -> None:
