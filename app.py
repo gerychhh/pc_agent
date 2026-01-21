@@ -105,6 +105,8 @@ class InputManager:
                 break
             if text:
                 self.voice_queue.put({"type": "voice", "text": text})
+            else:
+                time.sleep(0.1)
 
     def set_voice_enabled(self, enabled: bool) -> None:
         if enabled and not self.voice_enabled:
@@ -385,10 +387,20 @@ def main() -> None:
         last_prompt_key = prompt_key
         if speak and voice_enabled and not prompt_spoken:
             try:
-                speak_text(text.rstrip())
+                speak_out(text.rstrip())
             except Exception:
                 pass
             prompt_spoken = True
+
+    def speak_out(text: str) -> None:
+        if not voice_enabled:
+            return
+        input_manager.set_voice_enabled(False)
+        try:
+            speak_text(text)
+        finally:
+            if voice_enabled:
+                input_manager.set_voice_enabled(True)
 
     def start_task(original_query: str, resolved_query: str, force_llm: bool) -> None:
         nonlocal pending_task
@@ -436,7 +448,7 @@ def main() -> None:
                     print(f"Agent> {output}")
                     if voice_enabled and _should_speak(output):
                         try:
-                            speak_text(output)
+                            speak_out(output)
                         except Exception:
                             pass
                     pending_confirmation = {
@@ -454,12 +466,13 @@ def main() -> None:
             user_input = queued_command
             queued_command = None
         else:
-            if prompt_state == "command":
-                show_prompt("You>", speak=False)
-            elif prompt_state == "confirm":
-                show_prompt("Я верно всё сделал? (да/нет)>", speak=True)
-            elif prompt_state == "correction":
-                show_prompt("Что нужно было сделать? Опиши подробнее (или 'отмена')>", speak=True)
+            if not prompt_shown:
+                if prompt_state == "command":
+                    show_prompt("You>", speak=False)
+                elif prompt_state == "confirm":
+                    show_prompt("Я верно всё сделал? (да/нет)>", speak=True)
+                elif prompt_state == "correction":
+                    show_prompt("Что нужно было сделать? Опиши подробнее (или 'отмена')>", speak=True)
 
             event = input_manager.get_event(timeout=0.1)
             if event is None:
@@ -505,7 +518,7 @@ def main() -> None:
                         print("Да, слушаю.")
                         if voice_enabled:
                             try:
-                                speak_text("Да, слушаю.")
+                                speak_out("Да, слушаю.")
                             except Exception:
                                 pass
                         prompt_shown = False
@@ -531,7 +544,7 @@ def main() -> None:
             print("Остановлено.")
             if voice_enabled:
                 try:
-                    speak_text("Остановлено.")
+                    speak_out("Остановлено.")
                 except Exception:
                     pass
             prompt_shown = False
@@ -544,7 +557,7 @@ def main() -> None:
             print("Остановлено.")
             if voice_enabled:
                 try:
-                    speak_text("Остановлено.")
+                    speak_out("Остановлено.")
                 except Exception:
                     pass
             prompt_shown = False
@@ -599,7 +612,7 @@ def main() -> None:
                 continue
             if voice_enabled:
                 try:
-                    speak_text("Думаю над новой задачей.")
+                    speak_out("Думаю над новой задачей.")
                 except Exception:
                     pass
             resolved_correction, force_llm = _resolve_request(correction)
@@ -779,7 +792,7 @@ def main() -> None:
         if not resolved_query:
             if voice_enabled:
                 try:
-                    speak_text("Думаю над новой задачей.")
+                    speak_out("Думаю над новой задачей.")
                 except Exception:
                     pass
             resolved_query, force_llm = _resolve_request(user_input)
