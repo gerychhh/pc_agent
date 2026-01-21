@@ -32,6 +32,7 @@ class VoiceInput:
         self.device = device
         self.engine = (engine or VOICE_ENGINE).strip().lower()
         self.model_size = (model_size or "").strip().lower() or None
+        self.whisper_device = WHISPER_DEVICE
         if self.engine == "whisper":
             try:
                 import whisper  # type: ignore
@@ -39,8 +40,14 @@ class VoiceInput:
                 raise ImportError(
                     "Whisper not installed. Install with: pip install openai-whisper"
                 ) from exc
+            try:
+                import torch  # type: ignore
+            except Exception:
+                torch = None
+            if self.whisper_device == "cuda" and (not torch or not torch.cuda.is_available()):
+                self.whisper_device = "cpu"
             model_name = self._resolve_whisper_model_name()
-            self.model = whisper.load_model(model_name, device=WHISPER_DEVICE)
+            self.model = whisper.load_model(model_name, device=self.whisper_device)
         else:
             self.model_dir = Path(model_dir) if model_dir else VOSK_MODEL_DIR
             if not self.model_dir.exists():
@@ -142,7 +149,7 @@ class VoiceInput:
         if not frames:
             return None
         audio = np.concatenate(frames, axis=0).flatten()
-        use_fp16 = WHISPER_DEVICE == "cuda"
+        use_fp16 = self.whisper_device == "cuda"
         try:
             result = self.model.transcribe(audio, language="ru", fp16=use_fp16)
         except Exception:
