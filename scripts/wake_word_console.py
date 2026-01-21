@@ -4,13 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from wake_word_pipeline import (
-    AudioSettings,
-    collect_samples,
-    test_model,
-    train_model,
-    _openwakeword_missing_melspec,
-)
+from wake_word_pipeline import AudioSettings, collect_samples, test_model, train_model, _missing_openwakeword_resources
 
 
 def _prompt_int(label: str, default: int) -> int:
@@ -76,13 +70,15 @@ def _menu() -> str:
 
 
 def _ensure_openwakeword_resources() -> None:
-    missing = _openwakeword_missing_melspec()
-    if missing is None:
+    missing = _missing_openwakeword_resources()
+    if not missing:
         return
+    details = ", ".join(str(path) for path in missing)
     raise SystemExit(
-        "В пакете openwakeword отсутствует файл melspectrogram.onnx. "
-        "Переустановите пакет или скопируйте модель в "
-        f"{missing}. Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
+        "В пакете openwakeword отсутствуют модели (melspectrogram.onnx или "
+        "embedding_model.onnx). Переустановите пакет или скопируйте модели в "
+        f"каталог resources/models. Не найдены: {details}. "
+        "Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
     )
 
 

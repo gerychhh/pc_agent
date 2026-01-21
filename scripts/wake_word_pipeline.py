@@ -82,24 +82,35 @@ def _openwakeword_available() -> bool:
     return importlib.util.find_spec("openwakeword") is not None
 
 
-def _openwakeword_missing_melspec() -> Path | None:
+def _openwakeword_missing_resource(filename: str) -> Path | None:
     if not _openwakeword_available():
         return None
     import openwakeword
 
     root = Path(openwakeword.__file__).resolve().parent
-    melspec = root / "resources" / "models" / "melspectrogram.onnx"
-    return melspec if not melspec.exists() else None
+    resource = root / "resources" / "models" / filename
+    return resource if not resource.exists() else None
+
+
+def _missing_openwakeword_resources() -> list[Path]:
+    missing = []
+    for filename in ("melspectrogram.onnx", "embedding_model.onnx"):
+        missing_path = _openwakeword_missing_resource(filename)
+        if missing_path is not None:
+            missing.append(missing_path)
+    return missing
 
 
 def _raise_missing_melspec() -> None:
-    missing_path = _openwakeword_missing_melspec()
-    if missing_path is None:
+    missing = _missing_openwakeword_resources()
+    if not missing:
         return
+    details = ", ".join(str(path) for path in missing)
     raise SystemExit(
-        "В пакете openwakeword отсутствует файл melspectrogram.onnx. "
-        "Переустановите пакет или скопируйте модель в "
-        f"{missing_path}. Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
+        "В пакете openwakeword отсутствуют модели (melspectrogram.onnx или "
+        "embedding_model.onnx). Переустановите пакет или скопируйте модели в "
+        f"каталог resources/models. Не найдены: {details}. "
+        "Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
     )
 
 

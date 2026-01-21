@@ -80,12 +80,14 @@ openWakeWord. Запустите обучение из их репозитори
 позволяет продолжить генерацию негативных фраз без внешнего пакета.
 
 Если при запуске обучения появляется ошибка вида
-`NoSuchFile: ... openwakeword\\resources\\models\\melspectrogram.onnx`,
+`NoSuchFile: ... openwakeword\\resources\\models\\melspectrogram.onnx` или
+`NoSuchFile: ... openwakeword\\resources\\models\\embedding_model.onnx`,
 значит пакет openwakeword установлен без весов. Решение:
 
 1. Переустановите пакет: `python -m pip install --force-reinstall openwakeword`.
-2. Либо скачайте `melspectrogram.onnx` из репозитория openWakeWord и положите его
-   в `<venv>/Lib/site-packages/openwakeword/resources/models/`.
+2. Либо скачайте `melspectrogram.onnx` и `embedding_model.onnx` из репозитория
+   openWakeWord и положите их в
+   `<venv>/Lib/site-packages/openwakeword/resources/models/`.
 
 Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
 `--training_config`, проверьте установленную версию openWakeWord в активном venv:
