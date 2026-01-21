@@ -24,6 +24,9 @@ class AsrConfig:
     partial_min_delta: int
     min_partial_s: float
     sample_rate: int
+    no_speech_threshold: float
+    log_prob_threshold: float
+    compression_ratio_threshold: float
 
 
 class FasterWhisperASR:
@@ -160,6 +163,9 @@ class FasterWhisperASR:
             language=self.config.language,
             beam_size=self.config.beam_size,
             vad_filter=False,
+            no_speech_threshold=self.config.no_speech_threshold,
+            log_prob_threshold=self.config.log_prob_threshold,
+            compression_ratio_threshold=self.config.compression_ratio_threshold,
         )
         return "".join(segment.text for segment in segments).strip()
 

@@ -16,6 +16,9 @@ class VadConfig:
     min_speech_ms: int = 200
     end_silence_ms: int = 500
     sample_rate: int = 16000
+    min_rms: float = 0.01
+    noise_floor_alpha: float = 0.05
+    noise_ratio: float = 1.5
 
 
 class SileroVAD:
@@ -33,6 +36,7 @@ class SileroVAD:
         self._last_voice_at: float | None = None
         self._audio_buffer = np.zeros(0, dtype=np.float32)
         self._min_samples = int(self.config.sample_rate / 31.25)
+        self._noise_floor_rms: float | None = None
 
     def process_chunk(self, chunk: np.ndarray, ts: float) -> None:
         if chunk.size == 0:
@@ -44,10 +48,20 @@ class SileroVAD:
         while self._audio_buffer.size >= self._min_samples:
             frame = self._audio_buffer[: self._min_samples]
             self._audio_buffer = self._audio_buffer[self._min_samples :]
+            rms = float(np.sqrt(np.mean(np.square(frame)))) if frame.size else 0.0
+            if not self._speaking and rms > 0:
+                if self._noise_floor_rms is None:
+                    self._noise_floor_rms = rms
+                else:
+                    self._noise_floor_rms = (
+                        (1.0 - self.config.noise_floor_alpha) * self._noise_floor_rms
+                        + self.config.noise_floor_alpha * rms
+                    )
             audio_tensor = torch.from_numpy(frame).to(self.device)
             with torch.no_grad():
                 prob = self._model(audio_tensor, self.config.sample_rate).item()
-            if prob >= self.config.threshold:
+            noise_gate = max(self.config.min_rms, (self._noise_floor_rms or 0.0) * self.config.noise_ratio)
+            if prob >= self.config.threshold and rms >= noise_gate:
                 self._last_voice_at = ts
                 if not self._speaking:
                     self._speech_started_at = ts

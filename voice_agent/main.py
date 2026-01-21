@@ -76,6 +76,9 @@ class VoiceAgentRuntime:
                 min_speech_ms=vad_cfg.get("min_speech_ms", 200),
                 end_silence_ms=vad_cfg.get("end_silence_ms", 500),
                 sample_rate=audio_cfg.get("sample_rate", 16000),
+                min_rms=vad_cfg.get("min_rms", 0.01),
+                noise_floor_alpha=vad_cfg.get("noise_floor_alpha", 0.05),
+                noise_ratio=vad_cfg.get("noise_ratio", 1.5),
             ),
             self.bus,
         )
@@ -91,6 +94,9 @@ class VoiceAgentRuntime:
                 partial_min_delta=asr_cfg.get("partial_min_delta", 3),
                 min_partial_s=asr_cfg.get("min_partial_s", 0.4),
                 sample_rate=audio_cfg.get("sample_rate", 16000),
+                no_speech_threshold=asr_cfg.get("no_speech_threshold", 0.8),
+                log_prob_threshold=asr_cfg.get("log_prob_threshold", -1.0),
+                compression_ratio_threshold=asr_cfg.get("compression_ratio_threshold", 2.4),
             ),
             self.bus,
         )
