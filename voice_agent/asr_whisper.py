@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+import logging
 
 import numpy as np
 from faster_whisper import WhisperModel
@@ -25,15 +26,38 @@ class FasterWhisperASR:
     def __init__(self, config: AsrConfig, bus: EventBus) -> None:
         self.config = config
         self.bus = bus
-        self.model = WhisperModel(
-            config.model,
-            device=config.device,
-            compute_type=config.compute_type,
-        )
+        self.logger = logging.getLogger("voice_agent")
+        self._fallback_attempted = False
+        self._load_model(config.device, config.compute_type)
         self._buffer: list[np.ndarray] = []
         self._last_partial: str = ""
         self._last_partial_emit = 0.0
         self._active = False
+
+    def _load_model(self, device: str, compute_type: str) -> None:
+        try:
+            self.model = WhisperModel(
+                self.config.model,
+                device=device,
+                compute_type=compute_type,
+            )
+            self.logger.info("ASR model loaded on %s (%s).", device, compute_type)
+        except (RuntimeError, OSError) as exc:
+            message = str(exc).lower()
+            if device == "cuda" and ("cublas" in message or "cuda" in message):
+                self.logger.warning(
+                    "ASR GPU init failed (%s). Falling back to CPU.",
+                    exc,
+                )
+                self._fallback_attempted = True
+                self.model = WhisperModel(
+                    self.config.model,
+                    device="cpu",
+                    compute_type="int8",
+                )
+                self.logger.info("ASR model loaded on cpu (int8).")
+            else:
+                raise
 
     def reset(self) -> None:
         self._buffer = []
@@ -80,11 +104,21 @@ class FasterWhisperASR:
         audio = np.concatenate(chunks, axis=0).astype(np.float32) / 32768.0
         if audio.ndim > 1:
             audio = audio[:, 0]
-        segments, _info = self.model.transcribe(
-            audio,
-            language=self.config.language,
-            beam_size=self.config.beam_size,
-            vad_filter=False,
-        )
-        text = "".join(segment.text for segment in segments).strip()
-        return text
+        try:
+            segments, _info = self.model.transcribe(
+                audio,
+                language=self.config.language,
+                beam_size=self.config.beam_size,
+                vad_filter=False,
+            )
+            text = "".join(segment.text for segment in segments).strip()
+            return text
+        except RuntimeError as exc:
+            message = str(exc).lower()
+            if not self._fallback_attempted and ("cublas" in message or "cuda" in message):
+                self.logger.warning("ASR transcribe failed on GPU: %s", exc)
+                self._fallback_attempted = True
+                self._load_model("cpu", "int8")
+                return ""
+            self.logger.error("ASR transcribe failed: %s", exc)
+            return ""
