@@ -15,6 +15,19 @@
 Используйте официальный инструментарий openWakeWord для обучения кастомного слова.
 Важно получить **экспорт модели в ONNX**, чтобы её мог загрузить наш рантайм.
 
+### Опциональный FP-validation
+
+Если в `training_config.yaml` не задан `false_positive_validation_data_path`,
+в openWakeWord 0.6.0 обучение падает на `np.load(None)`. Перед запуском обучения
+можно применить локальный патч:
+
+```bash
+python scripts/patch_openwakeword_train.py
+```
+
+Патч делает `false_positive_validation_data_path` опциональным и пропускает
+FP-validation, если путь не задан.
+
 ## 3) Подключите модель в агенте
 
 1. Сохраните модель в `voice_agent/models/agent.onnx` (или укажите другой путь).
