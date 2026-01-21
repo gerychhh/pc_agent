@@ -55,8 +55,15 @@ python scripts/wake_word_pipeline.py full \
 ```
 
 > Примечание: разные версии openWakeWord используют разные аргументы CLI.
-> Если ваша версия требует `--training_config`, используйте соответствующий YAML-конфиг.
+> Если ваша версия требует `--training_config`, используйте YAML-конфиг.
 > При неверном пути будет ошибка `FileNotFoundError`.
+
+В репозитории добавлен шаблон: `configs/training_config.yaml`.
+Его можно использовать так:
+
+```bash
+python -m openwakeword.train --training_config configs/training_config.yaml --train_model
+```
 
 Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
 `--training_config`, проверьте установленную версию openWakeWord в активном venv:

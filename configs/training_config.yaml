@@ -1,0 +1,48 @@
+# training_config.yaml (шаблон под проект)
+# Пути можно оставлять относительными от корня репозитория.
+
+model_name: agent
+target_phrase: ["агент"]
+output_dir: "./models/agent_openwakeword"
+
+# Сколько синтетики генерировать
+n_samples: 10000
+n_samples_val: 2000
+
+# Выбор модели
+model_type: "dnn"
+layer_size: 32
+
+# Тренировка
+steps: 50000
+batch_n_per_class:
+  ACAV100M_sample: 1024
+  adversarial_negative: 50
+  positive: 50
+
+max_negative_weight: 1500
+
+# Цели (авто-оценка качества)
+target_accuracy: 0.70
+target_recall: 0.50
+target_false_positives_per_hour: 0.20
+
+# Негативные/фоновые данные: используем локальные негативные сэмплы
+background_paths:
+  - "./data/negative"
+background_paths_duplication_rate:
+  - 1
+
+# Опциональные источники (оставьте пустыми, если их нет)
+rir_paths: []
+custom_negative_phrases: []
+false_positive_validation_data_path: null
+feature_data_files: {}
+piper_sample_generator_path: null
+
+# Аугментации
+augmentation_batch_size: 16
+augmentation_rounds: 1
+
+# TTS генерация
+tts_batch_size: 50
