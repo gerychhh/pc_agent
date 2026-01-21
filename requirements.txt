@@ -9,8 +9,9 @@ python-docx
 openpyxl
 python-pptx
 pywin32
-pyyaml
 vosk
 openai-whisper
+faster-whisper
+torch
 sounddevice
 numpy
