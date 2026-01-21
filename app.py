@@ -280,7 +280,7 @@ def _extract_voice_command(text: str, wake_name: str | None) -> str | None:
         if normalized.startswith(prefix):
             remainder = text[len(prefix) :].lstrip(" ,.!?:;—-")
             return remainder
-    return None
+    return text
 
 
 def _is_garbage_voice(text: str) -> bool:
