@@ -95,7 +95,9 @@ def main() -> None:
 
         if choice == "3":
             if requires_config:
-                config_path = _prompt_training_config()
+                config_path = Path("configs/training_config.yaml")
+                if not config_path.exists():
+                    config_path = Path(_prompt_training_config())
                 train_cmd = f"python -m openwakeword.train --training_config {config_path} --train_model"
                 exit_code = _run_train_cmd(train_cmd)
             else:

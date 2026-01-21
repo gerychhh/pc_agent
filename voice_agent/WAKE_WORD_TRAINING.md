@@ -65,8 +65,10 @@ python scripts/wake_word_pipeline.py full \
 python -m openwakeword.train --training_config configs/training_config.yaml --train_model
 ```
 
-Если видите ошибку про `piper_sample_generator_path` с `NoneType`,
-оставьте `piper_sample_generator_path` пустой строкой в конфиге.
+В шаблоне `piper_sample_generator_path` указывает на `./scripts`, где лежит
+локальный `generate_samples.py`. Он просто копирует существующие записи из
+`data/positive` и `data/negative`, чтобы `openwakeword.train` мог продолжить
+без скачивания внешнего репозитория.
 
 Если появляется `ModuleNotFoundError: No module named 'generate_samples'`,
 значит `openwakeword.train` ожидает скрипт `generate_samples.py` из репозитория
