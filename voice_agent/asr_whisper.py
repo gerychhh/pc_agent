@@ -27,6 +27,7 @@ class AsrConfig:
     no_speech_threshold: float
     log_prob_threshold: float
     compression_ratio_threshold: float
+    min_buffer_s: float
 
 
 class FasterWhisperASR:
@@ -131,6 +132,10 @@ class FasterWhisperASR:
                 self.bus.publish(Event("asr.partial", {"text": text, "ts": ts, "stability": 0.5}))
 
     def _finalize(self, ts: float) -> None:
+        if self._buffer_duration_s() < self.config.min_buffer_s:
+            self.logger.info("ASR buffer too short (%.2fs), dropping.", self._buffer_duration_s())
+            self.reset()
+            return
         text = self._transcribe(self._buffer)
         if self._last_partial and len(self._last_partial) > len(text) + 2:
             self.logger.info("ASR final shorter than last partial, using partial.")

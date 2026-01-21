@@ -16,6 +16,7 @@ from .bus import Event, EventBus
 from .intent import IntentRecognizer
 from .tts import TtsConfig, TtsEngine
 from .vad import SileroVAD, VadConfig
+from .wake_word import WakeWordConfig, WakeWordDetector
 
 
 @dataclass
@@ -59,6 +60,7 @@ class VoiceAgentRuntime:
         asr_cfg = self.cfg.get("asr", {})
         tts_cfg = self.cfg.get("tts", {})
         nlu_cfg = self.cfg.get("nlu", {})
+        wake_cfg = self.cfg.get("wake_word", {})
 
         self.audio = AudioCapture(
             AudioConfig(
@@ -69,12 +71,28 @@ class VoiceAgentRuntime:
             ),
             self.bus,
         )
+        self.wake_word = WakeWordDetector(
+            WakeWordConfig(
+                enabled=wake_cfg.get("enabled", True),
+                backend=wake_cfg.get("backend", "openwakeword"),
+                model_paths=tuple(wake_cfg.get("model_paths", [])),
+                model_names=tuple(wake_cfg.get("model_names", [])),
+                threshold=wake_cfg.get("threshold", 0.6),
+                patience_frames=wake_cfg.get("patience_frames", 2),
+                cooldown_ms=wake_cfg.get("cooldown_ms", 1200),
+                sample_rate=audio_cfg.get("sample_rate", 16000),
+                min_rms=wake_cfg.get("min_rms", 0.01),
+                inference_framework=wake_cfg.get("inference_framework", "onnx"),
+                vad_threshold=wake_cfg.get("vad_threshold", 0.0),
+            ),
+            self.bus,
+        )
         self.vad = SileroVAD(
             VadConfig(
                 device=vad_cfg.get("device", "cpu"),
                 threshold=vad_cfg.get("threshold", 0.5),
-                min_speech_ms=vad_cfg.get("min_speech_ms", 200),
-                end_silence_ms=vad_cfg.get("end_silence_ms", 500),
+                min_speech_ms=vad_cfg.get("min_speech_ms", 300),
+                end_silence_ms=vad_cfg.get("end_silence_ms", 700),
                 sample_rate=audio_cfg.get("sample_rate", 16000),
                 min_rms=vad_cfg.get("min_rms", 0.01),
                 noise_floor_alpha=vad_cfg.get("noise_floor_alpha", 0.05),
@@ -87,16 +105,17 @@ class VoiceAgentRuntime:
                 model=asr_cfg.get("model", "small"),
                 device=asr_cfg.get("device", "cuda"),
                 compute_type=asr_cfg.get("compute_type", "float16"),
-                beam_size=asr_cfg.get("beam_size", 2),
+                beam_size=asr_cfg.get("beam_size", 1),
                 language=asr_cfg.get("language", "ru"),
                 max_utterance_s=asr_cfg.get("max_utterance_s", 10),
-                partial_interval_ms=asr_cfg.get("partial_interval_ms", 150),
+                partial_interval_ms=asr_cfg.get("partial_interval_ms", 220),
                 partial_min_delta=asr_cfg.get("partial_min_delta", 3),
-                min_partial_s=asr_cfg.get("min_partial_s", 0.4),
+                min_partial_s=asr_cfg.get("min_partial_s", 0.5),
                 sample_rate=audio_cfg.get("sample_rate", 16000),
                 no_speech_threshold=asr_cfg.get("no_speech_threshold", 0.8),
                 log_prob_threshold=asr_cfg.get("log_prob_threshold", -1.0),
                 compression_ratio_threshold=asr_cfg.get("compression_ratio_threshold", 2.4),
+                min_buffer_s=asr_cfg.get("min_buffer_s", 0.6),
             ),
             self.bus,
         )
@@ -113,6 +132,7 @@ class VoiceAgentRuntime:
 
         self.bus.subscribe("audio.chunk", self._on_audio)
         self.bus.subscribe("audio.level", self._on_audio_level)
+        self.bus.subscribe("wake_word.detected", self._on_wake_word)
         self.bus.subscribe("vad.speech_start", self._on_vad_start)
         self.bus.subscribe("vad.speech_end", self._on_vad_end)
         self.bus.subscribe("asr.partial", self._on_partial)
@@ -123,8 +143,12 @@ class VoiceAgentRuntime:
     def _on_audio(self, event: Event) -> None:
         data = event.payload["data"]
         ts = event.payload["ts"]
-        self.vad.process_chunk(data, ts)
-        self.asr.accept_audio(data, ts)
+        if self.state.name == "IDLE":
+            self.wake_word.process_chunk(data, ts)
+            return
+        if self.state.name in {"ARMED", "LISTENING"}:
+            self.vad.process_chunk(data, ts)
+            self.asr.accept_audio(data, ts)
 
     def _on_audio_level(self, event: Event) -> None:
         rms = event.payload["rms"]
@@ -142,10 +166,11 @@ class VoiceAgentRuntime:
         self.logger.info("VAD speech_end")
         self.state.name = "DECODING"
         self.asr.speech_end(event.payload["ts"])
+        self.state.name = "IDLE"
 
     def _on_partial(self, event: Event) -> None:
         text = event.payload["text"]
-        self.logger.info("ASR partial: %s", text)
+        self.logger.debug("ASR partial: %s", text)
         if self._on_partial_cb:
             self._on_partial_cb(text)
 
@@ -167,6 +192,12 @@ class VoiceAgentRuntime:
             else:
                 self.logger.info("Intent: not understood (normalized=%s)", normalized)
         self.state.name = "IDLE"
+
+    def _on_wake_word(self, _event: Event) -> None:
+        if self.state.name != "IDLE":
+            return
+        self.logger.info("Wake-word detected")
+        self.state.name = "ARMED"
 
     def start(self) -> None:
         if self._running.is_set():

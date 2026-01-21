@@ -26,13 +26,18 @@ class AudioCapture:
         self.logger = logging.getLogger("voice_agent")
         self._stream: sd.InputStream | None = None
         self._last_level_emit = 0.0
+        self._muted = False
+
+    def set_muted(self, muted: bool) -> None:
+        self._muted = muted
 
     def _callback(self, indata: np.ndarray, frames: int, time_info: Any, status: sd.CallbackFlags) -> None:
         if status:
             self.logger.warning("Audio stream status: %s", status)
         timestamp = time.monotonic()
         payload = {"data": indata.copy(), "ts": timestamp}
-        self.bus.publish(Event("audio.chunk", payload))
+        if not self._muted:
+            self.bus.publish(Event("audio.chunk", payload))
         if timestamp - self._last_level_emit >= 0.5:
             rms = float(np.sqrt(np.mean(indata.astype(np.float32) ** 2))) if indata.size else 0.0
             self.bus.publish(Event("audio.level", {"rms": rms, "ts": timestamp}))

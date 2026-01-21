@@ -6,25 +6,38 @@ audio:
 vad:
   model: silero_vad
   device: cpu
-  threshold: 0.5
-  min_speech_ms: 150
-  end_silence_ms: 300
+  threshold: 0.48
+  min_speech_ms: 300
+  end_silence_ms: 700
   min_rms: 0.01
   noise_floor_alpha: 0.05
   noise_ratio: 1.5
 asr:
-  model: medium
+  model: small
   device: cuda
   compute_type: float16
   beam_size: 1
   language: ru
-  max_utterance_s: 6
-  partial_interval_ms: 250
+  max_utterance_s: 10
+  partial_interval_ms: 220
   partial_min_delta: 3
-  min_partial_s: 0.4
+  min_partial_s: 0.5
+  min_buffer_s: 0.6
   no_speech_threshold: 0.8
   log_prob_threshold: -1.0
   compression_ratio_threshold: 2.4
+wake_word:
+  enabled: true
+  backend: openwakeword
+  model_paths:
+    - "models/agent.onnx"
+  model_names: []
+  threshold: 0.6
+  patience_frames: 2
+  cooldown_ms: 1200
+  min_rms: 0.01
+  inference_framework: onnx
+  vad_threshold: 0.0
 nlu:
   synonyms:
     "телеграмм": "telegram"

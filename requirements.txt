@@ -15,3 +15,5 @@ faster-whisper
 torch
 sounddevice
 numpy
+openwakeword
+onnxruntime
