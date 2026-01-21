@@ -53,3 +53,14 @@ python scripts/wake_word_pipeline.py full \
   --negative-count 300 \
   --train-cmd "python -m openwakeword.train --dataset data --output models/agent.onnx"
 ```
+
+## Troubleshooting
+
+### `ImportError: cannot import name 'sph_harm' from 'scipy.special'`
+
+Это означает, что установлена слишком старая или повреждённая версия SciPy.
+Обновите SciPy и повторите запуск обучения:
+
+```bash
+python -m pip install --upgrade "scipy>=1.10"
+```
