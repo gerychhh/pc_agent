@@ -98,6 +98,15 @@ class FasterWhisperASR:
             return False
         return abs(len(text) - len(self._last_partial)) >= self.config.partial_min_delta
 
+    def _run_transcribe(self, audio: np.ndarray) -> str:
+        segments, _info = self.model.transcribe(
+            audio,
+            language=self.config.language,
+            beam_size=self.config.beam_size,
+            vad_filter=False,
+        )
+        return "".join(segment.text for segment in segments).strip()
+
     def _transcribe(self, chunks: list[np.ndarray]) -> str:
         if not chunks:
             return ""
@@ -105,20 +114,17 @@ class FasterWhisperASR:
         if audio.ndim > 1:
             audio = audio[:, 0]
         try:
-            segments, _info = self.model.transcribe(
-                audio,
-                language=self.config.language,
-                beam_size=self.config.beam_size,
-                vad_filter=False,
-            )
-            text = "".join(segment.text for segment in segments).strip()
-            return text
+            return self._run_transcribe(audio)
         except RuntimeError as exc:
             message = str(exc).lower()
             if not self._fallback_attempted and ("cublas" in message or "cuda" in message):
                 self.logger.warning("ASR transcribe failed on GPU: %s", exc)
                 self._fallback_attempted = True
                 self._load_model("cpu", "int8")
-                return ""
+                try:
+                    return self._run_transcribe(audio)
+                except RuntimeError as retry_exc:
+                    self.logger.error("ASR transcribe failed after CPU fallback: %s", retry_exc)
+                    return ""
             self.logger.error("ASR transcribe failed: %s", exc)
             return ""
