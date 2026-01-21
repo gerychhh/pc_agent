@@ -27,7 +27,7 @@ WHISPER_MODEL_NAME = os.getenv(
 )
 VOICE_SAMPLE_RATE = int(os.getenv("VOICE_SAMPLE_RATE", "16000"))
 VOICE_DEVICE = os.getenv("VOICE_DEVICE")
-VOICE_NAME = os.getenv("VOICE_NAME", "Microsoft Pavel")
+VOICE_NAME = os.getenv("VOICE_NAME", "Microsoft Dmitry")
 VOICE_RATE = int(os.getenv("VOICE_RATE", "2"))
 VOICE_VOLUME = int(os.getenv("VOICE_VOLUME", "100"))
 

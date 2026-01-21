@@ -62,7 +62,7 @@ class VoiceInput:
             pass
         self.queue.put(bytes(indata))
 
-    def listen_once(self, timeout_sec: float = 8.0, silence_timeout_sec: float = 0.7) -> str | None:
+    def listen_once(self, timeout_sec: float = 5.0, silence_timeout_sec: float = 0.5) -> str | None:
         if self.engine == "whisper":
             return self._listen_once_whisper(timeout_sec, silence_timeout_sec)
         # очистим очередь от старого мусора

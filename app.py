@@ -43,7 +43,7 @@ from core.state import (
     set_voice_model_size,
     set_voice_device,
 )
-from core.interaction_memory import delete_route, find_similar_routes, get_route, record_history, set_route
+from core.interaction_memory import find_similar_routes, get_route, record_history, set_route
 from core.llm_client import LLMClient
 from core.config import FAST_MODEL
 
@@ -195,30 +195,6 @@ def _handle_debug_command(raw: str) -> None:
         return
     set_debug(True)
     print("Debug enabled.")
-
-
-def _should_speak(response: str) -> bool:
-    if not response:
-        return False
-    if "returncode=" in response:
-        return False
-    if response.startswith(("✅", "❌")):
-        return False
-    if len(response) > 200:
-        return False
-    return True
-
-
-def _parse_yes_no(text: str) -> bool | None:
-    normalized = text.strip().lower()
-    positive_tokens = {"да", "ага", "верно", "yes", "y", "точно", "правильно", "конечно"}
-    negative_tokens = {"нет", "не", "неверно", "no", "n", "неправильно", "не то"}
-    words = {part.strip(".,!?") for part in normalized.split()}
-    if words & positive_tokens:
-        return True
-    if words & negative_tokens:
-        return False
-    return None
 
 
 def _parse_cancel(text: str) -> bool:
@@ -391,7 +367,6 @@ def main() -> None:
     prompt_spoken = False
     last_prompt_key: str | None = None
     pending_task: PendingTask | None = None
-    pending_confirmation: dict[str, str] | None = None
     queued_command: str | None = None
 
     def show_prompt(text: str, speak: bool = False) -> None:
@@ -462,18 +437,14 @@ def main() -> None:
                     if not output:
                         output = "(no output)"
                     print(f"Agent> {output}")
-                    if voice_enabled and _should_speak(output):
+                    record_history(pending_task.original_query, output, pending_task.resolved_query)
+                    if voice_enabled:
                         try:
-                            speak_out(output)
+                            speak_out("Готово")
                         except Exception:
                             pass
-                    pending_confirmation = {
-                        "original_query": pending_task.original_query,
-                        "resolved_query": pending_task.resolved_query,
-                        "response": output,
-                    }
                     pending_task = None
-                    prompt_state = "confirm"
+                    prompt_state = "command"
                     prompt_shown = False
                     prompt_spoken = False
                 continue
@@ -485,10 +456,6 @@ def main() -> None:
             if not prompt_shown:
                 if prompt_state == "command":
                     show_prompt("You>", speak=False)
-                elif prompt_state == "confirm":
-                    show_prompt("Я верно всё сделал? (да/нет)>", speak=True)
-                elif prompt_state == "correction":
-                    show_prompt("Что нужно было сделать? Опиши подробнее (или 'отмена')>", speak=True)
 
             event = input_manager.get_event(timeout=0.1)
             if event is None:
@@ -518,7 +485,7 @@ def main() -> None:
                     prompt_shown = False
                     prompt_spoken = False
                     continue
-                if prompt_state in {"confirm", "correction"} or _parse_cancel(voice_text):
+                if _parse_cancel(voice_text):
                     user_input = voice_text.strip()
                     print(f"You(voice)> {user_input}")
                 else:
@@ -532,11 +499,6 @@ def main() -> None:
                             pending_task.cancel.set()
                             pending_task = None
                         print("Да, слушаю.")
-                        if voice_enabled:
-                            try:
-                                speak_out("Да, слушаю.")
-                            except Exception:
-                                pass
                         prompt_shown = False
                         prompt_spoken = False
                         continue
@@ -554,15 +516,9 @@ def main() -> None:
             if pending_task:
                 pending_task.cancel.set()
             pending_task = None
-            pending_confirmation = None
             prompt_state = "command"
             queued_command = None
             print("Остановлено.")
-            if voice_enabled:
-                try:
-                    speak_out("Остановлено.")
-                except Exception:
-                    pass
             prompt_shown = False
             prompt_spoken = False
             continue
@@ -571,73 +527,10 @@ def main() -> None:
             queued_command = user_input
             pending_task.cancel.set()
             print("Остановлено.")
-            if voice_enabled:
-                try:
-                    speak_out("Остановлено.")
-                except Exception:
-                    pass
             prompt_shown = False
             prompt_spoken = False
             continue
 
-        if prompt_state == "confirm":
-            verdict = _parse_yes_no(user_input)
-            if verdict is None:
-                print("Ответь 'да' или 'нет'.")
-                prompt_shown = False
-                prompt_spoken = False
-                continue
-            if verdict:
-                if pending_confirmation:
-                    original_query = pending_confirmation["original_query"]
-                    resolved_query = pending_confirmation["resolved_query"]
-                    response = pending_confirmation["response"]
-                    if resolved_query != original_query:
-                        set_route(original_query, resolved_query)
-                    record_history(original_query, response, resolved_query)
-                pending_confirmation = None
-                prompt_state = "command"
-                prompt_shown = False
-                prompt_spoken = False
-                continue
-            prompt_state = "correction"
-            prompt_shown = False
-            prompt_spoken = False
-            continue
-
-        if prompt_state == "correction":
-            correction = user_input.strip()
-            if _parse_cancel(correction):
-                if pending_confirmation:
-                    delete_route(pending_confirmation["original_query"])
-                print("Команда забыта.")
-                pending_confirmation = None
-                prompt_state = "command"
-                prompt_shown = False
-                prompt_spoken = False
-                continue
-            if not correction:
-                print("Нужно описание корректного действия.")
-                prompt_shown = False
-                prompt_spoken = False
-                continue
-            if not pending_confirmation:
-                prompt_state = "command"
-                prompt_shown = False
-                prompt_spoken = False
-                continue
-            if voice_enabled:
-                try:
-                    speak_out("Думаю над новой задачей.")
-                except Exception:
-                    pass
-            resolved_correction, force_llm = _resolve_request(correction)
-            set_route(pending_confirmation["original_query"], resolved_correction)
-            start_task(pending_confirmation["original_query"], resolved_correction, force_llm)
-            prompt_state = "command"
-            prompt_shown = False
-            prompt_spoken = False
-            continue
 
         if user_input == "/help":
             print(HELP_TEXT)
@@ -808,7 +701,7 @@ def main() -> None:
         if not resolved_query:
             if voice_enabled:
                 try:
-                    speak_out("Думаю над новой задачей.")
+                    speak_out("Сейчас разберусь с задачей.")
                 except Exception:
                     pass
             resolved_query, force_llm = _resolve_request(user_input)
