@@ -84,6 +84,7 @@ class VoiceAgentRuntime:
                 min_rms=wake_cfg.get("min_rms", 0.01),
                 inference_framework=wake_cfg.get("inference_framework", "onnx"),
                 vad_threshold=wake_cfg.get("vad_threshold", 0.0),
+                base_path=self.config_path.parent,
             ),
             self.bus,
         )

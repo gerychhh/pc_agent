@@ -31,7 +31,8 @@ wake_word:
   backend: openwakeword
   model_paths:
     - "models/agent.onnx"
-  model_names: []
+  model_names:
+    - "alexa"
   threshold: 0.6
   patience_frames: 2
   cooldown_ms: 1200

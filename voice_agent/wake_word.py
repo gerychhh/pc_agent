@@ -24,6 +24,7 @@ class WakeWordConfig:
     min_rms: float = 0.01
     inference_framework: str = "onnx"
     vad_threshold: float = 0.0
+    base_path: Path = Path(".")
 
 
 class WakeWordDetector:
@@ -55,13 +56,26 @@ class WakeWordDetector:
 
     def _resolve_model_paths(self, paths: Iterable[str], names: Iterable[str]) -> list[str]:
         resolved: list[str] = []
+        missing: list[Path] = []
         for path in paths:
             if not path:
                 continue
-            resolved.append(str(Path(path)))
+            candidate = Path(path)
+            if not candidate.is_absolute():
+                candidate = self.config.base_path / candidate
+            if candidate.exists():
+                resolved.append(str(candidate))
+            else:
+                missing.append(candidate)
         for name in names:
             if name:
                 resolved.append(name)
+        if not resolved and missing:
+            missing_paths = ", ".join(str(path) for path in missing)
+            raise ValueError(
+                "Wake-word model paths not found: "
+                f"{missing_paths}. Provide valid .onnx/.tflite paths or set model_names."
+            )
         return resolved
 
     def process_chunk(self, chunk: np.ndarray, ts: float) -> None:
