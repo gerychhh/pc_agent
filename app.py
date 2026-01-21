@@ -23,6 +23,8 @@ from core.config import (
     VOICE_NAME,
     VOICE_RATE,
     VOICE_VOLUME,
+    VOSK_MODEL_SIZE,
+    WHISPER_MODEL_SIZE,
 )
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.debug import set_debug
@@ -72,6 +74,7 @@ class InputManager:
         self._text_thread.start()
         self._voice_thread: threading.Thread | None = None
         self._voice_stop = threading.Event()
+        self._voice_pause = threading.Event()
         self.voice_enabled = False
         self.voice_input: VoiceInput | None = None
         self.set_voice_enabled(voice_enabled)
@@ -93,6 +96,9 @@ class InputManager:
 
     def _voice_loop(self) -> None:
         while not self._voice_stop.is_set():
+            if self._voice_pause.is_set():
+                time.sleep(0.1)
+                continue
             try:
                 if self.voice_input is None:
                     self.voice_input = self._init_voice_input()
@@ -119,6 +125,12 @@ class InputManager:
             self.voice_enabled = False
             self.voice_input = None
             self._voice_thread = None
+
+    def pause_voice(self, paused: bool) -> None:
+        if paused:
+            self._voice_pause.set()
+        else:
+            self._voice_pause.clear()
 
     def reset_voice_input(self) -> None:
         self.voice_input = None
@@ -369,6 +381,11 @@ def main() -> None:
     orchestrator = Orchestrator()
     voice_enabled = VOICE_DEFAULT_ENABLED
     input_manager = InputManager(voice_enabled)
+    if get_voice_engine() is None:
+        set_voice_engine(VOICE_ENGINE)
+    if get_voice_model_size() is None:
+        default_size = WHISPER_MODEL_SIZE if VOICE_ENGINE == "whisper" else VOSK_MODEL_SIZE
+        set_voice_model_size(default_size)
     prompt_state = "command"
     prompt_shown = False
     prompt_spoken = False
@@ -395,12 +412,11 @@ def main() -> None:
     def speak_out(text: str) -> None:
         if not voice_enabled:
             return
-        input_manager.set_voice_enabled(False)
+        input_manager.pause_voice(True)
         try:
             speak_text(text)
         finally:
-            if voice_enabled:
-                input_manager.set_voice_enabled(True)
+            input_manager.pause_voice(False)
 
     def start_task(original_query: str, resolved_query: str, force_llm: bool) -> None:
         nonlocal pending_task
