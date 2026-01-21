@@ -711,4 +711,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from ui import main as ui_main
+
+    ui_main()

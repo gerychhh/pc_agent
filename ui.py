@@ -3,7 +3,10 @@ from __future__ import annotations
 import queue
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
+
+import yaml
 
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.state import (
@@ -16,12 +19,16 @@ from core.state import (
 )
 
 
+CONFIG_PATH = Path(__file__).resolve().parent / "voice_agent" / "config.yaml"
+
+
 class AgentUI:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title("PC Agent")
         self.orchestrator = Orchestrator()
         self.result_queue: queue.Queue[str] = queue.Queue()
+        self.voice_config = self._load_voice_config()
 
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -51,8 +58,11 @@ class AgentUI:
         send_button.pack(side=tk.RIGHT, padx=8)
 
     def _build_settings(self) -> None:
+        settings_title = ttk.Label(self.settings_frame, text="Voice input settings")
+        settings_title.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+
         engine_label = ttk.Label(self.settings_frame, text="Voice engine")
-        engine_label.grid(row=0, column=0, sticky=tk.W, pady=4)
+        engine_label.grid(row=1, column=0, sticky=tk.W, pady=4)
         self.engine_var = tk.StringVar(value=get_voice_engine() or "whisper")
         engine_box = ttk.Combobox(
             self.settings_frame,
@@ -61,26 +71,79 @@ class AgentUI:
             state="readonly",
             width=12,
         )
-        engine_box.grid(row=0, column=1, sticky=tk.W, pady=4)
+        engine_box.grid(row=1, column=1, sticky=tk.W, pady=4)
 
         size_label = ttk.Label(self.settings_frame, text="Model size")
-        size_label.grid(row=1, column=0, sticky=tk.W, pady=4)
+        size_label.grid(row=2, column=0, sticky=tk.W, pady=4)
         self.model_size_var = tk.StringVar(value=get_voice_model_size() or "small")
         size_entry = ttk.Entry(self.settings_frame, textvariable=self.model_size_var, width=12)
-        size_entry.grid(row=1, column=1, sticky=tk.W, pady=4)
+        size_entry.grid(row=2, column=1, sticky=tk.W, pady=4)
 
         device_label = ttk.Label(self.settings_frame, text="Voice device index")
-        device_label.grid(row=2, column=0, sticky=tk.W, pady=4)
+        device_label.grid(row=3, column=0, sticky=tk.W, pady=4)
         device_value = get_voice_device()
         self.device_var = tk.StringVar(value="" if device_value is None else str(device_value))
         device_entry = ttk.Entry(self.settings_frame, textvariable=self.device_var, width=12)
-        device_entry.grid(row=2, column=1, sticky=tk.W, pady=4)
+        device_entry.grid(row=3, column=1, sticky=tk.W, pady=4)
+
+        audio_title = ttk.Label(self.settings_frame, text="Audio capture")
+        audio_title.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+
+        self.sample_rate_var = tk.StringVar(value=str(self.voice_config["audio"].get("sample_rate", 16000)))
+        ttk.Label(self.settings_frame, text="Sample rate").grid(row=5, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.sample_rate_var, width=12).grid(row=5, column=1, sticky=tk.W)
+
+        self.chunk_ms_var = tk.StringVar(value=str(self.voice_config["audio"].get("chunk_ms", 20)))
+        ttk.Label(self.settings_frame, text="Chunk ms").grid(row=6, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.chunk_ms_var, width=12).grid(row=6, column=1, sticky=tk.W)
+
+        vad_title = ttk.Label(self.settings_frame, text="VAD (speech detection)")
+        vad_title.grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+
+        self.vad_threshold_var = tk.StringVar(value=str(self.voice_config["vad"].get("threshold", 0.5)))
+        ttk.Label(self.settings_frame, text="Threshold").grid(row=8, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.vad_threshold_var, width=12).grid(row=8, column=1, sticky=tk.W)
+
+        self.min_speech_var = tk.StringVar(value=str(self.voice_config["vad"].get("min_speech_ms", 200)))
+        ttk.Label(self.settings_frame, text="Min speech ms").grid(row=9, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.min_speech_var, width=12).grid(row=9, column=1, sticky=tk.W)
+
+        self.end_silence_var = tk.StringVar(value=str(self.voice_config["vad"].get("end_silence_ms", 500)))
+        ttk.Label(self.settings_frame, text="End silence ms").grid(row=10, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.end_silence_var, width=12).grid(row=10, column=1, sticky=tk.W)
+
+        asr_title = ttk.Label(self.settings_frame, text="ASR (faster-whisper)")
+        asr_title.grid(row=11, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+
+        self.asr_model_var = tk.StringVar(value=str(self.voice_config["asr"].get("model", "small")))
+        ttk.Label(self.settings_frame, text="Model").grid(row=12, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.asr_model_var, width=12).grid(row=12, column=1, sticky=tk.W)
+
+        self.asr_device_var = tk.StringVar(value=str(self.voice_config["asr"].get("device", "cuda")))
+        ttk.Label(self.settings_frame, text="Device").grid(row=13, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.asr_device_var, width=12).grid(row=13, column=1, sticky=tk.W)
+
+        self.compute_type_var = tk.StringVar(value=str(self.voice_config["asr"].get("compute_type", "float16")))
+        ttk.Label(self.settings_frame, text="Compute type").grid(row=14, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.compute_type_var, width=12).grid(row=14, column=1, sticky=tk.W)
+
+        self.beam_size_var = tk.StringVar(value=str(self.voice_config["asr"].get("beam_size", 2)))
+        ttk.Label(self.settings_frame, text="Beam size").grid(row=15, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.beam_size_var, width=12).grid(row=15, column=1, sticky=tk.W)
+
+        self.max_utterance_var = tk.StringVar(value=str(self.voice_config["asr"].get("max_utterance_s", 10)))
+        ttk.Label(self.settings_frame, text="Max utterance s").grid(row=16, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.max_utterance_var, width=12).grid(row=16, column=1, sticky=tk.W)
+
+        self.partial_interval_var = tk.StringVar(value=str(self.voice_config["asr"].get("partial_interval_ms", 150)))
+        ttk.Label(self.settings_frame, text="Partial interval ms").grid(row=17, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.partial_interval_var, width=12).grid(row=17, column=1, sticky=tk.W)
 
         save_button = ttk.Button(self.settings_frame, text="Save settings", command=self._save_settings)
-        save_button.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=8)
+        save_button.grid(row=18, column=0, columnspan=2, sticky=tk.W, pady=8)
 
         self.settings_status = ttk.Label(self.settings_frame, text="")
-        self.settings_status.grid(row=4, column=0, columnspan=2, sticky=tk.W)
+        self.settings_status.grid(row=19, column=0, columnspan=2, sticky=tk.W)
 
         self.settings_frame.columnconfigure(1, weight=1)
 
@@ -126,7 +189,39 @@ class AgentUI:
         if model_size:
             set_voice_model_size(model_size)
         set_voice_device(device_index)
+
+        self.voice_config["audio"]["sample_rate"] = int(self.sample_rate_var.get() or 16000)
+        self.voice_config["audio"]["chunk_ms"] = int(self.chunk_ms_var.get() or 20)
+        self.voice_config["vad"]["threshold"] = float(self.vad_threshold_var.get() or 0.5)
+        self.voice_config["vad"]["min_speech_ms"] = int(self.min_speech_var.get() or 200)
+        self.voice_config["vad"]["end_silence_ms"] = int(self.end_silence_var.get() or 500)
+        self.voice_config["asr"]["model"] = self.asr_model_var.get() or "small"
+        self.voice_config["asr"]["device"] = self.asr_device_var.get() or "cuda"
+        self.voice_config["asr"]["compute_type"] = self.compute_type_var.get() or "float16"
+        self.voice_config["asr"]["beam_size"] = int(self.beam_size_var.get() or 2)
+        self.voice_config["asr"]["max_utterance_s"] = int(self.max_utterance_var.get() or 10)
+        self.voice_config["asr"]["partial_interval_ms"] = int(self.partial_interval_var.get() or 150)
+        self._save_voice_config(self.voice_config)
         self.settings_status.configure(text="Settings saved.")
+
+    def _load_voice_config(self) -> dict[str, dict[str, object]]:
+        if CONFIG_PATH.exists():
+            data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+        else:
+            data = {}
+        return {
+            "audio": data.get("audio", {}),
+            "vad": data.get("vad", {}),
+            "asr": data.get("asr", {}),
+        }
+
+    def _save_voice_config(self, config: dict[str, dict[str, object]]) -> None:
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        existing = {}
+        if CONFIG_PATH.exists():
+            existing = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+        existing.update(config)
+        CONFIG_PATH.write_text(yaml.safe_dump(existing, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     def run(self) -> None:
         self.root.mainloop()
