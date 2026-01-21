@@ -19,6 +19,7 @@ from core.state import (
     set_voice_engine,
     set_voice_model_size,
 )
+from voice_agent.main import VoiceAgentRuntime
 
 
 CONFIG_PATH = Path(__file__).resolve().parent / "voice_agent" / "config.yaml"
@@ -31,6 +32,7 @@ class AgentUI:
         self.orchestrator = Orchestrator()
         self.result_queue: queue.Queue[str] = queue.Queue()
         self.voice_config = self._load_voice_config()
+        self.voice_runtime: VoiceAgentRuntime | None = None
 
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -45,6 +47,7 @@ class AgentUI:
 
         self.root.after(100, self._poll_results)
         self._load_voice_model()
+        self._start_voice_recognition()
         if self.startup_voice_var.get():
             self._test_voice()
 
@@ -177,17 +180,20 @@ class AgentUI:
         self.voice_status = ttk.Label(self.settings_frame, text="Модель голоса: не загружена")
         self.voice_status.grid(row=22, column=0, columnspan=2, sticky=tk.W, pady=(8, 2))
 
+        self.recognition_status = ttk.Label(self.settings_frame, text="Распознавание: выключено")
+        self.recognition_status.grid(row=23, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+
         load_button = ttk.Button(self.settings_frame, text="Загрузить модель", command=self._load_voice_model)
-        load_button.grid(row=23, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        load_button.grid(row=24, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         test_voice_button = ttk.Button(self.settings_frame, text="Проверить голос", command=self._test_voice)
-        test_voice_button.grid(row=24, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        test_voice_button.grid(row=25, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         save_button = ttk.Button(self.settings_frame, text="Сохранить настройки", command=self._save_settings)
-        save_button.grid(row=25, column=0, columnspan=2, sticky=tk.W, pady=8)
+        save_button.grid(row=26, column=0, columnspan=2, sticky=tk.W, pady=8)
 
         self.settings_status = ttk.Label(self.settings_frame, text="")
-        self.settings_status.grid(row=26, column=0, columnspan=2, sticky=tk.W)
+        self.settings_status.grid(row=27, column=0, columnspan=2, sticky=tk.W)
 
         self.settings_frame.columnconfigure(1, weight=1)
 
@@ -305,6 +311,22 @@ class AgentUI:
             text=True,
             check=False,
         )
+
+    def _start_voice_recognition(self) -> None:
+        if self.voice_runtime:
+            return
+        self.recognition_status.configure(text="Распознавание: запускается...")
+
+        def worker() -> None:
+            try:
+                runtime = VoiceAgentRuntime(CONFIG_PATH)
+                runtime.start()
+                self.voice_runtime = runtime
+                self.recognition_status.configure(text="Распознавание: активно")
+            except Exception as exc:
+                self.recognition_status.configure(text=f"Распознавание: ошибка ({exc})")
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def run(self) -> None:
         self.root.mainloop()
