@@ -10,7 +10,7 @@ vad:
   min_speech_ms: 150
   end_silence_ms: 300
 asr:
-  model: tiny
+  model: medium
   device: cuda
   compute_type: float16
   beam_size: 1
