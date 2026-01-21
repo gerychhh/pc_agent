@@ -102,7 +102,7 @@ class AgentUI:
 
         engine_label = ttk.Label(self.settings_frame, text="Движок распознавания")
         engine_label.grid(row=5, column=0, sticky=tk.W, pady=4)
-        self.engine_var = tk.StringVar(value=get_voice_engine() or "vosk")
+        self.engine_var = tk.StringVar(value=get_voice_engine() or "whisper")
         engine_box = ttk.Combobox(
             self.settings_frame,
             textvariable=self.engine_var,

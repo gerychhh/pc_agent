@@ -14,6 +14,7 @@ from .config import (
     VOICE_ENGINE,
     VOICE_SAMPLE_RATE,
     VOSK_MODEL_DIR,
+    WHISPER_DEVICE,
     WHISPER_MODEL_NAME,
 )
 
@@ -39,7 +40,7 @@ class VoiceInput:
                     "Whisper not installed. Install with: pip install openai-whisper"
                 ) from exc
             model_name = self._resolve_whisper_model_name()
-            self.model = whisper.load_model(model_name)
+            self.model = whisper.load_model(model_name, device=WHISPER_DEVICE)
         else:
             self.model_dir = Path(model_dir) if model_dir else VOSK_MODEL_DIR
             if not self.model_dir.exists():
@@ -141,8 +142,9 @@ class VoiceInput:
         if not frames:
             return None
         audio = np.concatenate(frames, axis=0).flatten()
+        use_fp16 = WHISPER_DEVICE == "cuda"
         try:
-            result = self.model.transcribe(audio, language="ru", fp16=False)
+            result = self.model.transcribe(audio, language="ru", fp16=use_fp16)
         except Exception:
             return None
         text = (result.get("text") or "").strip()
