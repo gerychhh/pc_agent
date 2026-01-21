@@ -48,8 +48,8 @@ class VoiceAgentRuntime:
         self.state = State()
         self._thread: threading.Thread | None = None
         self._running = threading.Event()
-        self._on_final = on_final
-        self._on_partial = on_partial
+        self._on_final_cb = on_final
+        self._on_partial_cb = on_partial
         self._enable_actions = enable_actions
 
         audio_cfg = self.cfg.get("audio", {})
@@ -134,8 +134,8 @@ class VoiceAgentRuntime:
     def _on_partial(self, event: Event) -> None:
         text = event.payload["text"]
         self.logger.info("ASR partial: %s", text)
-        if self._on_partial:
-            self._on_partial(text)
+        if self._on_partial_cb:
+            self._on_partial_cb(text)
 
     def _on_final(self, event: Event) -> None:
         text = event.payload["text"]
@@ -143,8 +143,8 @@ class VoiceAgentRuntime:
         self.logger.info("ASR final: %s", text)
         self.logger.info("ASR normalized: %s", normalized)
         self.state.name = "FINALIZING"
-        if self._on_final:
-            self._on_final(text)
+        if self._on_final_cb:
+            self._on_final_cb(text)
         if self._enable_actions:
             recognized = self.intent.recognize(text)
             if recognized:
