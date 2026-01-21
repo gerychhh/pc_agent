@@ -278,7 +278,7 @@ class AgentUI:
         CONFIG_PATH.write_text(yaml.safe_dump(existing, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     def _load_voice_model(self) -> None:
-        self.voice_status.configure(text="Модель голоса: загружается...")
+        self._set_label_safe(self.voice_status, "Модель голоса: загружается...")
 
         def worker() -> None:
             try:
@@ -288,9 +288,9 @@ class AgentUI:
                     model_size=self.model_size_var.get().strip().lower(),
                 )
             except Exception as exc:
-                self.voice_status.configure(text=f"Модель голоса: ошибка ({exc})")
+                self._set_label_safe(self.voice_status, f"Модель голоса: ошибка ({exc})")
             else:
-                self.voice_status.configure(text="Модель голоса: загружена")
+                self._set_label_safe(self.voice_status, "Модель голоса: загружена")
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -315,21 +315,27 @@ class AgentUI:
     def _start_voice_recognition(self) -> None:
         if self.voice_runtime:
             return
-        self.recognition_status.configure(text="Распознавание: запускается...")
+        self._set_label_safe(self.recognition_status, "Распознавание: запускается...")
 
         def worker() -> None:
             try:
                 runtime = VoiceAgentRuntime(CONFIG_PATH)
                 runtime.start()
                 self.voice_runtime = runtime
-                self.recognition_status.configure(text="Распознавание: активно")
+                self._set_label_safe(self.recognition_status, "Распознавание: активно")
             except Exception as exc:
-                self.recognition_status.configure(text=f"Распознавание: ошибка ({exc})")
+                self._set_label_safe(self.recognition_status, f"Распознавание: ошибка ({exc})")
 
         threading.Thread(target=worker, daemon=True).start()
 
     def run(self) -> None:
         self.root.mainloop()
+
+    def _set_label_safe(self, label: ttk.Label, text: str) -> None:
+        def apply() -> None:
+            label.configure(text=text)
+
+        self.root.after(0, apply)
 
 
 def main() -> None:
