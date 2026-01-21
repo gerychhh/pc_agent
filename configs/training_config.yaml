@@ -2,8 +2,8 @@
 # Перед запуском убедитесь, что пути существуют и заполнены вашими данными.
 
 # Путь к piper sample generator (репозиторий openWakeWord ожидает generate_samples.py).
-# Обычно это каталог piper_sample_generator в репозитории openWakeWord training tools.
-piper_sample_generator_path: "piper_sample_generator"
+# Обычно это каталог piper-sample-generator в репозитории openWakeWord training tools.
+piper_sample_generator_path: "external\\piper-sample-generator"
 
 # Таргетная фраза (можно несколько).
 target_phrase:
@@ -15,9 +15,9 @@ custom_negative_phrases: []
 # Директории с импульсными характеристиками (RIR) и фоновыми шумами.
 # Внутри каждой директории должны быть аудиофайлы.
 rir_paths:
-  - "data/rir"
+  - "data\\rir"
 background_paths:
-  - "data/background"
+  - "data\\background"
 # Если нужно увеличить долю определённых фоновых папок.
 background_paths_duplication_rate:
   - 1

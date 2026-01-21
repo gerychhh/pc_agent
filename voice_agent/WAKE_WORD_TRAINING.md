@@ -40,6 +40,16 @@ Get-Content .\\configs\\training_config.yaml
 python -m openwakeword.train --training_config configs/training_config.yaml --overwrite --augment_clips --train_model
 ```
 
+### Запуск через doctor
+
+Перед обучением можно прогнать статические проверки окружения и путей:
+
+```powershell
+cd C:\\gerychhh_\\pc_agent
+powershell -ExecutionPolicy Bypass -File scripts\\doctor_openwakeword_train.ps1
+python -m openwakeword.train --training_config configs\\training_config.yaml --overwrite --augment_clips --train_model
+```
+
 ### Опциональный FP-validation
 
 Если в `training_config.yaml` не задан `false_positive_validation_data_path`,
@@ -52,6 +62,13 @@ python scripts/patch_openwakeword_train.py
 
 Патч делает `false_positive_validation_data_path` опциональным и пропускает
 FP-validation, если путь не задан.
+
+### Типовые ошибки
+
+- `FileNotFoundError: configs/training_config.yaml` — запуск из неверного `cwd`.
+- `generate_samples.py NOT FOUND` — не клонирован `piper-sample-generator`.
+- `TypeError: expected str, bytes or os.PathLike object, not NoneType` —
+  не применён патч для `false_positive_validation_data_path`.
 
 ## 3) Подключите модель в агенте
 

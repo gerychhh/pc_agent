@@ -1,0 +1,46 @@
+# Минимально валидный пример конфигурации для openWakeWord 0.6.x.
+# Все пути указаны для Windows (двойные обратные слеши).
+
+piper_sample_generator_path: "external\\piper-sample-generator"
+
+# Фраза(ы) для генерации позитивных сэмплов.
+target_phrase:
+  - "агент"
+
+# Дополнительные негативные фразы (необязательно).
+custom_negative_phrases: []
+
+# Каталоги с RIR и фонами (wav, 16kHz mono).
+rir_paths:
+  - "data\\rir"
+background_paths:
+  - "data\\background"
+background_paths_duplication_rate:
+  - 1
+
+# Количество синтетики.
+n_samples: 200
+n_samples_val: 50
+
+# Параметры синтеза и аугментаций.
+tts_batch_size: 24
+augmentation_batch_size: 32
+augmentation_rounds: 1
+
+# Модель и вывод.
+model_name: "agent"
+output_dir: "models"
+model_type: "dnn"
+layer_size: 128
+
+# Обучение.
+steps: 2000
+batch_n_per_class: 32
+max_negative_weight: 3.0
+target_false_positives_per_hour: 0.2
+
+# Дополнительные фичи (можно оставить пустыми).
+feature_data_files: {}
+
+# Опциональный FP-validation датасет (можно оставить null).
+false_positive_validation_data_path: null
