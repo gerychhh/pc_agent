@@ -97,6 +97,8 @@ def _should_speak(response: str) -> bool:
         return False
     if response.startswith(("✅", "❌")):
         return False
+    if len(response) > 200:
+        return False
     return True
 
 
@@ -163,15 +165,31 @@ def _resolve_request(user_text: str) -> tuple[str, bool]:
     return user_text, force_llm
 
 
+def _prompt_text(prompt: str, voice_enabled: bool, voice_input: VoiceInput | None) -> str | None:
+    if voice_enabled and voice_input:
+        print(prompt, end="")
+        try:
+            speak_text(prompt.rstrip())
+        except Exception:
+            pass
+        return voice_input.listen_once()
+    return input(prompt).strip()
+
+
 def _confirm_request(
     original_query: str,
     resolved_query: str,
     response: str,
     orchestrator: Orchestrator,
     voice_enabled: bool,
+    voice_input: VoiceInput | None,
 ) -> None:
     while True:
-        answer = input("Я верно всё сделал? (да/нет)> ").strip()
+        answer = _prompt_text("Я верно всё сделал? (да/нет)> ", voice_enabled, voice_input)
+        if answer is None:
+            print("Не расслышал, повтори.")
+            continue
+        answer = answer.strip()
         verdict = _parse_yes_no(answer)
         if verdict is None:
             print("Ответь 'да' или 'нет'.")
@@ -181,7 +199,15 @@ def _confirm_request(
                 set_route(original_query, resolved_query)
             record_history(original_query, response, resolved_query)
             return
-        correction = input("Что нужно было сделать? Опиши подробнее (или 'отмена')> ").strip()
+        correction = _prompt_text(
+            "Что нужно было сделать? Опиши подробнее (или 'отмена')> ",
+            voice_enabled,
+            voice_input,
+        )
+        if correction is None:
+            print("Не расслышал, повтори.")
+            continue
+        correction = correction.strip()
         if _parse_cancel(correction):
             delete_route(original_query)
             print("Команда забыта.")
@@ -436,12 +462,12 @@ def main() -> None:
         if not output:
             output = "(no output)"
         print(f"Agent> {output}")
-        _confirm_request(original_query, resolved_query, output, orchestrator, voice_enabled)
         if voice_enabled and _should_speak(output):
             try:
                 speak_text(output)
             except Exception:
                 pass
+        _confirm_request(original_query, resolved_query, output, orchestrator, voice_enabled, voice_input)
 
 
 if __name__ == "__main__":
