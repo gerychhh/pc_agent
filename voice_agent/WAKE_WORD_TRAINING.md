@@ -48,7 +48,7 @@ Get-Content .\\configs\\training_config.yaml
 Пример запуска обучения:
 
 ```bash
-python -m openwakeword.train --training_config configs/training_config.yaml --overwrite --augment_clips --train_model
+python -m openwakeword.train --training_config configs/training_config.yaml --generate_clips --overwrite --augment_clips --train_model
 ```
 
 ### Запуск через doctor
@@ -58,7 +58,7 @@ python -m openwakeword.train --training_config configs/training_config.yaml --ov
 ```powershell
 cd C:\\gerychhh_\\pc_agent
 powershell -ExecutionPolicy Bypass -File scripts\\doctor_openwakeword_train.ps1
-python -m openwakeword.train --training_config configs\\training_config.yaml --overwrite --augment_clips --train_model
+python -m openwakeword.train --training_config configs\\training_config.yaml --generate_clips --overwrite --augment_clips --train_model
 ```
 
 ### Опциональный FP-validation

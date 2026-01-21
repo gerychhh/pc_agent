@@ -82,6 +82,7 @@ def train_model(training_config: Path) -> None:
         "openwakeword.train",
         "--training_config",
         str(training_config),
+        "--generate_clips",
         "--overwrite",
         "--augment_clips",
         "--train_model",

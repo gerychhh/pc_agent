@@ -17,6 +17,16 @@ function Write-Fail([string]$message, [string[]]$fixes) {
     $script:issues++
 }
 
+function Write-Warn([string]$message, [string[]]$fixes) {
+    Write-Host "WARN: $message" -ForegroundColor Yellow
+    if ($fixes) {
+        Write-Host "  Hint:" -ForegroundColor Yellow
+        foreach ($fix in $fixes) {
+            Write-Host "    $fix" -ForegroundColor Yellow
+        }
+    }
+}
+
 function Get-ConfigValue([string]$path, [string]$key) {
     if (-not (Test-Path $path)) {
         return $null
@@ -192,6 +202,28 @@ if ($backgroundPaths.Count -eq 0) {
                 "Or update background_paths in configs\\training_config.yaml"
             )
         }
+    }
+}
+
+# h) check generated clips exist
+$outputDir = Get-ConfigValue -path $configPath -key "output_dir"
+$modelName = Get-ConfigValue -path $configPath -key "model_name"
+if ($outputDir -and $modelName) {
+    $modelDir = Join-Path -Path $outputDir -ChildPath $modelName
+    $positiveTestDir = Join-Path -Path $modelDir -ChildPath "positive_test"
+    if (Test-Path $positiveTestDir) {
+        $positiveCount = (Get-ChildItem -Path $positiveTestDir -Filter "*.wav" -ErrorAction SilentlyContinue).Count
+        if ($positiveCount -eq 0) {
+            Write-Warn "No generated positive_test clips found" @(
+                "Run training with --generate_clips before --augment_clips/--train_model"
+            )
+        } else {
+            Write-Ok "Generated positive_test clips: $positiveCount"
+        }
+    } else {
+        Write-Warn "positive_test folder missing" @(
+            "Run: python -m openwakeword.train --training_config configs\\training_config.yaml --generate_clips"
+        )
     }
 }
 
