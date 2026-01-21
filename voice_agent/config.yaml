@@ -23,6 +23,9 @@ nlu:
     "телеграмм": "telegram"
     "тг": "telegram"
     "браузер": "chrome"
+    "ютуб": "youtube"
+    "ютьюб": "youtube"
+    "you tube": "youtube"
 voice:
   agent_name: "Агент"
   voice_name: "Microsoft Dmitry"

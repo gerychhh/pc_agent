@@ -37,6 +37,7 @@ class FasterWhisperASR:
         self._last_partial_emit = 0.0
         self._active = False
         self._speech_start_ts: float | None = None
+        self._chunk_log_counter = 0
 
     def _load_model(self, device: str, compute_type: str) -> None:
         try:
@@ -91,6 +92,7 @@ class FasterWhisperASR:
         self._last_partial_emit = 0.0
         self._active = False
         self._speech_start_ts = None
+        self._chunk_log_counter = 0
 
     def speech_start(self) -> None:
         self.reset()
@@ -107,7 +109,9 @@ class FasterWhisperASR:
             return
         self._buffer.append(chunk.copy())
         if self.logger.isEnabledFor(logging.DEBUG):
-            self.logger.debug("ASR buffer chunks=%d", len(self._buffer))
+            self._chunk_log_counter += 1
+            if self._chunk_log_counter % 25 == 0:
+                self.logger.debug("ASR buffer chunks=%d", len(self._buffer))
         if self._speech_start_ts and (ts - self._speech_start_ts) >= self.config.max_utterance_s:
             self.logger.info("ASR max utterance reached, forcing final.")
             self._finalize(ts)
@@ -121,6 +125,9 @@ class FasterWhisperASR:
 
     def _finalize(self, ts: float) -> None:
         text = self._transcribe(self._buffer)
+        if self._last_partial and len(self._last_partial) > len(text) + 2:
+            self.logger.info("ASR final shorter than last partial, using partial.")
+            text = self._last_partial
         if text:
             self.bus.publish(Event("asr.final", {"text": text, "ts": ts}))
         self.reset()
