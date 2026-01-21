@@ -83,7 +83,23 @@ def apply_openwakeword_patch(patch_script: Path) -> None:
     subprocess.run(["python", str(patch_script)], check=False)
 
 
-def train_model(training_config: Path, patch_script: Path) -> None:
+def _count_wavs(folder: Path) -> int:
+    return len(list(folder.glob("*.wav")))
+
+
+def train_model(training_config: Path, patch_script: Path, data_root: Path) -> None:
+    positive_dir = data_root / "positive"
+    negative_dir = data_root / "negative"
+    positive_count = _count_wavs(positive_dir) if positive_dir.exists() else 0
+    negative_count = _count_wavs(negative_dir) if negative_dir.exists() else 0
+
+    if positive_count == 0 or negative_count == 0:
+        print("Не найдены записи для обучения.")
+        print(f"positive: {positive_count} .wav в {positive_dir}")
+        print(f"negative: {negative_count} .wav в {negative_dir}")
+        print("Сначала запишите клипы через пункты меню 1 и 2.")
+        return
+
     if _openwakeword_available():
         apply_openwakeword_patch(patch_script)
     cmd = [
@@ -176,7 +192,7 @@ def main() -> None:
         elif choice == "2":
             collect_samples(data_root / "negative", "negative", settings)
         elif choice == "3":
-            train_model(training_config, patch_script)
+            train_model(training_config, patch_script, data_root)
         elif choice == "4":
             test_model(model_path, data_root / "positive")
         elif choice == "5":
