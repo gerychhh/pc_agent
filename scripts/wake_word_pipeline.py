@@ -5,12 +5,14 @@ import json
 import subprocess
 import sys
 import time
-import wave
 from dataclasses import dataclass
 from pathlib import Path
 
 import importlib.util
 import numpy as np
+import librosa
+import scipy.signal
+import soundfile as sf
 import sounddevice as sd
 
 
@@ -21,12 +23,22 @@ class AudioSettings:
 
 
 def _write_wav(path: Path, audio: np.ndarray, settings: AudioSettings) -> None:
-    audio_int16 = np.clip(audio * 32768.0, -32768, 32767).astype(np.int16)
-    with wave.open(str(path), "wb") as wf:
-        wf.setnchannels(settings.channels)
-        wf.setsampwidth(2)
-        wf.setframerate(settings.sample_rate)
-        wf.writeframes(audio_int16.tobytes())
+    audio = np.asarray(audio, dtype=np.float32)
+    sf.write(
+        file=str(path),
+        data=audio,
+        samplerate=settings.sample_rate,
+        subtype="PCM_16",
+    )
+
+
+def _load_audio(path: Path, target_sr: int) -> np.ndarray:
+    audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
+    audio = audio.mean(axis=1)
+    if sr != target_sr:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
+    audio = scipy.signal.detrend(audio, type="constant")
+    return audio.astype(np.float32)
 
 
 def _record_sample(duration_s: float, settings: AudioSettings) -> np.ndarray:
@@ -93,7 +105,7 @@ def train_model(
     raise SystemExit(2)
 
 
-def test_model(model_path: Path, samples_dir: Path) -> None:
+def test_model(model_path: Path, samples_dir: Path, settings: AudioSettings) -> None:
     if not _openwakeword_available():
         raise SystemExit("openwakeword не установлен. Установите зависимости для теста модели.")
     from openwakeword.model import Model
@@ -104,9 +116,7 @@ def test_model(model_path: Path, samples_dir: Path) -> None:
         raise SystemExit(f"Нет .wav файлов в {samples_dir}")
     print(f"Testing on {len(wavs)} samples...")
     for wav_path in wavs:
-        with wave.open(str(wav_path), "rb") as wf:
-            frames = wf.readframes(wf.getnframes())
-            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+        audio = _load_audio(wav_path, target_sr=settings.sample_rate)
         scores = model.predict(audio)
         top_score = max(scores.values()) if scores else 0.0
         print(f"{wav_path.name}: {top_score:.3f}")
@@ -153,7 +163,7 @@ def main() -> None:
         return
 
     if args.command == "test":
-        test_model(args.model, args.samples)
+        test_model(args.model, args.samples, settings)
         return
 
     if args.command == "full":
@@ -176,7 +186,7 @@ def main() -> None:
         )
         train_model(data_root, args.output_model, args.train_cmd)
         if args.output_model.exists():
-            test_model(args.output_model, data_root / "positive")
+            test_model(args.output_model, data_root / "positive", settings)
         return
 
     raise SystemExit(1)
