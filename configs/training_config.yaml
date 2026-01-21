@@ -17,7 +17,7 @@ custom_negative_phrases: []
 rir_paths:
   - "data\\rir"
 background_paths:
-  - "data\\background"
+  - "data\\negative"
 # Если нужно увеличить долю определённых фоновых папок.
 background_paths_duplication_rate:
   - 1

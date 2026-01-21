@@ -180,7 +180,7 @@ if ($rirPaths.Count -eq 0) {
 $backgroundPaths = Get-ConfigListValues -path $configPath -key "background_paths"
 if ($backgroundPaths.Count -eq 0) {
     Write-Fail "В configs\\training_config.yaml нет значений для background_paths" @(
-        "Добавьте папку с фонами, например: background_paths: [\"data\\\\background\"]"
+        "Добавьте папку с фонами, например: background_paths: [\"data\\\\negative\"]"
     )
 } else {
     foreach ($backgroundPath in $backgroundPaths) {

@@ -14,7 +14,7 @@ custom_negative_phrases: []
 rir_paths:
   - "data\\rir"
 background_paths:
-  - "data\\background"
+  - "data\\negative"
 background_paths_duplication_rate:
   - 1
 
