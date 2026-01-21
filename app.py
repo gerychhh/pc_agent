@@ -358,7 +358,12 @@ def main() -> None:
             if command is None:
                 continue
             if not command:
-                print("Скажи команду после имени.")
+                print("Да, слушаю.")
+                if voice_enabled:
+                    try:
+                        speak_text("Да, слушаю.")
+                    except Exception:
+                        pass
                 continue
             print(f"You(voice)> {command}")
             user_input = command
@@ -370,6 +375,14 @@ def main() -> None:
                 break
 
         if not user_input:
+            continue
+        if _parse_cancel(user_input):
+            print("Остановлено.")
+            if voice_enabled:
+                try:
+                    speak_text("Остановлено.")
+                except Exception:
+                    pass
             continue
 
         if user_input == "/help":
