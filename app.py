@@ -111,9 +111,12 @@ def _should_speak(response: str) -> bool:
 
 def _parse_yes_no(text: str) -> bool | None:
     normalized = text.strip().lower()
-    if normalized in {"да", "ага", "верно", "yes", "y"}:
+    positive_tokens = {"да", "ага", "верно", "yes", "y", "точно", "правильно", "конечно"}
+    negative_tokens = {"нет", "не", "неверно", "no", "n", "неправильно", "не то"}
+    words = {part.strip(".,!?") for part in normalized.split()}
+    if words & positive_tokens:
         return True
-    if normalized in {"нет", "не", "неверно", "no", "n", "неправильно", "не то"}:
+    if words & negative_tokens:
         return False
     return None
 
@@ -490,6 +493,11 @@ def main() -> None:
         resolved_query = get_route(user_input)
         force_llm = False
         if not resolved_query:
+            if voice_enabled:
+                try:
+                    speak_text("Думаю над новой задачей.")
+                except Exception:
+                    pass
             resolved_query, force_llm = _resolve_request(user_input)
         response = orchestrator.run(resolved_query, stateless=voice_enabled, force_llm=force_llm)
         output = sanitize_assistant_text(response)
