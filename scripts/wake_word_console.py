@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from wake_word_pipeline import AudioSettings, collect_samples, test_model, train_model
+from wake_word_pipeline import AudioSettings, collect_samples, test_model, train_model, _missing_openwakeword_resources
 
 
 def _prompt_int(label: str, default: int) -> int:
@@ -69,6 +69,21 @@ def _menu() -> str:
     return input("Выберите действие: ").strip()
 
 
+def _ensure_openwakeword_resources() -> None:
+    missing = _missing_openwakeword_resources()
+    if not missing:
+        return
+    details = ", ".join(str(path) for path in missing)
+    venv_root = Path(sys.prefix).resolve()
+    raise SystemExit(
+        "В пакете openwakeword отсутствуют модели (melspectrogram.onnx или "
+        "embedding_model.onnx). Проверьте, что активирован правильный venv, "
+        "затем переустановите пакет или скопируйте модели в каталог "
+        f"resources/models. Текущий venv: {venv_root}. Не найдены: {details}. "
+        "Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
+    )
+
+
 def main() -> None:
     settings = AudioSettings()
     data_root = Path("data")
@@ -94,6 +109,7 @@ def main() -> None:
             continue
 
         if choice == "3":
+            _ensure_openwakeword_resources()
             if requires_config:
                 config_path = Path("configs/training_config.yaml")
                 if not config_path.exists():

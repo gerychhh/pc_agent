@@ -79,6 +79,23 @@ openWakeWord. Запустите обучение из их репозитори
 есть встроенный shim `dp/phonemizer.py`, который закрывает эту зависимость и
 позволяет продолжить генерацию негативных фраз без внешнего пакета.
 
+Если при запуске обучения появляется ошибка вида
+`NoSuchFile: ... openwakeword\\resources\\models\\melspectrogram.onnx` или
+`NoSuchFile: ... openwakeword\\resources\\models\\embedding_model.onnx`,
+значит пакет openwakeword установлен без весов. Решение:
+
+0. Проверьте, что активирован правильный venv (в проекте могут быть `.venv` и `venv`).
+   Узнайте, какой используется сейчас:
+
+   ```bash
+   python -c "import sys, openwakeword; print(sys.prefix); print(openwakeword.__file__)"
+   ```
+
+1. Переустановите пакет: `python -m pip install --force-reinstall openwakeword`.
+2. Либо скачайте `melspectrogram.onnx` и `embedding_model.onnx` из репозитория
+   openWakeWord и положите их в
+   `<venv>/Lib/site-packages/openwakeword/resources/models/`.
+
 Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
 `--training_config`, проверьте установленную версию openWakeWord в активном venv:
 

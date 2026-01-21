@@ -82,12 +82,47 @@ def _openwakeword_available() -> bool:
     return importlib.util.find_spec("openwakeword") is not None
 
 
+def _openwakeword_missing_resource(filename: str) -> Path | None:
+    if not _openwakeword_available():
+        return None
+    import openwakeword
+
+    root = Path(openwakeword.__file__).resolve().parent
+    resource = root / "resources" / "models" / filename
+    return resource if not resource.exists() else None
+
+
+def _missing_openwakeword_resources() -> list[Path]:
+    missing = []
+    for filename in ("melspectrogram.onnx", "embedding_model.onnx"):
+        missing_path = _openwakeword_missing_resource(filename)
+        if missing_path is not None:
+            missing.append(missing_path)
+    return missing
+
+
+def _raise_missing_melspec() -> None:
+    missing = _missing_openwakeword_resources()
+    if not missing:
+        return
+    details = ", ".join(str(path) for path in missing)
+    venv_root = Path(sys.prefix).resolve()
+    raise SystemExit(
+        "В пакете openwakeword отсутствуют модели (melspectrogram.onnx или "
+        "embedding_model.onnx). Проверьте, что активирован правильный venv, "
+        "затем переустановите пакет или скопируйте модели в каталог "
+        f"resources/models. Текущий venv: {venv_root}. Не найдены: {details}. "
+        "Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
+    )
+
+
 def train_model(
     dataset_dir: Path,
     output_model: Path,
     train_cmd: str | None,
 ) -> None:
     if train_cmd:
+        _raise_missing_melspec()
         print(f"Running training command: {train_cmd}")
         result = subprocess.run(train_cmd, shell=True, check=False)
         if result.returncode != 0:
@@ -108,6 +143,7 @@ def train_model(
 def test_model(model_path: Path, samples_dir: Path, settings: AudioSettings) -> None:
     if not _openwakeword_available():
         raise SystemExit("openwakeword не установлен. Установите зависимости для теста модели.")
+    _raise_missing_melspec()
     from openwakeword.model import Model
 
     model = Model(wakeword_models=[str(model_path)])
