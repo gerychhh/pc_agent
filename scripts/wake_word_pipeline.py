@@ -82,12 +82,34 @@ def _openwakeword_available() -> bool:
     return importlib.util.find_spec("openwakeword") is not None
 
 
+def _openwakeword_missing_melspec() -> Path | None:
+    if not _openwakeword_available():
+        return None
+    import openwakeword
+
+    root = Path(openwakeword.__file__).resolve().parent
+    melspec = root / "resources" / "models" / "melspectrogram.onnx"
+    return melspec if not melspec.exists() else None
+
+
+def _raise_missing_melspec() -> None:
+    missing_path = _openwakeword_missing_melspec()
+    if missing_path is None:
+        return
+    raise SystemExit(
+        "В пакете openwakeword отсутствует файл melspectrogram.onnx. "
+        "Переустановите пакет или скопируйте модель в "
+        f"{missing_path}. Подробнее: voice_agent/WAKE_WORD_TRAINING.md"
+    )
+
+
 def train_model(
     dataset_dir: Path,
     output_model: Path,
     train_cmd: str | None,
 ) -> None:
     if train_cmd:
+        _raise_missing_melspec()
         print(f"Running training command: {train_cmd}")
         result = subprocess.run(train_cmd, shell=True, check=False)
         if result.returncode != 0:
@@ -108,6 +130,7 @@ def train_model(
 def test_model(model_path: Path, samples_dir: Path, settings: AudioSettings) -> None:
     if not _openwakeword_available():
         raise SystemExit("openwakeword не установлен. Установите зависимости для теста модели.")
+    _raise_missing_melspec()
     from openwakeword.model import Model
 
     model = Model(wakeword_models=[str(model_path)])
