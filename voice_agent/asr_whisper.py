@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 import logging
+import os
+from pathlib import Path
 
 import numpy as np
 from faster_whisper import WhisperModel
@@ -28,6 +30,7 @@ class FasterWhisperASR:
         self.bus = bus
         self.logger = logging.getLogger("voice_agent")
         self._fallback_attempted = False
+        self._prepare_cuda_env()
         self._load_model(config.device, config.compute_type)
         self._buffer: list[np.ndarray] = []
         self._last_partial: str = ""
@@ -58,6 +61,28 @@ class FasterWhisperASR:
                 self.logger.info("ASR model loaded on cpu (int8).")
             else:
                 raise
+
+    def _prepare_cuda_env(self) -> None:
+        if os.name != "nt":
+            return
+        cuda_path = os.environ.get("CUDA_PATH")
+        candidates = []
+        if cuda_path:
+            candidates.append(Path(cuda_path) / "bin")
+        toolkit_root = Path("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA")
+        if toolkit_root.exists():
+            for entry in sorted(toolkit_root.glob("v*")):
+                candidates.append(entry / "bin")
+        for candidate in candidates:
+            if not candidate.exists():
+                continue
+            path_str = str(candidate)
+            if path_str not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = f"{path_str};{os.environ.get('PATH', '')}"
+            try:
+                os.add_dll_directory(path_str)
+            except OSError:
+                continue
 
     def reset(self) -> None:
         self._buffer = []
