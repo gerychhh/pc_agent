@@ -22,6 +22,8 @@ class AsrConfig:
     max_utterance_s: int
     partial_interval_ms: int
     partial_min_delta: int
+    min_partial_s: float
+    sample_rate: int
 
 
 class FasterWhisperASR:
@@ -117,6 +119,8 @@ class FasterWhisperASR:
             self._finalize(ts)
             return
         if self._should_emit_partial(ts):
+            if self._buffer_duration_s() < self.config.min_partial_s:
+                return
             text = self._transcribe(self._buffer)
             if self._is_significant_partial(text):
                 self._last_partial = text
@@ -141,6 +145,14 @@ class FasterWhisperASR:
         if text == self._last_partial:
             return False
         return abs(len(text) - len(self._last_partial)) >= self.config.partial_min_delta
+
+    def _buffer_duration_s(self) -> float:
+        if not self._buffer:
+            return 0.0
+        total_samples = 0
+        for chunk in self._buffer:
+            total_samples += int(chunk.shape[0])
+        return total_samples / float(self.config.sample_rate)
 
     def _run_transcribe(self, audio: np.ndarray) -> str:
         segments, _info = self.model.transcribe(

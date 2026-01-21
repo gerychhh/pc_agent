@@ -89,6 +89,8 @@ class VoiceAgentRuntime:
                 max_utterance_s=asr_cfg.get("max_utterance_s", 10),
                 partial_interval_ms=asr_cfg.get("partial_interval_ms", 150),
                 partial_min_delta=asr_cfg.get("partial_min_delta", 3),
+                min_partial_s=asr_cfg.get("min_partial_s", 0.4),
+                sample_rate=audio_cfg.get("sample_rate", 16000),
             ),
             self.bus,
         )
