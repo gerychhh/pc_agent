@@ -15,6 +15,44 @@
 Используйте официальный инструментарий openWakeWord для обучения кастомного слова.
 Важно получить **экспорт модели в ONNX**, чтобы её мог загрузить наш рантайм.
 
+### Конфиг обучения (training_config.yaml)
+
+В репозитории есть шаблон: `configs/training_config.yaml`.
+Перед запуском **обязательно** обновите пути:
+
+- `piper_sample_generator_path` — путь к каталогу, где лежит `generate_samples.py`.
+- `rir_paths` и `background_paths` — директории с аудио файлами.
+
+Также можете изменить `target_phrase` под своё ключевое слово.
+
+Минимальная проверка на Windows (PowerShell):
+
+```powershell
+Test-Path .\\configs\\training_config.yaml
+Get-Content .\\configs\\training_config.yaml
+```
+
+Если путей/папок нет, openWakeWord завершится с ошибкой `FileNotFoundError`.
+
+Пример запуска обучения:
+
+```bash
+python -m openwakeword.train --training_config configs/training_config.yaml --overwrite --augment_clips --train_model
+```
+
+### Опциональный FP-validation
+
+Если в `training_config.yaml` не задан `false_positive_validation_data_path`,
+в openWakeWord 0.6.0 обучение падает на `np.load(None)`. Перед запуском обучения
+можно применить локальный патч:
+
+```bash
+python scripts/patch_openwakeword_train.py
+```
+
+Патч делает `false_positive_validation_data_path` опциональным и пропускает
+FP-validation, если путь не задан.
+
 ## 3) Подключите модель в агенте
 
 1. Сохраните модель в `voice_agent/models/agent.onnx` (или укажите другой путь).

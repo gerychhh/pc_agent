@@ -1,0 +1,52 @@
+# Конфиг обучения openWakeWord.
+# Перед запуском убедитесь, что пути существуют и заполнены вашими данными.
+
+# Путь к piper sample generator (репозиторий openWakeWord ожидает generate_samples.py).
+# Обычно это каталог piper_sample_generator в репозитории openWakeWord training tools.
+piper_sample_generator_path: "piper_sample_generator"
+
+# Таргетная фраза (можно несколько).
+target_phrase:
+  - "агент"
+
+# Дополнительные негативные фразы (опционально).
+custom_negative_phrases: []
+
+# Директории с импульсными характеристиками (RIR) и фоновыми шумами.
+# Внутри каждой директории должны быть аудиофайлы.
+rir_paths:
+  - "data/rir"
+background_paths:
+  - "data/background"
+# Если нужно увеличить долю определённых фоновых папок.
+background_paths_duplication_rate:
+  - 1
+
+# Количество синтетических сэмплов.
+n_samples: 200
+n_samples_val: 50
+
+# Параметры синтеза и аугментаций.
+tts_batch_size: 24
+augmentation_batch_size: 32
+augmentation_rounds: 1
+
+# Модель и вывод.
+model_name: "agent"
+output_dir: "models"
+model_type: "dnn"
+layer_size: 128
+
+# Параметры обучения.
+steps: 2000
+batch_n_per_class: 32
+max_negative_weight: 3.0
+# Целевой уровень FP в час (если используется FP-validation).
+target_false_positives_per_hour: 0.2
+
+# Дополнительные негативные фичи (опционально).
+# Можно оставить пустым словарём, если используете только генерацию данных.
+feature_data_files: {}
+
+# Опциональный путь к FP-validation датасету (оставьте null, если его нет).
+false_positive_validation_data_path: null
