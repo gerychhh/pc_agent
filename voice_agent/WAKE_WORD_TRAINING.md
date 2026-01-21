@@ -59,8 +59,20 @@ python scripts/wake_word_pipeline.py full \
 ### `ImportError: cannot import name 'sph_harm' from 'scipy.special'`
 
 Это означает, что установлена слишком старая или повреждённая версия SciPy.
-Обновите SciPy и повторите запуск обучения:
+Сначала проверьте версию:
+
+```bash
+python -c "import scipy; print(scipy.__version__)"
+```
+
+Затем обновите SciPy и повторите запуск обучения:
 
 ```bash
 python -m pip install --upgrade "scipy>=1.10"
+```
+
+Если ошибка остаётся, выполните принудительную переустановку:
+
+```bash
+python -m pip install --upgrade --force-reinstall "scipy>=1.10"
 ```
