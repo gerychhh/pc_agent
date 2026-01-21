@@ -23,6 +23,10 @@ nlu:
     "телеграмм": "telegram"
     "тг": "telegram"
     "браузер": "chrome"
+voice:
+  agent_name: "Агент"
+  voice_name: "Microsoft Dmitry"
+  startup_voice: true
 tts:
   enabled: false
   voice: male

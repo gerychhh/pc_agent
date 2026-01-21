@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import queue
+import subprocess
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -9,6 +10,7 @@ from tkinter import ttk
 import yaml
 
 from core.orchestrator import Orchestrator, sanitize_assistant_text
+from core.voice import VoiceInput
 from core.state import (
     get_voice_device,
     get_voice_engine,
@@ -42,6 +44,9 @@ class AgentUI:
         self._build_settings()
 
         self.root.after(100, self._poll_results)
+        self._load_voice_model()
+        if self.startup_voice_var.get():
+            self._test_voice()
 
     def _build_chat(self) -> None:
         self.chat_log = tk.Text(self.chat_frame, height=20, state=tk.DISABLED, wrap=tk.WORD)
@@ -61,8 +66,39 @@ class AgentUI:
         settings_title = ttk.Label(self.settings_frame, text="Voice input settings")
         settings_title.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
+        settings_note = ttk.Label(
+            self.settings_frame,
+            text=(
+                "Use these settings to avoid cutting off speech. "
+                "Recommendation: end silence 700–900ms and max utterance 12–15s "
+                "if your phrases are long."
+            ),
+            wraplength=420,
+        )
+        settings_note.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+
+        name_label = ttk.Label(self.settings_frame, text="Agent name")
+        name_label.grid(row=2, column=0, sticky=tk.W, pady=4)
+        self.agent_name_var = tk.StringVar(value=str(self.voice_config["voice"].get("agent_name", "Агент")))
+        name_entry = ttk.Entry(self.settings_frame, textvariable=self.agent_name_var, width=18)
+        name_entry.grid(row=2, column=1, sticky=tk.W, pady=4)
+
+        voice_name_label = ttk.Label(self.settings_frame, text="TTS voice name")
+        voice_name_label.grid(row=3, column=0, sticky=tk.W, pady=4)
+        self.voice_name_var = tk.StringVar(value=str(self.voice_config["voice"].get("voice_name", "Microsoft Dmitry")))
+        voice_name_entry = ttk.Entry(self.settings_frame, textvariable=self.voice_name_var, width=18)
+        voice_name_entry.grid(row=3, column=1, sticky=tk.W, pady=4)
+
+        self.startup_voice_var = tk.BooleanVar(value=bool(self.voice_config["voice"].get("startup_voice", True)))
+        startup_voice = ttk.Checkbutton(
+            self.settings_frame,
+            text="Play voice on startup",
+            variable=self.startup_voice_var,
+        )
+        startup_voice.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=4)
+
         engine_label = ttk.Label(self.settings_frame, text="Voice engine")
-        engine_label.grid(row=1, column=0, sticky=tk.W, pady=4)
+        engine_label.grid(row=5, column=0, sticky=tk.W, pady=4)
         self.engine_var = tk.StringVar(value=get_voice_engine() or "whisper")
         engine_box = ttk.Combobox(
             self.settings_frame,
@@ -71,79 +107,88 @@ class AgentUI:
             state="readonly",
             width=12,
         )
-        engine_box.grid(row=1, column=1, sticky=tk.W, pady=4)
+        engine_box.grid(row=5, column=1, sticky=tk.W, pady=4)
 
         size_label = ttk.Label(self.settings_frame, text="Model size")
-        size_label.grid(row=2, column=0, sticky=tk.W, pady=4)
+        size_label.grid(row=6, column=0, sticky=tk.W, pady=4)
         self.model_size_var = tk.StringVar(value=get_voice_model_size() or "small")
         size_entry = ttk.Entry(self.settings_frame, textvariable=self.model_size_var, width=12)
-        size_entry.grid(row=2, column=1, sticky=tk.W, pady=4)
+        size_entry.grid(row=6, column=1, sticky=tk.W, pady=4)
 
         device_label = ttk.Label(self.settings_frame, text="Voice device index")
-        device_label.grid(row=3, column=0, sticky=tk.W, pady=4)
+        device_label.grid(row=7, column=0, sticky=tk.W, pady=4)
         device_value = get_voice_device()
         self.device_var = tk.StringVar(value="" if device_value is None else str(device_value))
         device_entry = ttk.Entry(self.settings_frame, textvariable=self.device_var, width=12)
-        device_entry.grid(row=3, column=1, sticky=tk.W, pady=4)
+        device_entry.grid(row=7, column=1, sticky=tk.W, pady=4)
 
         audio_title = ttk.Label(self.settings_frame, text="Audio capture")
-        audio_title.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+        audio_title.grid(row=8, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
 
         self.sample_rate_var = tk.StringVar(value=str(self.voice_config["audio"].get("sample_rate", 16000)))
-        ttk.Label(self.settings_frame, text="Sample rate").grid(row=5, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.sample_rate_var, width=12).grid(row=5, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Sample rate").grid(row=9, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.sample_rate_var, width=12).grid(row=9, column=1, sticky=tk.W)
 
         self.chunk_ms_var = tk.StringVar(value=str(self.voice_config["audio"].get("chunk_ms", 20)))
-        ttk.Label(self.settings_frame, text="Chunk ms").grid(row=6, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.chunk_ms_var, width=12).grid(row=6, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Chunk ms").grid(row=10, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.chunk_ms_var, width=12).grid(row=10, column=1, sticky=tk.W)
 
         vad_title = ttk.Label(self.settings_frame, text="VAD (speech detection)")
-        vad_title.grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+        vad_title.grid(row=11, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
 
         self.vad_threshold_var = tk.StringVar(value=str(self.voice_config["vad"].get("threshold", 0.5)))
-        ttk.Label(self.settings_frame, text="Threshold").grid(row=8, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.vad_threshold_var, width=12).grid(row=8, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Threshold").grid(row=12, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.vad_threshold_var, width=12).grid(row=12, column=1, sticky=tk.W)
 
         self.min_speech_var = tk.StringVar(value=str(self.voice_config["vad"].get("min_speech_ms", 200)))
-        ttk.Label(self.settings_frame, text="Min speech ms").grid(row=9, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.min_speech_var, width=12).grid(row=9, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Min speech ms").grid(row=13, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.min_speech_var, width=12).grid(row=13, column=1, sticky=tk.W)
 
         self.end_silence_var = tk.StringVar(value=str(self.voice_config["vad"].get("end_silence_ms", 500)))
-        ttk.Label(self.settings_frame, text="End silence ms").grid(row=10, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.end_silence_var, width=12).grid(row=10, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="End silence ms").grid(row=14, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.end_silence_var, width=12).grid(row=14, column=1, sticky=tk.W)
 
         asr_title = ttk.Label(self.settings_frame, text="ASR (faster-whisper)")
-        asr_title.grid(row=11, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+        asr_title.grid(row=15, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
 
         self.asr_model_var = tk.StringVar(value=str(self.voice_config["asr"].get("model", "small")))
-        ttk.Label(self.settings_frame, text="Model").grid(row=12, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.asr_model_var, width=12).grid(row=12, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Model").grid(row=16, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.asr_model_var, width=12).grid(row=16, column=1, sticky=tk.W)
 
         self.asr_device_var = tk.StringVar(value=str(self.voice_config["asr"].get("device", "cuda")))
-        ttk.Label(self.settings_frame, text="Device").grid(row=13, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.asr_device_var, width=12).grid(row=13, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Device").grid(row=17, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.asr_device_var, width=12).grid(row=17, column=1, sticky=tk.W)
 
         self.compute_type_var = tk.StringVar(value=str(self.voice_config["asr"].get("compute_type", "float16")))
-        ttk.Label(self.settings_frame, text="Compute type").grid(row=14, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.compute_type_var, width=12).grid(row=14, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Compute type").grid(row=18, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.compute_type_var, width=12).grid(row=18, column=1, sticky=tk.W)
 
         self.beam_size_var = tk.StringVar(value=str(self.voice_config["asr"].get("beam_size", 2)))
-        ttk.Label(self.settings_frame, text="Beam size").grid(row=15, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.beam_size_var, width=12).grid(row=15, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Beam size").grid(row=19, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.beam_size_var, width=12).grid(row=19, column=1, sticky=tk.W)
 
         self.max_utterance_var = tk.StringVar(value=str(self.voice_config["asr"].get("max_utterance_s", 10)))
-        ttk.Label(self.settings_frame, text="Max utterance s").grid(row=16, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.max_utterance_var, width=12).grid(row=16, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Max utterance s").grid(row=20, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.max_utterance_var, width=12).grid(row=20, column=1, sticky=tk.W)
 
         self.partial_interval_var = tk.StringVar(value=str(self.voice_config["asr"].get("partial_interval_ms", 150)))
-        ttk.Label(self.settings_frame, text="Partial interval ms").grid(row=17, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.partial_interval_var, width=12).grid(row=17, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Partial interval ms").grid(row=21, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.partial_interval_var, width=12).grid(row=21, column=1, sticky=tk.W)
+
+        self.voice_status = ttk.Label(self.settings_frame, text="Voice model: not loaded")
+        self.voice_status.grid(row=22, column=0, columnspan=2, sticky=tk.W, pady=(8, 2))
+
+        load_button = ttk.Button(self.settings_frame, text="Load voice model", command=self._load_voice_model)
+        load_button.grid(row=23, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+
+        test_voice_button = ttk.Button(self.settings_frame, text="Test voice", command=self._test_voice)
+        test_voice_button.grid(row=24, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         save_button = ttk.Button(self.settings_frame, text="Save settings", command=self._save_settings)
-        save_button.grid(row=18, column=0, columnspan=2, sticky=tk.W, pady=8)
+        save_button.grid(row=25, column=0, columnspan=2, sticky=tk.W, pady=8)
 
         self.settings_status = ttk.Label(self.settings_frame, text="")
-        self.settings_status.grid(row=19, column=0, columnspan=2, sticky=tk.W)
+        self.settings_status.grid(row=26, column=0, columnspan=2, sticky=tk.W)
 
         self.settings_frame.columnconfigure(1, weight=1)
 
@@ -201,6 +246,9 @@ class AgentUI:
         self.voice_config["asr"]["beam_size"] = int(self.beam_size_var.get() or 2)
         self.voice_config["asr"]["max_utterance_s"] = int(self.max_utterance_var.get() or 10)
         self.voice_config["asr"]["partial_interval_ms"] = int(self.partial_interval_var.get() or 150)
+        self.voice_config["voice"]["agent_name"] = self.agent_name_var.get() or "Агент"
+        self.voice_config["voice"]["voice_name"] = self.voice_name_var.get() or "Microsoft Dmitry"
+        self.voice_config["voice"]["startup_voice"] = bool(self.startup_voice_var.get())
         self._save_voice_config(self.voice_config)
         self.settings_status.configure(text="Settings saved.")
 
@@ -213,6 +261,7 @@ class AgentUI:
             "audio": data.get("audio", {}),
             "vad": data.get("vad", {}),
             "asr": data.get("asr", {}),
+            "voice": data.get("voice", {}),
         }
 
     def _save_voice_config(self, config: dict[str, dict[str, object]]) -> None:
@@ -222,6 +271,41 @@ class AgentUI:
             existing = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
         existing.update(config)
         CONFIG_PATH.write_text(yaml.safe_dump(existing, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+    def _load_voice_model(self) -> None:
+        self.voice_status.configure(text="Voice model: loading...")
+
+        def worker() -> None:
+            try:
+                VoiceInput(
+                    device=get_voice_device(),
+                    engine=self.engine_var.get().strip().lower(),
+                    model_size=self.model_size_var.get().strip().lower(),
+                )
+            except Exception as exc:
+                self.voice_status.configure(text=f"Voice model: error ({exc})")
+            else:
+                self.voice_status.configure(text="Voice model: loaded")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _test_voice(self) -> None:
+        voice_name = self.voice_name_var.get().strip() or "Microsoft Dmitry"
+        text = "Голос активен."
+        command = (
+            "Add-Type -AssemblyName System.Speech; "
+            "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+            f"try {{ $synth.SelectVoice('{voice_name}') }} catch {{}}; "
+            "$synth.Rate = 2; "
+            "$synth.Volume = 100; "
+            f"$synth.Speak('{text}')"
+        )
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", command],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
     def run(self) -> None:
         self.root.mainloop()
