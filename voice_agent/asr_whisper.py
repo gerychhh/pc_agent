@@ -36,6 +36,7 @@ class FasterWhisperASR:
         self._last_partial: str = ""
         self._last_partial_emit = 0.0
         self._active = False
+        self._speech_start_ts: float | None = None
 
     def _load_model(self, device: str, compute_type: str) -> None:
         try:
@@ -89,29 +90,38 @@ class FasterWhisperASR:
         self._last_partial = ""
         self._last_partial_emit = 0.0
         self._active = False
+        self._speech_start_ts = None
 
     def speech_start(self) -> None:
         self.reset()
         self._active = True
+        self._speech_start_ts = time.monotonic()
 
     def speech_end(self, ts: float) -> None:
         if not self._active:
             return
-        text = self._transcribe(self._buffer)
-        if text:
-            self.bus.publish(Event("asr.final", {"text": text, "ts": ts}))
-        self.reset()
+        self._finalize(ts)
 
     def accept_audio(self, chunk: np.ndarray, ts: float) -> None:
         if not self._active:
             return
         self._buffer.append(chunk.copy())
+        if self._speech_start_ts and (ts - self._speech_start_ts) >= self.config.max_utterance_s:
+            self.logger.info("ASR max utterance reached, forcing final.")
+            self._finalize(ts)
+            return
         if self._should_emit_partial(ts):
             text = self._transcribe(self._buffer)
             if self._is_significant_partial(text):
                 self._last_partial = text
                 self._last_partial_emit = ts
                 self.bus.publish(Event("asr.partial", {"text": text, "ts": ts, "stability": 0.5}))
+
+    def _finalize(self, ts: float) -> None:
+        text = self._transcribe(self._buffer)
+        if text:
+            self.bus.publish(Event("asr.final", {"text": text, "ts": ts}))
+        self.reset()
 
     def _should_emit_partial(self, ts: float) -> bool:
         return (ts - self._last_partial_emit) * 1000.0 >= self.config.partial_interval_ms
