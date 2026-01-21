@@ -65,6 +65,9 @@ python scripts/wake_word_pipeline.py full \
 python -m openwakeword.train --training_config configs/training_config.yaml --train_model
 ```
 
+Если видите ошибку про `piper_sample_generator_path` с `NoneType`,
+оставьте `piper_sample_generator_path` пустой строкой в конфиге.
+
 Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
 `--training_config`, проверьте установленную версию openWakeWord в активном venv:
 

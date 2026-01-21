@@ -38,7 +38,7 @@ rir_paths: []
 custom_negative_phrases: []
 false_positive_validation_data_path: null
 feature_data_files: {}
-piper_sample_generator_path: null
+piper_sample_generator_path: ""
 
 # Аугментации
 augmentation_batch_size: 16
