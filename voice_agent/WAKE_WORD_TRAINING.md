@@ -68,6 +68,11 @@ python -m openwakeword.train --training_config configs/training_config.yaml --tr
 Если видите ошибку про `piper_sample_generator_path` с `NoneType`,
 оставьте `piper_sample_generator_path` пустой строкой в конфиге.
 
+Если появляется `ModuleNotFoundError: No module named 'generate_samples'`,
+значит `openwakeword.train` ожидает скрипт `generate_samples.py` из репозитория
+openWakeWord. Запустите обучение из их репозитория (или добавьте его в `PYTHONPATH`)
+и повторите команду.
+
 Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
 `--training_config`, проверьте установленную версию openWakeWord в активном venv:
 
