@@ -45,19 +45,18 @@ wake_word:
 2. Запустить обучение через вашу команду обучения openWakeWord.
 3. Прогнать быстрый тест модели на позитивных семплах.
 
-Пример:
+Пример (CLI с `--dataset`/`--output`, как вы используете):
 
 ```bash
 python scripts/wake_word_pipeline.py full \
   --positive-count 150 \
   --negative-count 300 \
-  --train-cmd "python -m openwakeword.train --training_config /path/to/your_training.yaml --train_model"
+  --train-cmd "python -m openwakeword.train --dataset data --output models/agent.onnx"
 ```
 
-> Примечание: модуль `openwakeword.train` требует `--training_config`. В репозитории
-> нет готового шаблона, поэтому создайте свой YAML-конфиг (см. документацию openWakeWord)
-> и укажите абсолютный или корректный относительный путь. Если путь неверный, будет
-> ошибка `FileNotFoundError`.
+> Примечание: разные версии openWakeWord используют разные аргументы CLI.
+> Если ваша версия требует `--training_config`, используйте соответствующий YAML-конфиг.
+> При неверном пути будет ошибка `FileNotFoundError`.
 
 ## Troubleshooting
 
