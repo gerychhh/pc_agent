@@ -21,6 +21,10 @@ cd C:\\gerychhh_\\pc_agent
 python scripts\\wake_word_console.py
 ```
 
+При запуске обучения через меню скрипт автоматически применяет
+`scripts\\patch_openwakeword_train.py`, чтобы обеспечить совместимость
+с `false_positive_validation_data_path` и новыми версиями piper-sample-generator.
+
 ## 2) Обучите модель в openWakeWord
 
 Используйте официальный инструментарий openWakeWord для обучения кастомного слова.
@@ -49,6 +53,7 @@ Get-Content .\\configs\\training_config.yaml
 Пример запуска обучения:
 
 ```bash
+python scripts/patch_openwakeword_train.py
 python -m openwakeword.train --training_config configs/training_config.yaml --generate_clips --overwrite --augment_clips --train_model
 ```
 

@@ -75,7 +75,17 @@ def collect_samples(output_dir: Path, label: str, settings: AudioSettings) -> No
     print(f"Saved {count} samples to {output_dir}")
 
 
-def train_model(training_config: Path) -> None:
+def apply_openwakeword_patch(patch_script: Path) -> None:
+    if not patch_script.exists():
+        print(f"Патч-скрипт не найден: {patch_script}")
+        return
+    print("Проверяю патч openWakeWord...")
+    subprocess.run(["python", str(patch_script)], check=False)
+
+
+def train_model(training_config: Path, patch_script: Path) -> None:
+    if _openwakeword_available():
+        apply_openwakeword_patch(patch_script)
     cmd = [
         "python",
         "-m",
@@ -146,6 +156,7 @@ def main() -> None:
     model_path = repo_root / "models" / "agent.onnx"
     doctor_script = repo_root / "scripts" / "doctor_openwakeword_train.ps1"
     voice_agent_dir = repo_root / "voice_agent"
+    patch_script = repo_root / "scripts" / "patch_openwakeword_train.py"
 
     settings = AudioSettings()
 
@@ -165,7 +176,7 @@ def main() -> None:
         elif choice == "2":
             collect_samples(data_root / "negative", "negative", settings)
         elif choice == "3":
-            train_model(training_config)
+            train_model(training_config, patch_script)
         elif choice == "4":
             test_model(model_path, data_root / "positive")
         elif choice == "5":
