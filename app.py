@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import subprocess
+import threading
+import time
+from dataclasses import dataclass
 
 import sounddevice as sd
 
@@ -58,6 +62,88 @@ Commands:
   /voice models        List voice recognition models
   /voice model <engine> <size>  Set voice model (vosk/whisper + small/full)
 """.strip()
+
+
+class InputManager:
+    def __init__(self, voice_enabled: bool) -> None:
+        self.text_queue: queue.Queue[str | None] = queue.Queue()
+        self.voice_queue: queue.Queue[dict[str, str]] = queue.Queue()
+        self._text_thread = threading.Thread(target=self._text_loop, daemon=True)
+        self._text_thread.start()
+        self._voice_thread: threading.Thread | None = None
+        self._voice_stop = threading.Event()
+        self.voice_enabled = False
+        self.voice_input: VoiceInput | None = None
+        self.set_voice_enabled(voice_enabled)
+
+    def _text_loop(self) -> None:
+        while True:
+            try:
+                line = input()
+            except (EOFError, KeyboardInterrupt):
+                self.text_queue.put(None)
+                break
+            self.text_queue.put(line)
+
+    def _init_voice_input(self) -> VoiceInput:
+        device_idx = get_voice_device()
+        engine = get_voice_engine() or VOICE_ENGINE
+        model_size = get_voice_model_size()
+        return VoiceInput(device=device_idx, engine=engine, model_size=model_size)
+
+    def _voice_loop(self) -> None:
+        while not self._voice_stop.is_set():
+            try:
+                if self.voice_input is None:
+                    self.voice_input = self._init_voice_input()
+                text = self.voice_input.listen_once()
+            except Exception as exc:
+                self.voice_queue.put({"type": "voice_error", "error": str(exc)})
+                time.sleep(0.2)
+                continue
+            if self._voice_stop.is_set():
+                break
+            if text:
+                self.voice_queue.put({"type": "voice", "text": text})
+
+    def set_voice_enabled(self, enabled: bool) -> None:
+        if enabled and not self.voice_enabled:
+            self._voice_stop.clear()
+            self.voice_enabled = True
+            self._voice_thread = threading.Thread(target=self._voice_loop, daemon=True)
+            self._voice_thread.start()
+        elif not enabled and self.voice_enabled:
+            self._voice_stop.set()
+            self.voice_enabled = False
+            self.voice_input = None
+            self._voice_thread = None
+
+    def reset_voice_input(self) -> None:
+        self.voice_input = None
+
+    def get_event(self, timeout: float = 0.1) -> dict[str, str] | None:
+        try:
+            event = self.voice_queue.get_nowait()
+            return event
+        except queue.Empty:
+            pass
+        try:
+            line = self.text_queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
+        if line is None:
+            return {"type": "eof"}
+        return {"type": "text", "text": line}
+
+
+@dataclass
+class PendingTask:
+    original_query: str
+    resolved_query: str
+    force_llm: bool
+    thread: threading.Thread
+    queue: queue.Queue[dict[str, str]]
+    cancel: threading.Event
 
 
 def list_screenshots() -> None:
@@ -123,7 +209,18 @@ def _parse_yes_no(text: str) -> bool | None:
 
 def _parse_cancel(text: str) -> bool:
     normalized = text.strip().lower()
-    return normalized in {"отмена", "откажись", "забудь", "не надо", "стоп"}
+    return normalized in {
+        "отмена",
+        "откажись",
+        "забудь",
+        "не надо",
+        "стоп",
+        "стопит",
+        "остановись",
+        "остановить",
+        "стой",
+        "хватит",
+    }
 
 
 def _resolve_request(user_text: str) -> tuple[str, bool]:
@@ -175,65 +272,8 @@ def _resolve_request(user_text: str) -> tuple[str, bool]:
     return user_text, force_llm
 
 
-def _prompt_text(prompt: str, voice_enabled: bool, voice_input: VoiceInput | None) -> str | None:
-    if voice_enabled and voice_input:
-        print(prompt, end="")
-        try:
-            speak_text(prompt.rstrip())
-        except Exception:
-            pass
-        return voice_input.listen_once()
-    return input(prompt).strip()
-
-
-def _confirm_request(
-    original_query: str,
-    resolved_query: str,
-    response: str,
-    orchestrator: Orchestrator,
-    voice_enabled: bool,
-    voice_input: VoiceInput | None,
-) -> None:
-    while True:
-        answer = _prompt_text("Я верно всё сделал? (да/нет)> ", voice_enabled, voice_input)
-        if answer is None:
-            print("Не расслышал, повтори.")
-            continue
-        answer = answer.strip()
-        verdict = _parse_yes_no(answer)
-        if verdict is None:
-            print("Ответь 'да' или 'нет'.")
-            continue
-        if verdict:
-            if resolved_query != original_query:
-                set_route(original_query, resolved_query)
-            record_history(original_query, response, resolved_query)
-            return
-        correction = _prompt_text(
-            "Что нужно было сделать? Опиши подробнее (или 'отмена')> ",
-            voice_enabled,
-            voice_input,
-        )
-        if correction is None:
-            print("Не расслышал, повтори.")
-            continue
-        correction = correction.strip()
-        if _parse_cancel(correction):
-            delete_route(original_query)
-            print("Команда забыта.")
-            return
-        if not correction:
-            print("Нужно описание корректного действия.")
-            continue
-        resolved_correction, force_llm = _resolve_request(correction)
-        set_route(original_query, resolved_correction)
-        response_text = orchestrator.run(resolved_correction, stateless=voice_enabled, force_llm=force_llm)
-        output = sanitize_assistant_text(response_text)
-        if not output:
-            output = "(no output)"
-        print(f"Agent> {output}")
-        response = output
-        resolved_query = resolved_correction
+def _format_prompt(text: str) -> str:
+    return text if text.endswith(" ") else f"{text} "
 
 
 def _extract_voice_command(text: str, wake_name: str | None) -> str | None:
@@ -326,67 +366,249 @@ def main() -> None:
     set_debug(os.getenv("PC_AGENT_DEBUG", "0") == "1")
     orchestrator = Orchestrator()
     voice_enabled = VOICE_DEFAULT_ENABLED
-    voice_input: VoiceInput | None = None
+    input_manager = InputManager(voice_enabled)
+    prompt_state = "command"
+    prompt_shown = False
+    prompt_spoken = False
+    pending_task: PendingTask | None = None
+    pending_confirmation: dict[str, str] | None = None
+    queued_command: str | None = None
+
+    def show_prompt(text: str, speak: bool = False) -> None:
+        nonlocal prompt_shown, prompt_spoken
+        print(_format_prompt(text), end="", flush=True)
+        prompt_shown = True
+        if speak and voice_enabled and not prompt_spoken:
+            try:
+                speak_text(text.rstrip())
+            except Exception:
+                pass
+            prompt_spoken = True
+
+    def start_task(original_query: str, resolved_query: str, force_llm: bool) -> None:
+        nonlocal pending_task
+        result_queue: queue.Queue[dict[str, str]] = queue.Queue()
+        cancel_event = threading.Event()
+
+        def runner() -> None:
+            try:
+                response_text = orchestrator.run(resolved_query, stateless=voice_enabled, force_llm=force_llm)
+                result_queue.put({"type": "result", "response": response_text})
+            except Exception as exc:
+                result_queue.put({"type": "error", "error": str(exc)})
+
+        thread = threading.Thread(target=runner, daemon=True)
+        pending_task = PendingTask(
+            original_query=original_query,
+            resolved_query=resolved_query,
+            force_llm=force_llm,
+            thread=thread,
+            queue=result_queue,
+            cancel=cancel_event,
+        )
+        thread.start()
 
     while True:
-        if voice_enabled:
+        if pending_task:
+            task_queue = pending_task.queue
             try:
-                if voice_input is None:
-                    device_idx = get_voice_device()
-                    engine = get_voice_engine() or VOICE_ENGINE
-                    model_size = get_voice_model_size()
-                    voice_input = VoiceInput(device=device_idx, engine=engine, model_size=model_size)
-                voice_text = voice_input.listen_once()
-            except (EOFError, KeyboardInterrupt):
-                print("\nExiting.")
-                break
-            except Exception as exc:
-                print(f"Voice error: {exc}")
-                voice_enabled = False
+                task_result = task_queue.get_nowait()
+            except queue.Empty:
+                task_result = None
+            if task_result:
+                if pending_task.cancel.is_set():
+                    pending_task = None
+                    prompt_state = "command"
+                    prompt_shown = False
+                    prompt_spoken = False
+                else:
+                    if task_result["type"] == "error":
+                        output = task_result["error"]
+                    else:
+                        output = sanitize_assistant_text(task_result["response"])
+                    if not output:
+                        output = "(no output)"
+                    print(f"Agent> {output}")
+                    if voice_enabled and _should_speak(output):
+                        try:
+                            speak_text(output)
+                        except Exception:
+                            pass
+                    pending_confirmation = {
+                        "original_query": pending_task.original_query,
+                        "resolved_query": pending_task.resolved_query,
+                        "response": output,
+                    }
+                    pending_task = None
+                    prompt_state = "confirm"
+                    prompt_shown = False
+                    prompt_spoken = False
                 continue
-            if not voice_text:
-                continue
-            if _is_garbage_voice(voice_text):
-                print("Не расслышал, повтори.")
-                continue
-            normalized = voice_text.strip().lower()
-            if normalized in {"стоп", "выключи голос", "stop"}:
-                voice_enabled = False
-                print("Voice mode disabled.")
-                continue
-            command = _extract_voice_command(voice_text, voice_wake_name)
-            if command is None:
-                continue
-            if not command:
-                print("Да, слушаю.")
-                if voice_enabled:
-                    try:
-                        speak_text("Да, слушаю.")
-                    except Exception:
-                        pass
-                continue
-            print(f"You(voice)> {command}")
-            user_input = command
+
+        if queued_command and not pending_task and prompt_state == "command":
+            user_input = queued_command
+            queued_command = None
         else:
-            try:
-                user_input = input("You> ").strip()
-            except (EOFError, KeyboardInterrupt):
+            if prompt_state == "command":
+                show_prompt("You>", speak=False)
+            elif prompt_state == "confirm":
+                show_prompt("Я верно всё сделал? (да/нет)>", speak=True)
+            elif prompt_state == "correction":
+                show_prompt("Что нужно было сделать? Опиши подробнее (или 'отмена')>", speak=True)
+
+            event = input_manager.get_event(timeout=0.1)
+            if event is None:
+                continue
+            if event["type"] == "eof":
                 print("\nExiting.")
                 break
+            if event["type"] == "voice_error":
+                print(f"Voice error: {event.get('error', '')}")
+                input_manager.set_voice_enabled(False)
+                voice_enabled = False
+                prompt_shown = False
+                prompt_spoken = False
+                continue
+            if event["type"] == "voice":
+                voice_text = event.get("text", "")
+                if _is_garbage_voice(voice_text):
+                    print("Не расслышал, повтори.")
+                    prompt_shown = False
+                    prompt_spoken = False
+                    continue
+                normalized = voice_text.strip().lower()
+                if normalized in {"выключи голос", "voice off"}:
+                    voice_enabled = False
+                    input_manager.set_voice_enabled(False)
+                    print("Voice mode disabled.")
+                    prompt_shown = False
+                    prompt_spoken = False
+                    continue
+                if prompt_state in {"confirm", "correction"} or _parse_cancel(voice_text):
+                    user_input = voice_text.strip()
+                    print(f"You(voice)> {user_input}")
+                else:
+                    command = _extract_voice_command(voice_text, voice_wake_name)
+                    if command is None:
+                        prompt_shown = False
+                        prompt_spoken = False
+                        continue
+                    if not command:
+                        if pending_task:
+                            pending_task.cancel.set()
+                            pending_task = None
+                        print("Да, слушаю.")
+                        if voice_enabled:
+                            try:
+                                speak_text("Да, слушаю.")
+                            except Exception:
+                                pass
+                        prompt_shown = False
+                        prompt_spoken = False
+                        continue
+                    print(f"You(voice)> {command}")
+                    user_input = command
+            else:
+                user_input = event.get("text", "").strip()
 
         if not user_input:
+            prompt_shown = False
+            prompt_spoken = False
             continue
+
         if _parse_cancel(user_input):
+            if pending_task:
+                pending_task.cancel.set()
+            pending_task = None
+            pending_confirmation = None
+            prompt_state = "command"
+            queued_command = None
             print("Остановлено.")
             if voice_enabled:
                 try:
                     speak_text("Остановлено.")
                 except Exception:
                     pass
+            prompt_shown = False
+            prompt_spoken = False
+            continue
+
+        if pending_task:
+            queued_command = user_input
+            pending_task.cancel.set()
+            print("Остановлено.")
+            if voice_enabled:
+                try:
+                    speak_text("Остановлено.")
+                except Exception:
+                    pass
+            prompt_shown = False
+            prompt_spoken = False
+            continue
+
+        if prompt_state == "confirm":
+            verdict = _parse_yes_no(user_input)
+            if verdict is None:
+                print("Ответь 'да' или 'нет'.")
+                prompt_shown = False
+                prompt_spoken = False
+                continue
+            if verdict:
+                if pending_confirmation:
+                    original_query = pending_confirmation["original_query"]
+                    resolved_query = pending_confirmation["resolved_query"]
+                    response = pending_confirmation["response"]
+                    if resolved_query != original_query:
+                        set_route(original_query, resolved_query)
+                    record_history(original_query, response, resolved_query)
+                pending_confirmation = None
+                prompt_state = "command"
+                prompt_shown = False
+                prompt_spoken = False
+                continue
+            prompt_state = "correction"
+            prompt_shown = False
+            prompt_spoken = False
+            continue
+
+        if prompt_state == "correction":
+            correction = user_input.strip()
+            if _parse_cancel(correction):
+                if pending_confirmation:
+                    delete_route(pending_confirmation["original_query"])
+                print("Команда забыта.")
+                pending_confirmation = None
+                prompt_state = "command"
+                prompt_shown = False
+                prompt_spoken = False
+                continue
+            if not correction:
+                print("Нужно описание корректного действия.")
+                prompt_shown = False
+                prompt_spoken = False
+                continue
+            if not pending_confirmation:
+                prompt_state = "command"
+                prompt_shown = False
+                prompt_spoken = False
+                continue
+            if voice_enabled:
+                try:
+                    speak_text("Думаю над новой задачей.")
+                except Exception:
+                    pass
+            resolved_correction, force_llm = _resolve_request(correction)
+            set_route(pending_confirmation["original_query"], resolved_correction)
+            start_task(pending_confirmation["original_query"], resolved_correction, force_llm)
+            prompt_state = "command"
+            prompt_shown = False
+            prompt_spoken = False
             continue
 
         if user_input == "/help":
             print(HELP_TEXT)
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/exit":
             print("Goodbye.")
@@ -394,9 +616,13 @@ def main() -> None:
         if user_input == "/reset":
             orchestrator.reset()
             print("Context reset.")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input.startswith("/debug"):
             _handle_debug_command(user_input)
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/active":
             active_file = get_active_file()
@@ -405,23 +631,33 @@ def main() -> None:
             print(f"Active file: {active_file or '(none)'}")
             print(f"Active url: {active_url or '(none)'}")
             print(f"Active app: {active_app or '(none)'}")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/files":
             state = load_state()
             _print_recent("files", state.get("recent_files", []))
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/urls":
             state = load_state()
             _print_recent("urls", state.get("recent_urls", []))
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/apps":
             state = load_state()
             _print_recent("apps", state.get("recent_apps", []))
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input.startswith("/use"):
             raw = user_input[len("/use") :].strip()
             if not raw:
                 print("Usage: /use <number|path>")
+                prompt_shown = False
+                prompt_spoken = False
                 continue
             if raw.isdigit():
                 state = load_state()
@@ -429,20 +665,30 @@ def main() -> None:
                 recent_files = state.get("recent_files", [])
                 if index < 1 or index > len(recent_files):
                     print("Invalid file number.")
+                    prompt_shown = False
+                    prompt_spoken = False
                     continue
                 selected = recent_files[index - 1]
                 set_active_file(selected)
                 print(f"Active file set: {selected}")
+                prompt_shown = False
+                prompt_spoken = False
                 continue
             set_active_file(raw)
             print(f"Active file set: {raw}")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/clear":
             clear_state()
             print("State cleared.")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/screens":
             list_screenshots()
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/voice devices":
             try:
@@ -455,51 +701,71 @@ def main() -> None:
                     print(f"  {i}: {name} (in={ins}, out={outs})")
             except Exception as exc:
                 print(f"Cannot query devices: {exc}")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input.startswith("/voice device"):
             parts = user_input.split()
             if len(parts) != 3 or not parts[2].isdigit():
                 print("Usage: /voice device <index>")
+                prompt_shown = False
+                prompt_spoken = False
                 continue
             set_voice_device(int(parts[2]))
-            voice_input = None
+            input_manager.reset_voice_input()
             print(f"Voice input device set to {parts[2]} (re-init).")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input == "/voice models":
             print("Voice recognition models:")
             print("  vosk: small | full (uses local models folder)")
             print("  whisper: small | full (maps to base)")
             print("Use: /voice model <engine> <size>")
+            prompt_shown = False
+            prompt_spoken = False
             continue
         if user_input.startswith("/voice model"):
             parts = user_input.split()
             if len(parts) != 4:
                 print("Usage: /voice model <engine> <size>")
+                prompt_shown = False
+                prompt_spoken = False
                 continue
             engine = parts[2].lower()
             size = parts[3].lower()
             if engine not in {"vosk", "whisper"}:
                 print("Engine must be 'vosk' or 'whisper'.")
+                prompt_shown = False
+                prompt_spoken = False
                 continue
             if size not in {"small", "full", "base", "medium", "large"}:
                 print("Size must be small/full (or base/medium/large for whisper).")
+                prompt_shown = False
+                prompt_spoken = False
                 continue
             normalized_size = "full" if size in {"full"} else size
             set_voice_engine(engine)
             set_voice_model_size(normalized_size)
-            voice_input = None
+            input_manager.reset_voice_input()
             print(f"Voice model set: engine={engine}, size={normalized_size} (re-init).")
+            prompt_shown = False
+            prompt_spoken = False
             continue
 
         if user_input.startswith("/voice"):
             if user_input == "/voice" or user_input.endswith("on"):
                 voice_enabled = True
+                input_manager.set_voice_enabled(True)
                 print("Voice mode enabled.")
             elif user_input.endswith("off"):
                 voice_enabled = False
+                input_manager.set_voice_enabled(False)
                 print("Voice mode disabled.")
             else:
                 print("Usage: /voice [on|off]")
+            prompt_shown = False
+            prompt_spoken = False
             continue
 
         original_query = user_input
@@ -512,17 +778,9 @@ def main() -> None:
                 except Exception:
                     pass
             resolved_query, force_llm = _resolve_request(user_input)
-        response = orchestrator.run(resolved_query, stateless=voice_enabled, force_llm=force_llm)
-        output = sanitize_assistant_text(response)
-        if not output:
-            output = "(no output)"
-        print(f"Agent> {output}")
-        if voice_enabled and _should_speak(output):
-            try:
-                speak_text(output)
-            except Exception:
-                pass
-        _confirm_request(original_query, resolved_query, output, orchestrator, voice_enabled, voice_input)
+        start_task(original_query, resolved_query, force_llm)
+        prompt_shown = False
+        prompt_spoken = False
 
 
 if __name__ == "__main__":
