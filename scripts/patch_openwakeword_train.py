@@ -15,6 +15,7 @@ def _write_text(path: Path, text: str) -> None:
 def _patch_train_py(train_py: Path) -> bool:
     original = _load_text(train_py)
     normalized = original.replace("\r\n", "\n")
+    changed = False
 
     old_val_block = (
         "        X_val_fp = np.load(config[\"false_positive_validation_data_path\"])\n"
@@ -72,19 +73,53 @@ def _patch_train_py(train_py: Path) -> bool:
     )
 
     if new_val_block in normalized and new_train_block in normalized:
-        return False
+        pass
+    else:
+        if old_val_block not in normalized or old_train_block not in normalized:
+            raise ValueError(
+                "Не удалось найти ожидаемые блоки в openwakeword/train.py. "
+                "Проверьте версию пакета и обновите патч при необходимости."
+            )
 
-    if old_val_block not in normalized or old_train_block not in normalized:
-        raise ValueError(
-            "Не удалось найти ожидаемые блоки в openwakeword/train.py. "
-            "Проверьте версию пакета и обновите патч при необходимости."
-        )
+        normalized = normalized.replace(old_val_block, new_val_block)
+        normalized = normalized.replace(old_train_block, new_train_block)
+        changed = True
 
-    patched = normalized.replace(old_val_block, new_val_block)
-    patched = patched.replace(old_train_block, new_train_block)
+    old_generate_import = "    from generate_samples import generate_samples\n"
+    new_generate_import = (
+        "    from generate_samples import generate_samples\n"
+        "    import inspect\n"
+        "\n"
+        "    def _call_generate_samples(**kwargs):\n"
+        "        sig = inspect.signature(generate_samples)\n"
+        "        if \"model\" in sig.parameters:\n"
+        "            model_value = kwargs.get(\"model\") or config.get(\"piper_model_path\")\n"
+        "            if model_value:\n"
+        "                kwargs[\"model\"] = model_value\n"
+        "            else:\n"
+        "                raise ValueError(\n"
+        "                    \"Missing piper_model_path in training_config.yaml for this version \"\n"
+        "                    \"of piper-sample-generator.\"\n"
+        "                )\n"
+        "        else:\n"
+        "            kwargs.pop(\"model\", None)\n"
+        "        return generate_samples(**kwargs)\n"
+        "\n"
+    )
 
-    _write_text(train_py, patched)
-    return True
+    if "_call_generate_samples" not in normalized:
+        if old_generate_import not in normalized:
+            raise ValueError(
+                "Не удалось найти импорт generate_samples в openwakeword/train.py. "
+                "Проверьте версию пакета и обновите патч при необходимости."
+            )
+        normalized = normalized.replace(old_generate_import, new_generate_import)
+        normalized = normalized.replace("generate_samples(", "_call_generate_samples(")
+        changed = True
+
+    if changed:
+        _write_text(train_py, normalized)
+    return changed
 
 
 def main() -> None:

@@ -142,6 +142,14 @@ if ($owwLocation) {
                 "python .\\scripts\\patch_openwakeword_train.py"
             )
         }
+
+        if ($trainText -match "_call_generate_samples") {
+            Write-Ok "train.py has generate_samples compatibility wrapper"
+        } else {
+            Write-Warn "train.py missing generate_samples wrapper (may fail on new piper-sample-generator)" @(
+                "python .\\scripts\\patch_openwakeword_train.py"
+            )
+        }
     }
 } else {
     Write-Fail "Patch check skipped (openwakeword not installed)" @(
@@ -223,6 +231,22 @@ if ($outputDir -and $modelName) {
     } else {
         Write-Warn "positive_test folder missing" @(
             "Run: python -m openwakeword.train --training_config configs\\training_config.yaml --generate_clips"
+        )
+    }
+}
+
+# i) piper_model_path hint (required for newer piper-sample-generator)
+$piperModelPath = Get-ConfigValue -path $configPath -key "piper_model_path"
+if (-not $piperModelPath) {
+    Write-Warn "piper_model_path is empty (needed if generate_samples requires a model)" @(
+        "Set piper_model_path in configs\\training_config.yaml when using new piper-sample-generator"
+    )
+} else {
+    if (Test-Path $piperModelPath) {
+        Write-Ok "piper_model_path exists: $piperModelPath"
+    } else {
+        Write-Warn "piper_model_path not found: $piperModelPath" @(
+            "Fix piper_model_path in configs\\training_config.yaml"
         )
     }
 }

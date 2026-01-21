@@ -4,6 +4,8 @@
 # Путь к piper sample generator (репозиторий openWakeWord ожидает generate_samples.py).
 # Обычно это каталог piper-sample-generator в репозитории openWakeWord training tools.
 piper_sample_generator_path: "external\\piper-sample-generator"
+# Если ваш piper-sample-generator требует параметр model, укажите путь к .onnx модели:
+piper_model_path: null
 
 # Таргетная фраза (можно несколько).
 target_phrase:
