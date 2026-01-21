@@ -58,6 +58,20 @@ python scripts/wake_word_pipeline.py full \
 > Если ваша версия требует `--training_config`, используйте соответствующий YAML-конфиг.
 > При неверном пути будет ошибка `FileNotFoundError`.
 
+Если вы запускаете `--dataset/--output`, но получаете ошибку про обязательный
+`--training_config`, проверьте установленную версию openWakeWord в активном venv:
+
+```bash
+python -c "import openwakeword; print(openwakeword.__version__, openwakeword.__file__)"
+python -m pip show openwakeword
+```
+
+В таком случае переустановите нужную версию (например, 0.6.0) и повторите запуск:
+
+```bash
+python -m pip install --force-reinstall "openwakeword==0.6.0"
+```
+
 ## Troubleshooting
 
 ### `ImportError: cannot import name 'sph_harm' from 'scipy.special'`
