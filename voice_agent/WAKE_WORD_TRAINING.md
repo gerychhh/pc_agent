@@ -51,8 +51,11 @@ wake_word:
 python scripts/wake_word_pipeline.py full \
   --positive-count 150 \
   --negative-count 300 \
-  --train-cmd "python -m openwakeword.train --dataset data --output models/agent.onnx"
+  --train-cmd "python -m openwakeword.train --training_config configs/your_training.yaml --train_model"
 ```
+
+> Примечание: модуль `openwakeword.train` требует `--training_config`. Подготовьте свой
+> конфиг (см. документацию openWakeWord) и укажите путь к нему.
 
 ## Troubleshooting
 
