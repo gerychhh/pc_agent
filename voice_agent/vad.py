@@ -31,6 +31,8 @@ class SileroVAD:
         self._speaking = False
         self._speech_started_at: float | None = None
         self._last_voice_at: float | None = None
+        self._audio_buffer = np.zeros(0, dtype=np.float32)
+        self._min_samples = int(self.config.sample_rate / 31.25)
 
     def process_chunk(self, chunk: np.ndarray, ts: float) -> None:
         if chunk.size == 0:
@@ -38,20 +40,24 @@ class SileroVAD:
         audio = chunk.astype(np.float32) / 32768.0
         if audio.ndim > 1:
             audio = audio[:, 0]
-        audio_tensor = torch.from_numpy(audio).to(self.device)
-        with torch.no_grad():
-            prob = self._model(audio_tensor, self.config.sample_rate).item()
-        if prob >= self.config.threshold:
-            self._last_voice_at = ts
-            if not self._speaking:
-                self._speech_started_at = ts
-                self._speaking = True
-                self.bus.publish(Event("vad.speech_start", {"ts": ts}))
-        else:
-            if self._speaking and self._last_voice_at is not None:
-                silence_ms = (ts - self._last_voice_at) * 1000.0
-                speech_ms = (ts - (self._speech_started_at or ts)) * 1000.0
-                if silence_ms >= self.config.end_silence_ms and speech_ms >= self.config.min_speech_ms:
-                    self._speaking = False
-                    self._speech_started_at = None
-                    self.bus.publish(Event("vad.speech_end", {"ts": ts}))
+        self._audio_buffer = np.concatenate([self._audio_buffer, audio])
+        while self._audio_buffer.size >= self._min_samples:
+            frame = self._audio_buffer[: self._min_samples]
+            self._audio_buffer = self._audio_buffer[self._min_samples :]
+            audio_tensor = torch.from_numpy(frame).to(self.device)
+            with torch.no_grad():
+                prob = self._model(audio_tensor, self.config.sample_rate).item()
+            if prob >= self.config.threshold:
+                self._last_voice_at = ts
+                if not self._speaking:
+                    self._speech_started_at = ts
+                    self._speaking = True
+                    self.bus.publish(Event("vad.speech_start", {"ts": ts}))
+            else:
+                if self._speaking and self._last_voice_at is not None:
+                    silence_ms = (ts - self._last_voice_at) * 1000.0
+                    speech_ms = (ts - (self._speech_started_at or ts)) * 1000.0
+                    if silence_ms >= self.config.end_silence_ms and speech_ms >= self.config.min_speech_ms:
+                        self._speaking = False
+                        self._speech_started_at = None
+                        self.bus.publish(Event("vad.speech_end", {"ts": ts}))
