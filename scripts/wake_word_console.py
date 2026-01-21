@@ -6,11 +6,6 @@ from pathlib import Path
 from wake_word_pipeline import AudioSettings, collect_samples, test_model, train_model
 
 
-def _prompt_path(label: str, default: Path) -> Path:
-    raw = input(f"{label} [{default}]: ").strip()
-    return Path(raw) if raw else default
-
-
 def _prompt_int(label: str, default: int) -> int:
     raw = input(f"{label} [{default}]: ").strip()
     return int(raw) if raw else default
@@ -64,24 +59,20 @@ def main() -> None:
             count = _prompt_int("Количество позитивных примеров", 150)
             duration = _prompt_float("Длительность, сек", 1.2)
             prompt = _prompt_text("Подсказка", "Произнесите ключевую фразу.")
-            output_dir = _prompt_path("Папка для сохранения", data_root / "positive")
-            collect_samples(output_dir, "positive", count, duration, settings, prompt)
+            collect_samples(data_root / "positive", "positive", count, duration, settings, prompt)
             continue
 
         if choice == "2":
             count = _prompt_int("Количество негативных примеров", 300)
             duration = _prompt_float("Длительность, сек", 1.2)
             prompt = _prompt_text("Подсказка", "Говорите обычные слова или тишина.")
-            output_dir = _prompt_path("Папка для сохранения", data_root / "negative")
-            collect_samples(output_dir, "negative", count, duration, settings, prompt)
+            collect_samples(data_root / "negative", "negative", count, duration, settings, prompt)
             continue
 
         if choice == "3":
-            dataset = _prompt_path("Папка с датасетом", data_root)
-            output = _prompt_path("Путь для модели", model_path)
             train_cmd = _prompt_train_cmd(default_train_cmd)
             if train_cmd is None:
-                train_model(dataset, output, train_cmd)
+                train_model(data_root, model_path, train_cmd)
                 continue
             exit_code = _run_train_cmd(train_cmd)
             if exit_code != 0:
@@ -89,9 +80,7 @@ def main() -> None:
             continue
 
         if choice == "4":
-            model = _prompt_path("Путь к модели", model_path)
-            samples = _prompt_path("Папка с тестовыми wav", data_root / "positive")
-            test_model(model, samples, settings)
+            test_model(model_path, data_root / "positive", settings)
             continue
 
         if choice == "5":
