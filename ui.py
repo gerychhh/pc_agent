@@ -31,6 +31,7 @@ class AgentUI:
         self.root.title("PC Agent")
         self.orchestrator = Orchestrator()
         self.result_queue: queue.Queue[str] = queue.Queue()
+        self.ui_queue: queue.Queue[callable] = queue.Queue()
         self.voice_config = self._load_voice_config()
         self.voice_runtime: VoiceAgentRuntime | None = None
 
@@ -226,6 +227,12 @@ class AgentUI:
                 break
             self._append_chat(f"Agent: {result}")
             self._append_chat("Agent: Готово")
+        while True:
+            try:
+                task = self.ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            task()
         self.root.after(100, self._poll_results)
 
     def _save_settings(self) -> None:
@@ -279,13 +286,16 @@ class AgentUI:
 
     def _load_voice_model(self) -> None:
         self._set_label_safe(self.voice_status, "Модель голоса: загружается...")
+        engine = self.engine_var.get().strip().lower()
+        model_size = self.model_size_var.get().strip().lower()
+        device = get_voice_device()
 
         def worker() -> None:
             try:
                 VoiceInput(
-                    device=get_voice_device(),
-                    engine=self.engine_var.get().strip().lower(),
-                    model_size=self.model_size_var.get().strip().lower(),
+                    device=device,
+                    engine=engine,
+                    model_size=model_size,
                 )
             except Exception as exc:
                 self._set_label_safe(self.voice_status, f"Модель голоса: ошибка ({exc})")
@@ -335,7 +345,10 @@ class AgentUI:
         def apply() -> None:
             label.configure(text=text)
 
-        self.root.after(0, apply)
+        if threading.current_thread() is threading.main_thread():
+            apply()
+        else:
+            self.ui_queue.put(apply)
 
 
 def main() -> None:
