@@ -11,5 +11,6 @@ python-pptx
 pywin32
 pyyaml
 vosk
+openai-whisper
 sounddevice
 numpy

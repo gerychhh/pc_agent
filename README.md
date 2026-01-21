@@ -49,6 +49,12 @@ PC_AGENT_DEBUG=1 python app.py
 pip install vosk sounddevice numpy
 ```
 
+Для Whisper дополнительно:
+
+```bash
+pip install openai-whisper
+```
+
 Скачайте русскую модель Vosk:
 
 ```bash
@@ -73,6 +79,12 @@ VOICE=1 python app.py
 - Малая модель (`vosk-model-small-ru-0.22`) быстрее, но чаще ошибается на шуме.
 - Чтобы переключить размер, задайте `VOSK_MODEL_SIZE=full|small` или `VOSK_MODEL_DIR` для своего пути.
 - Убедитесь, что в комнате тихо и микрофон настроен на 16 kHz.
+
+### Переключение движка распознавания
+- По умолчанию используется Vosk.
+- Для Whisper задайте `VOICE_ENGINE=whisper` и `WHISPER_MODEL_SIZE=small|full` (full = base).
+- Для Vosk задайте `VOICE_ENGINE=vosk` и `VOSK_MODEL_SIZE=small|full`.
+- Можно сменить в рантайме: `/voice models` и `/voice model <engine> <size>`.
 
 ## Архитектура
 - **Command Library**: набор базовых команд с execute/verify (`core/command_library.yaml`, ключ `commands`).

@@ -15,6 +15,7 @@ from core.app_search_paths import (
 from core.config import (
     SCREENSHOT_DIR,
     VOICE_DEFAULT_ENABLED,
+    VOICE_ENGINE,
     VOICE_NAME,
     VOICE_RATE,
     VOICE_VOLUME,
@@ -27,9 +28,13 @@ from core.state import (
     get_active_app,
     get_active_file,
     get_active_url,
+    get_voice_engine,
+    get_voice_model_size,
     get_voice_device,
     load_state,
     set_active_file,
+    set_voice_engine,
+    set_voice_model_size,
     set_voice_device,
 )
 from core.interaction_memory import delete_route, find_similar_routes, get_route, record_history, set_route
@@ -50,6 +55,8 @@ Commands:
   /apps    List recent apps
   /use     Set active file by index or path
   /clear   Clear active state
+  /voice models        List voice recognition models
+  /voice model <engine> <size>  Set voice model (vosk/whisper + small/full)
 """.strip()
 
 
@@ -323,7 +330,9 @@ def main() -> None:
             try:
                 if voice_input is None:
                     device_idx = get_voice_device()
-                    voice_input = VoiceInput(device=device_idx)
+                    engine = get_voice_engine() or VOICE_ENGINE
+                    model_size = get_voice_model_size()
+                    voice_input = VoiceInput(device=device_idx, engine=engine, model_size=model_size)
                 voice_text = voice_input.listen_once()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting.")
@@ -439,6 +448,31 @@ def main() -> None:
             set_voice_device(int(parts[2]))
             voice_input = None
             print(f"Voice input device set to {parts[2]} (re-init).")
+            continue
+        if user_input == "/voice models":
+            print("Voice recognition models:")
+            print("  vosk: small | full (uses local models folder)")
+            print("  whisper: small | full (maps to base)")
+            print("Use: /voice model <engine> <size>")
+            continue
+        if user_input.startswith("/voice model"):
+            parts = user_input.split()
+            if len(parts) != 4:
+                print("Usage: /voice model <engine> <size>")
+                continue
+            engine = parts[2].lower()
+            size = parts[3].lower()
+            if engine not in {"vosk", "whisper"}:
+                print("Engine must be 'vosk' or 'whisper'.")
+                continue
+            if size not in {"small", "full", "base", "medium", "large"}:
+                print("Size must be small/full (or base/medium/large for whisper).")
+                continue
+            normalized_size = "full" if size in {"full"} else size
+            set_voice_engine(engine)
+            set_voice_model_size(normalized_size)
+            voice_input = None
+            print(f"Voice model set: engine={engine}, size={normalized_size} (re-init).")
             continue
 
         if user_input.startswith("/voice"):

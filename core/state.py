@@ -21,6 +21,8 @@ DEFAULT_STATE: dict[str, Any] = {
     "recent_urls": [],
     "recent_apps": [],
     "voice_device": None,
+    "voice_engine": None,
+    "voice_model_size": None,
 }
 
 
@@ -155,3 +157,27 @@ def get_voice_device() -> int | None:
     state = load_state()
     value = state.get("voice_device")
     return int(value) if isinstance(value, int) else None
+
+
+def set_voice_engine(engine: str | None) -> None:
+    state = load_state()
+    state["voice_engine"] = engine
+    save_state(state)
+
+
+def get_voice_engine() -> str | None:
+    state = load_state()
+    value = state.get("voice_engine")
+    return str(value) if value else None
+
+
+def set_voice_model_size(size: str | None) -> None:
+    state = load_state()
+    state["voice_model_size"] = size
+    save_state(state)
+
+
+def get_voice_model_size() -> str | None:
+    state = load_state()
+    value = state.get("voice_model_size")
+    return str(value) if value else None
