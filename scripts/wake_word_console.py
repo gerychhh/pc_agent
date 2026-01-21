@@ -98,7 +98,10 @@ def main() -> None:
                 config_path = Path("configs/training_config.yaml")
                 if not config_path.exists():
                     config_path = Path(_prompt_training_config())
-                train_cmd = f"python -m openwakeword.train --training_config {config_path} --train_model"
+                train_cmd = (
+                    "python -m openwakeword.train "
+                    f"--training_config {config_path} --generate_clips --train_model"
+                )
                 exit_code = _run_train_cmd(train_cmd)
             else:
                 train_cmd = _prompt_train_cmd(default_train_cmd)

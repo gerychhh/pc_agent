@@ -62,7 +62,7 @@ python scripts/wake_word_pipeline.py full \
 Его можно использовать так:
 
 ```bash
-python -m openwakeword.train --training_config configs/training_config.yaml --train_model
+python -m openwakeword.train --training_config configs/training_config.yaml --generate_clips --train_model
 ```
 
 В шаблоне `piper_sample_generator_path` указывает на `./scripts`, где лежит
