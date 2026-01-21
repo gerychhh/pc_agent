@@ -13,6 +13,7 @@ vosk
 openai-whisper
 faster-whisper
 torch
+torchaudio
 sounddevice
 numpy
 openwakeword
