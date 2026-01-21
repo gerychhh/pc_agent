@@ -106,6 +106,8 @@ class FasterWhisperASR:
         if not self._active:
             return
         self._buffer.append(chunk.copy())
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug("ASR buffer chunks=%d", len(self._buffer))
         if self._speech_start_ts and (ts - self._speech_start_ts) >= self.config.max_utterance_s:
             self.logger.info("ASR max utterance reached, forcing final.")
             self._finalize(ts)

@@ -34,6 +34,9 @@ class VoiceAgentRuntime:
         self.cfg = _load_config(self.config_path)
         logging.basicConfig(level=self.cfg.get("logging", {}).get("level", "info").upper())
         self.logger = logging.getLogger("voice_agent")
+        logging.getLogger("faster_whisper").setLevel(logging.WARNING)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
         self.bus = EventBus()
         self.state = State()
         self._thread: threading.Thread | None = None
@@ -123,7 +126,9 @@ class VoiceAgentRuntime:
 
     def _on_final(self, event: Event) -> None:
         text = event.payload["text"]
+        normalized = self.intent.normalize(text)
         self.logger.info("ASR final: %s", text)
+        self.logger.info("ASR normalized: %s", normalized)
         self.state.name = "FINALIZING"
         recognized = self.intent.recognize(text)
         if recognized:
@@ -132,7 +137,7 @@ class VoiceAgentRuntime:
             self.logger.info("Action: %s", result.message)
             self.tts.speak("Готово")
         else:
-            self.logger.info("Intent: not understood")
+            self.logger.info("Intent: not understood (normalized=%s)", normalized)
         self.state.name = "IDLE"
 
     def start(self) -> None:
