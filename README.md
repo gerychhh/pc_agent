@@ -25,6 +25,10 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+> ⚠️ **Python 3.13 пока не поддерживается большинством аудио-библиотек (torch/torchaudio).**
+> Если вы видите ошибки вроде `AttributeError: module 'torchaudio' has no attribute 'list_audio_backends'`,
+> используйте Python 3.10–3.12 и установите совместимые версии `torch`/`torchaudio`.
+
 ## Запуск
 
 ```bash
@@ -47,6 +51,22 @@ PC_AGENT_DEBUG=1 python app.py
 
 ```bash
 pip install vosk sounddevice numpy
+```
+
+Если используете Whisper/VAD и появляется ошибка `torchaudio`:
+
+1. Установите Python 3.10–3.12 (не 3.13).
+2. Переустановите `torch` и `torchaudio` под вашу версию Python и CUDA, используя
+   инструкции на https://pytorch.org/get-started/locally/.
+3. Проверьте установку:
+
+```bash
+python - <<'PY'
+import torch, torchaudio
+print(torch.__version__)
+print(torchaudio.__version__)
+print(hasattr(torchaudio, "list_audio_backends"))
+PY
 ```
 
 Для Whisper дополнительно:
