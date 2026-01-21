@@ -51,11 +51,13 @@ wake_word:
 python scripts/wake_word_pipeline.py full \
   --positive-count 150 \
   --negative-count 300 \
-  --train-cmd "python -m openwakeword.train --training_config configs/your_training.yaml --train_model"
+  --train-cmd "python -m openwakeword.train --training_config /path/to/your_training.yaml --train_model"
 ```
 
-> Примечание: модуль `openwakeword.train` требует `--training_config`. Подготовьте свой
-> конфиг (см. документацию openWakeWord) и укажите путь к нему.
+> Примечание: модуль `openwakeword.train` требует `--training_config`. В репозитории
+> нет готового шаблона, поэтому создайте свой YAML-конфиг (см. документацию openWakeWord)
+> и укажите абсолютный или корректный относительный путь. Если путь неверный, будет
+> ошибка `FileNotFoundError`.
 
 ## Troubleshooting
 
