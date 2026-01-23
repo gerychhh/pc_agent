@@ -1,1 +1,0 @@
-﻿$processes = Get-Process; $output = ($processes | Format-Table Id, ProcessName, CPU -AutoSize | Out-String); Write-Host "Active processes:"; Write-Output $output

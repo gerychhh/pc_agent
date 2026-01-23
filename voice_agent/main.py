@@ -46,6 +46,9 @@ class VoiceAgentRuntime:
         logging.getLogger("faster_whisper").setLevel(logging.WARNING)
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
+        # torchaudio/torio может пытаться загрузить FFmpeg-расширения и спамить трейсами в DEBUG
+        logging.getLogger("torio").setLevel(logging.ERROR)
+        logging.getLogger("torchaudio").setLevel(logging.ERROR)
         self.bus = EventBus()
         self.state = State()
         self._thread: threading.Thread | None = None
@@ -61,6 +64,14 @@ class VoiceAgentRuntime:
         tts_cfg = self.cfg.get("tts", {})
         nlu_cfg = self.cfg.get("nlu", {})
         wake_cfg = self.cfg.get("wake_word", {})
+
+        # ✅ Единый источник истины для длины окна анализа wake-word
+        # total_sec хранится в config.yaml (как в тренировке/тестах),
+        # а детектору нужен window_ms.
+        wake_total_sec = float(wake_cfg.get("total_sec", 2.0))
+        wake_window_ms = int(wake_total_sec * 1000.0)
+        # если кто-то хочет задавать window_ms напрямую — поддержим и это
+        wake_window_ms = int(wake_cfg.get("window_ms", wake_window_ms))
 
         self.audio = AudioCapture(
             AudioConfig(
@@ -85,6 +96,8 @@ class VoiceAgentRuntime:
                 inference_framework=wake_cfg.get("inference_framework", "onnx"),
                 vad_threshold=wake_cfg.get("vad_threshold", 0.0),
                 base_path=self.config_path.parent,
+                preroll_ms=wake_cfg.get("preroll_ms", 450),
+                window_ms=wake_window_ms,
             ),
             self.bus,
         )
@@ -194,11 +207,21 @@ class VoiceAgentRuntime:
                 self.logger.info("Intent: not understood (normalized=%s)", normalized)
         self.state.name = "IDLE"
 
-    def _on_wake_word(self, _event: Event) -> None:
+    def _on_wake_word(self, event: Event) -> None:
         if self.state.name != "IDLE":
             return
+
         self.logger.info("Wake-word detected")
         self.state.name = "ARMED"
+
+        # ✅ ЗАБИРАЕМ pre-roll (кусок до wake)
+        preroll = self.wake_word.take_preroll()
+
+        # ✅ И СРАЗУ КИДАЕМ ЕГО В VAD + ASR, чтобы не терять начало команды
+        if preroll is not None and len(preroll) > 0:
+            ts = event.payload.get("ts", time.time())
+            self.vad.process_chunk(preroll, ts)
+            self.asr.accept_audio(preroll, ts)
 
     def start(self) -> None:
         if self._running.is_set():

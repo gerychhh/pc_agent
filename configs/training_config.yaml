@@ -1,54 +1,37 @@
-# Конфиг обучения openWakeWord.
-# Перед запуском убедитесь, что пути существуют и заполнены вашими данными.
+# Чтобы openwakeword.train не падал на импорте generate_samples
+piper_sample_generator_path: "external/piper-sample-generator"
+piper_model_path: ""   # не используется без --generate_clips
 
-# Путь к piper sample generator (репозиторий openWakeWord ожидает generate_samples.py).
-# Обычно это каталог piper-sample-generator в репозитории openWakeWord training tools.
-piper_sample_generator_path: "external\\piper-sample-generator"
-# Если ваш piper-sample-generator требует параметр model, укажите путь к .onnx модели:
-piper_model_path: null
-
-# Таргетная фраза (можно несколько).
 target_phrase:
-  - "агент"
+  - "Бивис"
 
-# Дополнительные негативные фразы (опционально).
 custom_negative_phrases: []
 
-# Директории с импульсными характеристиками (RIR) и фоновыми шумами.
-# Внутри каждой директории должны быть аудиофайлы.
+# Пути должны существовать, даже если пустые
 rir_paths:
-  - "data\\negative"
+  - "data/rir"
 background_paths:
-  - "data\\negative"
-# Если нужно увеличить долю определённых фоновых папок.
+  - "data/background"
 background_paths_duplication_rate:
   - 1
 
-# Количество синтетических сэмплов.
-n_samples: 200
-n_samples_val: 50
+# Эти поля можно оставить как есть
+n_samples: 0
+n_samples_val: 0
+tts_batch_size: 1
 
-# Параметры синтеза и аугментаций.
-tts_batch_size: 24
-augmentation_batch_size: 32
+augmentation_batch_size: 16
 augmentation_rounds: 1
 
-# Модель и вывод.
 model_name: "agent"
 output_dir: "models"
 model_type: "dnn"
 layer_size: 128
 
-# Параметры обучения.
 steps: 2000
-batch_n_per_class: 32
+batch_n_per_class: 16
 max_negative_weight: 3.0
-# Целевой уровень FP в час (если используется FP-validation).
 target_false_positives_per_hour: 0.2
 
-# Дополнительные негативные фичи (опционально).
-# Можно оставить пустым словарём, если используете только генерацию данных.
 feature_data_files: {}
-
-# Опциональный путь к FP-validation датасету (оставьте null, если его нет).
 false_positive_validation_data_path: null

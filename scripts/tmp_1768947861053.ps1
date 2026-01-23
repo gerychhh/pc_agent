@@ -1,1 +1,0 @@
-﻿$process = Start-Process -FilePath 'winword.exe' -Wait; $null
