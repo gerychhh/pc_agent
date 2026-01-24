@@ -102,13 +102,13 @@ def load_train_settings_from_config() -> dict:
         "total_sec": float(ww.get("total_sec", DEFAULT_TOTAL_SEC)),
 
         "mode": str(tr.get("mode", "split")),  # split/full (legacy)
-        "epochs": int(tr.get("epochs", 250)),
-        "batch": int(tr.get("batch", 256)),
+        "epochs": int(tr.get("epochs", 200)),
+        "batch": int(tr.get("batch", 128)),
         "lr": float(tr.get("lr", 5e-4)),
         "wd": float(tr.get("wd", 1e-4)),
         "patience": int(tr.get("patience", 25)),
         "rounds": int(tr.get("rounds", 3)),
-        "mine_thr": float(tr.get("mine_thr", 0.90)),
+        "mine_thr": float(tr.get("mine_thr", 0.75)),
         "max_copy_neg": int(tr.get("max_copy_neg", 800)),
         "max_copy_pos": int(tr.get("max_copy_pos", 200)),
         "layer": int(tr.get("layer", 128)),
@@ -116,7 +116,7 @@ def load_train_settings_from_config() -> dict:
         "model_device": str(tr.get("model_device", "cuda")),
 
         # Анти-FP параметры
-        "neg_weight": float(tr.get("neg_weight", 4.0)),  # штраф NEG сильнее
+        "neg_weight": float(tr.get("neg_weight", 6.0)),  # штраф NEG сильнее
         "pos_weight": float(tr.get("pos_weight", 1.0)),  # POS без усиления
         "fpr_penalty": float(tr.get("fpr_penalty", 3.0)),  # подбор thr с жёстким штрафом FPR
 
@@ -137,13 +137,13 @@ def save_train_settings_to_config(settings: dict) -> None:
     cfg["wake_word"]["total_sec"] = float(settings.get("total_sec", DEFAULT_TOTAL_SEC))
 
     cfg["wake_word_train"]["mode"] = str(settings.get("mode", "split"))
-    cfg["wake_word_train"]["epochs"] = int(settings.get("epochs", 250))
-    cfg["wake_word_train"]["batch"] = int(settings.get("batch", 256))
+    cfg["wake_word_train"]["epochs"] = int(settings.get("epochs", 200))
+    cfg["wake_word_train"]["batch"] = int(settings.get("batch", 128))
     cfg["wake_word_train"]["lr"] = float(settings.get("lr", 5e-4))
     cfg["wake_word_train"]["wd"] = float(settings.get("wd", 1e-4))
     cfg["wake_word_train"]["patience"] = int(settings.get("patience", 25))
     cfg["wake_word_train"]["rounds"] = int(settings.get("rounds", 3))
-    cfg["wake_word_train"]["mine_thr"] = float(settings.get("mine_thr", 0.90))
+    cfg["wake_word_train"]["mine_thr"] = float(settings.get("mine_thr", 0.75))
     cfg["wake_word_train"]["max_copy_neg"] = int(settings.get("max_copy_neg", 800))
     cfg["wake_word_train"]["max_copy_pos"] = int(settings.get("max_copy_pos", 200))
     cfg["wake_word_train"]["layer"] = int(settings.get("layer", 128))
@@ -151,7 +151,7 @@ def save_train_settings_to_config(settings: dict) -> None:
     cfg["wake_word_train"]["model_device"] = str(settings.get("model_device", "cuda"))
 
     # anti-FP
-    cfg["wake_word_train"]["neg_weight"] = float(settings.get("neg_weight", 4.0))
+    cfg["wake_word_train"]["neg_weight"] = float(settings.get("neg_weight", 6.0))
     cfg["wake_word_train"]["pos_weight"] = float(settings.get("pos_weight", 1.0))
     cfg["wake_word_train"]["fpr_penalty"] = float(settings.get("fpr_penalty", 3.0))
 
@@ -358,7 +358,7 @@ def embed_all(F: AudioFeatures, wavs: List[Path], total_len: int, batch_size: in
 @dataclass
 class AugmentConfig:
     enabled: bool = True
-    pos_copies: int = 3          # включая "чистый" (1 = без доп копий)
+    pos_copies: int = 15         # включая "чистый" (1 = без доп копий)
     neg_copies: int = 1
     gain_db: float = 6.0         # случайный gain в диапазоне [-gain_db, +gain_db]
     speed_min: float = 0.92      # speed perturbation
@@ -865,7 +865,7 @@ def main(argv: List[str] | None = None) -> int:
     total_sec = float(args.total_sec if args.total_sec is not None else cfg["total_sec"])
     total_len = int(SR * total_sec)
 
-    neg_weight = float(args.neg_weight) if args.neg_weight is not None else float(cfg.get("neg_weight", 4.0))
+    neg_weight = float(args.neg_weight) if args.neg_weight is not None else float(cfg.get("neg_weight", 6.0))
     pos_weight = float(args.pos_weight) if args.pos_weight is not None else float(cfg.get("pos_weight", 1.0))
     fpr_penalty = float(args.fpr_penalty) if args.fpr_penalty is not None else float(cfg.get("fpr_penalty", 3.0))
 
@@ -900,7 +900,7 @@ def main(argv: List[str] | None = None) -> int:
     aug_cfg_raw = cfg.get("aug", {}) if isinstance(cfg.get("aug", {}), dict) else {}
     aug = AugmentConfig(
         enabled=bool(aug_cfg_raw.get("enabled", True)),
-        pos_copies=int(aug_cfg_raw.get("pos_copies", 3)),
+        pos_copies=int(aug_cfg_raw.get("pos_copies", 15)),
         neg_copies=int(aug_cfg_raw.get("neg_copies", 1)),
         gain_db=float(aug_cfg_raw.get("gain_db", 6.0)),
         speed_min=float(aug_cfg_raw.get("speed_min", 0.92)),

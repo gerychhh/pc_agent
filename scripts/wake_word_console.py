@@ -48,6 +48,38 @@ try:
 except Exception:
     Model = None
 
+# =========================
+# ANSI colors
+# =========================
+ANSI_RESET = "\033[0m"
+ANSI_BOLD = "\033[1m"
+ANSI_BLUE = "\033[34m"
+ANSI_RED = "\033[31m"
+ANSI_GREEN = "\033[32m"
+
+
+def _color(text: str, *codes: str) -> str:
+    if not codes:
+        return text
+    return f"{''.join(codes)}{text}{ANSI_RESET}"
+
+
+def _header(text: str) -> str:
+    return _color(text, ANSI_BLUE, ANSI_BOLD)
+
+
+def _err(text: str) -> str:
+    return _color(text, ANSI_RED)
+
+
+def _ok(text: str) -> str:
+    return _color(text, ANSI_GREEN)
+
+
+def _score_color(score: float, threshold: float) -> str:
+    color = ANSI_GREEN if score >= threshold else ANSI_RED
+    return _color(f"{score:.3f}", color)
+
 
 # =========================
 # Paths
@@ -195,7 +227,7 @@ def _load_last_recorded() -> Path | None:
 # =========================
 def _ensure_oww() -> None:
     if Model is None:
-        print("[ERR] openwakeword не импортируется. Проверь: pip install openwakeword")
+        print(_err("[ERR] openwakeword не импортируется. Проверь: pip install openwakeword"))
         raise SystemExit(1)
 
 
@@ -224,12 +256,12 @@ def _score_wav_fixed_window(
 class TrainSettings:
     mode: str = "split"  # split/full
     epochs: int = 200
-    batch: int = 256
+    batch: int = 128
     lr: float = 0.0005
     wd: float = 0.0001
     patience: int = 20
     rounds: int = 1
-    mine_thr: float = 0.30
+    mine_thr: float = 0.75
     feats_device: str = "cpu"  # cpu/cuda
     model_device: str = "cuda"  # cpu/cuda
     max_copy_neg: int = 500
@@ -341,7 +373,7 @@ def save_settings_to_agent_config(settings: ConsoleSettings) -> None:
     Никаких шаблонов и дублей — один YAML = единый источник истины.
     """
     if DEFAULT_AGENT_CONFIG is None:
-        print("[WARN] Не нашёл config.yaml — некуда сохранять.")
+        print(_err("[WARN] Не нашёл config.yaml — некуда сохранять."))
         return
 
     cfg = _load_yaml(DEFAULT_AGENT_CONFIG)
@@ -398,7 +430,7 @@ def save_settings_to_agent_config(settings: ConsoleSettings) -> None:
     cfg["wake_word_train"]["no_early_stop"] = bool(settings.train.no_early_stop)
 
     _save_yaml(DEFAULT_AGENT_CONFIG, cfg)
-    print(f"[OK] сохранено в {DEFAULT_AGENT_CONFIG}\n")
+    print(_ok(f"[OK] сохранено в {DEFAULT_AGENT_CONFIG}\n"))
 
 
 # =========================
@@ -440,16 +472,16 @@ def dataset_test_human(settings: ConsoleSettings, *, random_show: int = 12, wors
     neg_wavs = sorted(DATA_NEG_DIR.glob("*.wav"))
 
     if not pos_wavs and not neg_wavs:
-        print("[ERR] Нет wav в data/positive и data/negative")
+        print(_err("[ERR] Нет wav в data/positive и data/negative"))
         return
 
     if not settings.model_path.exists():
-        print(f"[ERR] Модель не найдена: {settings.model_path}")
+        print(_err(f"[ERR] Модель не найдена: {settings.model_path}"))
         return
 
     print("\n[TEST] Загружаю wakeword-модель...")
     model = Model(wakeword_models=[str(settings.model_path)])
-    print(f"[OK] model='{settings.model_name}' | threshold={settings.threshold:.3f}")
+    print(_ok(f"[OK] model='{settings.model_name}' | threshold={settings.threshold:.3f}"))
     print(f"[WINDOW] total_sec={settings.total_sec:.2f}s (как в тренировке)")
     print(f"[DATA] POS={len(pos_wavs)} | NEG={len(neg_wavs)}\n")
 
@@ -469,7 +501,8 @@ def dataset_test_human(settings: ConsoleSettings, *, random_show: int = 12, wors
     print("[ИТОГ (по датасету)]")
     print(f"✅ POS поймал: {int(m['TP'])}/{int(m['TP'] + m['FN'])} | ❌ пропустил: {int(m['FN'])}")
     print(f"✅ NEG игнор:  {int(m['TN'])}/{int(m['TN'] + m['FP'])} | ❌ ложняки:  {int(m['FP'])}")
-    print(f"acc={m['acc']:.3f} | precision={m['precision']:.3f} | recall={m['recall']:.3f} | f1={m['f1']:.3f} | fpr={m['fpr']:.3f}\n")
+    print(f"acc={m['acc']:.3f} | precision={m['precision']:.3f} | recall={m['recall']:.3f} | f1={m['f1']:.3f}")
+    print(f"FPR={m['fpr']:.3f}\n")
 
     print("[ПРИМЕРЫ (случайные)]")
     if pos_scored:
@@ -479,7 +512,8 @@ def dataset_test_human(settings: ConsoleSettings, *, random_show: int = 12, wors
             ok = s >= settings.threshold
             mark = "✅" if ok else "❌"
             msg = "OK" if ok else "FAIL"
-            print(f"  {mark} {p.name}: score={s:.3f} -> {msg}")
+            score_txt = _score_color(s, settings.threshold)
+            print(f"  {mark} {p.name}: score={score_txt} -> {msg}")
         print()
 
     if neg_scored:
@@ -498,11 +532,12 @@ def dataset_test_human(settings: ConsoleSettings, *, random_show: int = 12, wors
     if worst_pos:
         print("[САМЫЕ ПЛОХИЕ POSITIVE] (пропуски)")
         for p, s in worst_pos:
-            print(f"  ❌ {p.name}: score={s:.3f}")
+            score_txt = _score_color(s, settings.threshold)
+            print(f"  ❌ {p.name}: score={score_txt}")
         print()
 
     if worst_neg:
-        print("[САМЫЕ ОПАСНЫЕ NEGATIVE] (ложняки)")
+        print("[ТОП-5 ХУДШИХ NEGATIVE] (ложняки)")
         for p, s in worst_neg:
             print(f"  ❌ {p.name}: score={s:.3f}")
         print()
@@ -514,10 +549,10 @@ def fast_test(settings: ConsoleSettings) -> None:
     pos_wavs = sorted(DATA_POS_DIR.glob("*.wav"))
     neg_wavs = sorted(DATA_NEG_DIR.glob("*.wav"))
     if not pos_wavs or not neg_wavs:
-        print("[ERR] Нужно и POS и NEG для FAST TEST.")
+        print(_err("[ERR] Нужно и POS и NEG для FAST TEST."))
         return
     if not settings.model_path.exists():
-        print(f"[ERR] Модель не найдена: {settings.model_path}")
+        print(_err(f"[ERR] Модель не найдена: {settings.model_path}"))
         return
 
     pos_n = min(settings.fast_test_pos_n, len(pos_wavs))
@@ -527,7 +562,7 @@ def fast_test(settings: ConsoleSettings) -> None:
 
     print("\n[FAST TEST] Загружаю модель...")
     model = Model(wakeword_models=[str(settings.model_path)])
-    print(f"[OK] thr={settings.threshold:.3f} | window={settings.total_sec:.2f}s | POS={pos_n} NEG={neg_n}")
+    print(_ok(f"[OK] thr={settings.threshold:.3f} | window={settings.total_sec:.2f}s | POS={pos_n} NEG={neg_n}"))
 
     pos_scores = [
         _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
@@ -546,10 +581,10 @@ def test_last_recorded(settings: ConsoleSettings) -> None:
     _ensure_oww()
     p = _load_last_recorded()
     if p is None:
-        print("[ERR] Не найден последний записанный wav")
+        print(_err("[ERR] Не найден последний записанный wav"))
         return
     if not settings.model_path.exists():
-        print(f"[ERR] Модель не найдена: {settings.model_path}")
+        print(_err(f"[ERR] Модель не найдена: {settings.model_path}"))
         return
 
     model = Model(wakeword_models=[str(settings.model_path)])
@@ -571,18 +606,18 @@ def sweep_threshold(settings: ConsoleSettings, step: float = 0.05) -> None:
     neg_wavs = sorted(DATA_NEG_DIR.glob("*.wav"))
 
     if not pos_wavs:
-        print("[ERR] Нет positive wav")
+        print(_err("[ERR] Нет positive wav"))
         return
     if not neg_wavs:
-        print("[WARN] NEG почти нет. sweep будет кривой.")
+        print(_err("[WARN] NEG почти нет. sweep будет кривой."))
         return
     if not settings.model_path.exists():
-        print(f"[ERR] Модель не найдена: {settings.model_path}")
+        print(_err(f"[ERR] Модель не найдена: {settings.model_path}"))
         return
 
     print("\n[SWEEP] Загружаю модель...")
     model = Model(wakeword_models=[str(settings.model_path)])
-    print(f"[OK] model='{settings.model_name}' | window={settings.total_sec:.2f}s")
+    print(_ok(f"[OK] model='{settings.model_name}' | window={settings.total_sec:.2f}s"))
 
     pos_scores = [
         _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
@@ -611,7 +646,7 @@ def sweep_threshold(settings: ConsoleSettings, step: float = 0.05) -> None:
             best_thr = thr
             best_m = m
 
-    print("\n✅ РЕКОМЕНДУЮ threshold:")
+    print(_ok("\n✅ РЕКОМЕНДУЮ threshold:"))
     print(f"thr={best_thr:.2f} | recall={best_m['recall']:.3f} | FP={int(best_m['FP'])} | f1={best_m['f1']:.3f}")
     print("Если ложнит — подними threshold. Если пропускает имя — снизь.\n")
 
@@ -623,6 +658,8 @@ def auto_clean(settings: ConsoleSettings) -> None:
     pos = sorted(DATA_POS_DIR.glob("*.wav"))
     neg = sorted(DATA_NEG_DIR.glob("*.wav"))
     removed = 0
+    min_duration = max(settings.min_duration_clean_s, 0.1)
+    min_rms = max(settings.min_rms_clean, 0.001)
 
     def check_one(p: Path) -> None:
         nonlocal removed
@@ -636,7 +673,7 @@ def auto_clean(settings: ConsoleSettings) -> None:
         dur = _duration_s(a, settings.sample_rate)
         rms = _rms(a)
 
-        if dur < settings.min_duration_clean_s or rms < settings.min_rms_clean:
+        if dur < min_duration or rms < min_rms:
             p.unlink(missing_ok=True)
             removed += 1
 
@@ -645,8 +682,8 @@ def auto_clean(settings: ConsoleSettings) -> None:
     for p in neg:
         check_one(p)
 
-    print(f"\n[CLEAN] Удалено клипов: {removed}")
-    print(f"Правила: dur<{settings.min_duration_clean_s:.2f}s ИЛИ rms<{settings.min_rms_clean:.4f}\n")
+    print(_ok(f"\n[CLEAN] Удалено клипов: {removed}"))
+    print(f"Правила: dur<{min_duration:.2f}s ИЛИ rms<{min_rms:.4f}\n")
 
 
 # =========================
@@ -662,18 +699,25 @@ def _countdown(sec: float) -> None:
         time.sleep(1.0)
 
 
-def record_one_clip(settings: ConsoleSettings, *, is_positive: bool) -> Path | None:
+def _record_clip(
+    settings: ConsoleSettings,
+    *,
+    directory: Path,
+    prefix: str,
+    is_positive: bool,
+    prompt: str | None = None,
+) -> Path | None:
     if sd is None:
-        print("[ERR] sounddevice не установлен. pip install sounddevice")
+        print(_err("[ERR] sounddevice не установлен. pip install sounddevice"))
         return None
 
-    directory = DATA_POS_DIR if is_positive else DATA_NEG_DIR
-    prefix = "positive" if is_positive else "negative"
     idx = _next_index(directory, prefix)
     out = directory / f"{prefix}_{idx:04d}.wav"
 
+    if prompt:
+        print(prompt)
     _countdown(settings.countdown_sec)
-    print("✅ ГОВОРИ СЕЙЧАС! ✅")
+    print(_ok("✅ ГОВОРИ СЕЙЧАС! ✅"))
 
     n_samples = int(settings.sample_rate * settings.record_sec)
     audio = sd.rec(n_samples, samplerate=settings.sample_rate, channels=1, dtype="int16")
@@ -685,12 +729,12 @@ def record_one_clip(settings: ConsoleSettings, *, is_positive: bool) -> Path | N
     print(f"[REC] rms={rms:.4f} dur={dur:.2f}s")
 
     if rms < settings.min_rms_record:
-        print(f"[DROP] слишком тихо (min_rms_record={settings.min_rms_record:.4f}) -> НЕ сохранён\n")
+        print(_err(f"[DROP] слишком тихо (min_rms_record={settings.min_rms_record:.4f}) -> НЕ сохранён\n"))
         return None
 
     _write_wav_int16(out, audio, settings.sample_rate)
     _save_last_recorded(out)
-    print(f"[SAVED] {out}")
+    print(_ok(f"[SAVED] {out}"))
 
     if settings.model_path.exists() and Model is not None:
         try:
@@ -705,11 +749,27 @@ def record_one_clip(settings: ConsoleSettings, *, is_positive: bool) -> Path | N
                 msg = "OK (не сработал)" if ok else "ЛОЖНЯК!"
                 print(f"[TEST NEG] score={s:.3f} thr={settings.threshold:.3f} -> {mark} {msg}\n")
         except Exception as e:
-            print(f"[TEST] не смог протестировать: {e}\n")
+            print(_err(f"[TEST] не смог протестировать: {e}\n"))
     else:
-        print("[TEST] модель не найдена -> тест пропущен\n")
+        print(_err("[TEST] модель не найдена -> тест пропущен\n"))
 
     return out
+
+
+def record_one_clip(settings: ConsoleSettings, *, is_positive: bool) -> Path | None:
+    directory = DATA_POS_DIR if is_positive else DATA_NEG_DIR
+    prefix = "positive" if is_positive else "negative"
+    return _record_clip(settings, directory=directory, prefix=prefix, is_positive=is_positive)
+
+
+def record_adversarial_clip(settings: ConsoleSettings) -> Path | None:
+    return _record_clip(
+        settings,
+        directory=DATA_NEG_DIR,
+        prefix="adv",
+        is_positive=False,
+        prompt="Говорите слова, похожие по звучанию на ваше имя.",
+    )
 
 
 def ask_batch_record_params(settings: ConsoleSettings) -> None:
@@ -731,11 +791,11 @@ def ask_batch_record_params(settings: ConsoleSettings) -> None:
         if raw3:
             settings.interval_sec = float(raw3)
 
-        print("\n[OK] Принято:")
+        print(_ok("\n[OK] Принято:"))
         print(f"record_sec={settings.record_sec:.2f}s | countdown={settings.countdown_sec:.1f}s | interval={settings.interval_sec:.2f}s\n")
 
     except Exception as e:
-        print(f"[ERR] Некорректный ввод: {e}")
+        print(_err(f"[ERR] Некорректный ввод: {e}"))
         print("Оставляю старые значения.\n")
 
 
@@ -792,7 +852,7 @@ def _slice_by_energy(
 
 def turbo_record_and_slice(settings: ConsoleSettings, *, is_positive: bool) -> None:
     if sd is None:
-        print("[ERR] sounddevice не установлен.")
+        print(_err("[ERR] sounddevice не установлен."))
         return
 
     directory = DATA_POS_DIR if is_positive else DATA_NEG_DIR
@@ -808,7 +868,7 @@ def turbo_record_and_slice(settings: ConsoleSettings, *, is_positive: bool) -> N
         chunk_sec = float(input("Окно анализа (сек) [0.25]: ").strip() or "0.25")
         hop_sec = float(input("Шаг окна (сек) [0.08]: ").strip() or "0.08")
     except Exception as e:
-        print(f"[ERR] ввод: {e}")
+        print(_err(f"[ERR] ввод: {e}"))
         return
 
     _countdown(settings.countdown_sec)
@@ -854,10 +914,10 @@ def live_mic_test(settings: ConsoleSettings) -> None:
     _ensure_oww()
 
     if sd is None:
-        print("[ERR] sounddevice не установлен.")
+        print(_err("[ERR] sounddevice не установлен."))
         return
     if not settings.model_path.exists():
-        print(f"[ERR] Модель не найдена: {settings.model_path}")
+        print(_err(f"[ERR] Модель не найдена: {settings.model_path}"))
         return
 
     print("\n[LIVE TEST]")
@@ -921,7 +981,7 @@ def live_mic_test(settings: ConsoleSettings) -> None:
 
                 if s >= settings.threshold:
                     cooldown_until = now + cooldown_s
-                    print(f"\r✅ DETECTED '{settings.agent_name}' score={s:.3f} >= thr={settings.threshold:.3f}         ")
+                    print(_ok(f"\r✅ DETECTED '{settings.agent_name}' score={s:.3f} >= thr={settings.threshold:.3f}         "))
                 else:
                     print(f"\r[LIVE] score={s:.3f} thr={settings.threshold:.3f} | rms={r:.4f}     ", end="")
 
@@ -935,7 +995,7 @@ def live_mic_test(settings: ConsoleSettings) -> None:
 def train_real_model(settings: ConsoleSettings) -> None:
     script = BASE_DIR / "scripts" / "train_real_wakeword.py"
     if not script.exists():
-        print(f"[TRAIN] Скрипт не найден: {script}")
+        print(_err(f"[TRAIN] Скрипт не найден: {script}"))
         return
 
     # ✅ ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ = voice_agent/config.yaml
@@ -948,7 +1008,19 @@ def train_real_model(settings: ConsoleSettings) -> None:
     try:
         subprocess.run(cmd, cwd=str(BASE_DIR), check=False)
     except Exception as e:
-        print(f"[TRAIN ERR] {e}")
+        print(_err(f"[TRAIN ERR] {e}"))
+
+    if DEFAULT_AGENT_CONFIG is None or not DEFAULT_AGENT_CONFIG.exists():
+        return
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    target = MODELS_DIR / f"agent_{timestamp}.yaml"
+    try:
+        MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        target.write_text(DEFAULT_AGENT_CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+        print(_ok(f"[CFG] Скопирован конфиг: {target}"))
+    except Exception as e:
+        print(_err(f"[CFG] Не удалось сохранить конфиг: {e}"))
 
 
 # =========================
@@ -970,7 +1042,7 @@ def explain_threshold_and_rms(settings: ConsoleSettings) -> None:
 # Settings menu
 # =========================
 def settings_menu(settings: ConsoleSettings) -> ConsoleSettings:
-    print("\n[SETTINGS]")
+    print(_header("\n[SETTINGS]"))
     print(f"model_path: {settings.model_path}")
     print(f"model_name: {settings.model_name}")
     print(f"threshold: {settings.threshold:.3f}")
@@ -1004,7 +1076,7 @@ def settings_menu(settings: ConsoleSettings) -> ConsoleSettings:
             save_settings_to_agent_config(settings)
 
     except Exception as e:
-        print(f"[ERR] {e}")
+        print(_err(f"[ERR] {e}"))
 
     print()
     return settings
@@ -1013,8 +1085,10 @@ def settings_menu(settings: ConsoleSettings) -> ConsoleSettings:
 # =========================
 # Menu
 # =========================
-MENU = """
-Wake-word console (реальные клипы + тесты)
+def build_menu() -> str:
+    header = _header("Wake-word console (реальные клипы + тесты)")
+    return f"""
+{header}
 1) Записать POSITIVE (имя «Бивис») + сразу OK/FAIL
 2) Записать NEGATIVE (НЕ «Бивис») + сразу OK/FAIL
 3) Очистить пустые клипы (auto-clean) из positive/negative
@@ -1027,7 +1101,8 @@ Wake-word console (реальные клипы + тесты)
 10) LIVE test (микрофон в реальном времени)
 11) TURBO POSITIVE (длинная запись -> авто-нарезка -> быстрый тест)
 12) TURBO NEGATIVE (длинная запись -> авто-нарезка -> быстрый тест)
-13) FAST TEST (быстрый срез качества)
+13) Запись 'Adversarial' (похожих слов)
+14) FAST TEST (быстрый срез качества)
 0) Выход
 > """
 
@@ -1044,7 +1119,7 @@ def main() -> None:
 
     while True:
         try:
-            choice = input(MENU).strip()
+            choice = input(build_menu()).strip()
         except KeyboardInterrupt:
             print("\n[EXIT]")
             break
@@ -1065,7 +1140,7 @@ def main() -> None:
                     saved += 1
                 if i != n - 1:
                     time.sleep(max(0.0, settings.interval_sec))
-            print(f"[POSITIVE] сохранено клипов: {saved}/{n}\n")
+            print(_ok(f"[POSITIVE] сохранено клипов: {saved}/{n}\n"))
 
         elif choice == "2":
             ask_batch_record_params(settings)
@@ -1079,7 +1154,7 @@ def main() -> None:
                     saved += 1
                 if i != n - 1:
                     time.sleep(max(0.0, settings.interval_sec))
-            print(f"[NEGATIVE] сохранено клипов: {saved}/{n}\n")
+            print(_ok(f"[NEGATIVE] сохранено клипов: {saved}/{n}\n"))
 
         elif choice == "3":
             auto_clean(settings)
@@ -1116,10 +1191,24 @@ def main() -> None:
             turbo_record_and_slice(settings, is_positive=False)
 
         elif choice == "13":
+            ask_batch_record_params(settings)
+            raw = input("Сколько записей 'Adversarial' сделать? [20]: ").strip()
+            n = int(raw) if raw else 20
+
+            saved = 0
+            for i in range(n):
+                p = record_adversarial_clip(settings)
+                if p is not None:
+                    saved += 1
+                if i != n - 1:
+                    time.sleep(max(0.0, settings.interval_sec))
+            print(_ok(f"[ADVERSARIAL] сохранено клипов: {saved}/{n}\n"))
+
+        elif choice == "14":
             fast_test(settings)
 
         else:
-            print("[ERR] Неверный пункт меню.\n")
+            print(_err("[ERR] Неверный пункт меню.\n"))
 
 
 if __name__ == "__main__":
