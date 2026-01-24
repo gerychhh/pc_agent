@@ -39,6 +39,16 @@ except Exception:
     yaml = None
 
 try:
+    import torch
+except Exception:
+    torch = None
+
+try:
+    from openwakeword.utils import AudioFeatures
+except Exception:
+    AudioFeatures = None
+
+try:
     import sounddevice as sd
 except Exception:
     sd = None
@@ -185,9 +195,10 @@ def apply_best_defaults_to_config() -> None:
     set_default(tr, "threshold_sweep_enabled", False)
     set_default(tr, "threshold_sweep_every", 3)
 
-    set_default(tr, "amp", True)
+    amp_default = bool(torch and torch.cuda.is_available())
+    set_default(tr, "amp", amp_default)
     set_default(tr, "cudnn_benchmark", True)
-    set_default(tr, "pin_memory", True)
+    set_default(tr, "pin_memory", amp_default)
     set_default(tr, "prefetch_factor", 2)
     set_default(tr, "persistent_workers", True)
     set_default(tr, "num_workers", "auto")
@@ -206,6 +217,17 @@ def apply_best_defaults_to_config() -> None:
     set_default(tr, "cache_prune", True)
 
     if changed:
+        if AudioFeatures is not None:
+            try:
+                total_sec = float(ww.get("total_sec", 2.0))
+                F = AudioFeatures(device="cpu", ncpu=1)
+                input_shape = F.get_embedding_shape(total_sec)
+                effective_sec = float(input_shape[0]) * 0.08
+                if abs(effective_sec - total_sec) > 0.05:
+                    ww["total_sec"] = float(effective_sec)
+                    print(f"[CFG] total_sec locked to {effective_sec:.2f} (effective)")
+            except Exception:
+                pass
         _save_yaml(DEFAULT_AGENT_CONFIG, cfg)
 
 

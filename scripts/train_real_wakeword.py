@@ -62,6 +62,7 @@ DEFAULT_TOTAL_SEC = 2.0
 RNG_SEED = 42
 ANSI_RESET = "\033[0m"
 ANSI_RED = "\033[31m"
+MODEL_VERSION = "openwakeword_v1"
 
 
 def _warn_red(text: str) -> str:
@@ -419,7 +420,7 @@ def _select_window(pcm: np.ndarray, total_len: int, mode: str, seed: int) -> np.
 
 
 def _cache_key(item: CacheItem, feature_id: str) -> str:
-    p = item.path
+    p = item.path.resolve()
     try:
         stat = p.stat()
         size = stat.st_size
@@ -436,6 +437,7 @@ def _cache_key(item: CacheItem, feature_id: str) -> str:
             f"{item.total_sec:.3f}",
             item.window_mode,
             feature_id,
+            MODEL_VERSION,
         ]
     )
     return _sha1(material)
@@ -460,7 +462,7 @@ def _cache_worker(payload: dict) -> tuple[str, bool, float]:
 
     try:
         pcm = read_wav_mono_16k(Path(item["path"]))
-        seed = int(_sha1(str(item["path"]) + feature_id), 16) % (2**31)
+        seed = int(_sha1(str(item["path"]) + feature_id + MODEL_VERSION), 16) % (2**31)
         window = _select_window(pcm, total_len, item["window_mode"], seed=seed)
         F = AudioFeatures(device=device, ncpu=1)
         emb = F.embed_clips(window[None, :], batch_size=1)[0]
@@ -475,6 +477,7 @@ def _cache_worker(payload: dict) -> tuple[str, bool, float]:
                     "sr": item["sr"],
                     "window_mode": item["window_mode"],
                     "feature_id": feature_id,
+                    "model_version": MODEL_VERSION,
                 },
             },
             cache_path,
@@ -577,7 +580,10 @@ class EmbeddingDataset(Dataset):
         item = self.items[idx]
         key = _cache_key(item, self.feature_id)
         path = _cache_path(self.cache_dir, item, key)
-        data = torch.load(path, map_location="cpu")
+        try:
+            data = torch.load(path, map_location="cpu", weights_only=True)
+        except TypeError:
+            data = torch.load(path, map_location="cpu")
         emb = data["embedding"].float()
         if self.train:
             emb = self._augment(emb)
@@ -1058,7 +1064,7 @@ def train_one_round_loader(
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         opt, mode="max", factor=0.6, patience=4, verbose=False
     )
-    scaler = torch.cuda.amp.GradScaler(enabled=amp)
+    scaler = torch.amp.GradScaler("cuda", enabled=amp)
 
     best_score = -1e9
     best_state = None
@@ -1080,7 +1086,7 @@ def train_one_round_loader(
         for step, (xb, yb) in enumerate(train_loader, start=1):
             xb = xb.to(model_device, non_blocking=True)
             yb = yb.to(model_device, non_blocking=True)
-            with torch.cuda.amp.autocast(enabled=amp):
+            with torch.amp.autocast("cuda", enabled=amp):
                 logits = model(xb)
                 loss_raw = bce(logits, yb)
                 w = torch.where(yb > 0.5, POS_W, NEG_W)
@@ -1315,15 +1321,17 @@ def main(argv: List[str] | None = None) -> int:
     ncpu = max(1, (os.cpu_count() or 4) // 2)
     F = ensure_audiofeatures(feats_device, ncpu)
     input_shape = F.get_embedding_shape(total_sec)
-    print(f"[FEATS] input_shape={input_shape} | ncpu={ncpu} | AudioFeatures device={getattr(F, 'device', feats_device)}")
     model_input_sec = float(input_shape[0]) * 0.08
-    if abs(model_input_sec - total_sec) > 0.1:
-        print(
-            _warn_red(
-                f"[WARN] Config total_sec={total_sec:.2f} but model input sees only {model_input_sec:.2f} sec. "
-                f"Update config to {model_input_sec:.2f}!"
-            )
-        )
+    if abs(model_input_sec - total_sec) > 0.05:
+        total_sec = model_input_sec
+        total_len = int(SR * total_sec)
+        if DEFAULT_AGENT_CONFIG is not None:
+            cfg_lock = _load_yaml(DEFAULT_AGENT_CONFIG)
+            cfg_lock.setdefault("wake_word", {})
+            cfg_lock["wake_word"]["total_sec"] = float(total_sec)
+            _save_yaml(DEFAULT_AGENT_CONFIG, cfg_lock)
+        print(f"[CFG] total_sec locked to {total_sec:.2f} (effective)")
+    print(f"[FEATS] input_shape={input_shape} | ncpu={ncpu} | AudioFeatures device={getattr(F, 'device', feats_device)}")
 
     # augmentation config
     aug_cfg_raw = cfg.get("aug", {}) if isinstance(cfg.get("aug", {}), dict) else {}
@@ -1379,6 +1387,9 @@ def main(argv: List[str] | None = None) -> int:
     embed_cache_dir = Path(args.embed_cache_dir) if args.embed_cache_dir else Path(tr_cfg.get("embed_cache_dir", "cache/embeddings"))
     cache_rebuild = _parse_bool(args.cache_rebuild, _parse_bool(tr_cfg.get("cache_rebuild", False), False))
     cache_device = str(args.cache_device or tr_cfg.get("cache_device", "cpu")).lower()
+    if cache_device == "cuda" and not torch.cuda.is_available():
+        print("[WARN] cache_device=cuda, но CUDA недоступна -> cache_device=cpu")
+        cache_device = "cpu"
     cache_max_gb = _safe_float(args.cache_max_gb if args.cache_max_gb is not None else tr_cfg.get("cache_max_gb", 30), 30.0)
     cache_prune = _parse_bool(args.cache_prune, _parse_bool(tr_cfg.get("cache_prune", True), True))
     if not embed_cache_enabled:
@@ -1428,7 +1439,7 @@ def main(argv: List[str] | None = None) -> int:
                 try:
                     dummy = torch.zeros((cand, input_shape[0], input_shape[1]), device=model_device)
                     model_probe = DNNWakeword(input_shape=input_shape, layer_size=layer).to(model_device)
-                    with torch.cuda.amp.autocast(enabled=amp):
+                    with torch.amp.autocast("cuda", enabled=amp):
                         _ = model_probe(dummy)
                     batch = cand
                     break
