@@ -139,6 +139,76 @@ def _ensure_cfg_sections(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
+def apply_best_defaults_to_config() -> None:
+    if DEFAULT_AGENT_CONFIG is None:
+        return
+    cfg = _load_yaml(DEFAULT_AGENT_CONFIG)
+    cfg = _ensure_cfg_sections(cfg)
+    changed = False
+
+    def set_default(section: dict[str, Any], key: str, value: Any) -> None:
+        nonlocal changed
+        if key not in section:
+            section[key] = value
+            changed = True
+
+    ww = cfg["wake_word"]
+    tr = cfg["wake_word_train"]
+    rec = cfg["wake_word_recording"]
+
+    set_default(rec, "sample_rate", 16000)
+    set_default(ww, "total_sec", 2.0)
+    set_default(ww, "min_rms", 0.0030)
+    set_default(tr, "window_mode_train", "random")
+    set_default(tr, "window_mode_eval", "center")
+
+    set_default(tr, "epochs", 12)
+    set_default(tr, "lr", 1e-3)
+    set_default(tr, "wd", 1e-4)
+    set_default(tr, "neg_weight", 3.0)
+    set_default(tr, "fpr_penalty", 0.50)
+    set_default(tr, "patience", 2)
+    set_default(tr, "seed", 42)
+
+    set_default(tr, "rounds", 2)
+    set_default(tr, "mining_mode", "scheduled")
+    set_default(tr, "mining_subset_frac", 0.25)
+    set_default(tr, "mining_full_every", 3)
+    set_default(tr, "hard_k_pos", 200)
+    set_default(tr, "hard_k_neg", 800)
+    set_default(tr, "hard_repeat_pos", 3)
+    set_default(tr, "hard_repeat_neg", 10)
+
+    set_default(tr, "eval_each_round", True)
+    set_default(tr, "full_eval_each_round", False)
+    set_default(tr, "full_eval_every", 3)
+    set_default(tr, "threshold_sweep_enabled", False)
+    set_default(tr, "threshold_sweep_every", 3)
+
+    set_default(tr, "amp", True)
+    set_default(tr, "cudnn_benchmark", True)
+    set_default(tr, "pin_memory", True)
+    set_default(tr, "prefetch_factor", 2)
+    set_default(tr, "persistent_workers", True)
+    set_default(tr, "num_workers", "auto")
+    set_default(tr, "batch", "auto")
+    set_default(tr, "grad_accum_steps", 1)
+
+    set_default(tr, "embed_cache_enabled", True)
+    set_default(tr, "embed_cache_dir", "cache/embeddings")
+    set_default(tr, "cache_format", "pt")
+    set_default(tr, "cache_rebuild", False)
+    set_default(tr, "cache_num_workers", "auto")
+    set_default(tr, "cache_device", "cpu")
+    set_default(tr, "embed_aug_mode", "on_the_fly")
+    set_default(tr, "cache_aug_k", 0)
+    set_default(tr, "cache_max_gb", 30)
+    set_default(tr, "cache_prune", True)
+
+    if changed:
+        _save_yaml(DEFAULT_AGENT_CONFIG, cfg)
+
+
 def _resolve_model_path_from_yaml(cfg: dict[str, Any]) -> Path:
     ww = cfg.get("wake_word", {}) or {}
     mp = ww.get("model_paths", None)
@@ -1090,6 +1160,14 @@ def train_real_model(settings: ConsoleSettings) -> None:
     print("\n[TRAIN] запуск:")
     print(" ".join(cmd))
     try:
+        cfg = _load_yaml(DEFAULT_AGENT_CONFIG) if DEFAULT_AGENT_CONFIG else {}
+        tr = (cfg.get("wake_word_train", {}) or {})
+        embed_cache_enabled = bool(tr.get("embed_cache_enabled", True))
+        if embed_cache_enabled:
+            cache_cmd = [sys.executable, str(script), "--build_cache_only"]
+            print("[CACHE] build/refresh embeddings:")
+            print(" ".join(cache_cmd))
+            subprocess.run(cache_cmd, cwd=str(BASE_DIR), check=False)
         subprocess.run(cmd, cwd=str(BASE_DIR), check=False)
     except Exception as e:
         print(_err(f"[TRAIN ERR] {e}"))
@@ -1105,6 +1183,20 @@ def train_real_model(settings: ConsoleSettings) -> None:
         print(_ok(f"[CFG] Скопирован конфиг: {target}"))
     except Exception as e:
         print(_err(f"[CFG] Не удалось сохранить конфиг: {e}"))
+
+
+def build_cache_only() -> None:
+    script = BASE_DIR / "scripts" / "train_real_wakeword.py"
+    if not script.exists():
+        print(_err(f"[CACHE] Скрипт не найден: {script}"))
+        return
+    cmd = [sys.executable, str(script), "--build_cache_only"]
+    print("\n[CACHE] запуск:")
+    print(" ".join(cmd))
+    try:
+        subprocess.run(cmd, cwd=str(BASE_DIR), check=False)
+    except Exception as e:
+        print(_err(f"[CACHE ERR] {e}"))
 
 
 # =========================
@@ -1143,6 +1235,28 @@ def settings_menu(settings: ConsoleSettings) -> ConsoleSettings:
     print(f"feats_device={t.feats_device} | model_device={t.model_device}")
     print(f"max_copy_neg={t.max_copy_neg} | max_copy_pos={t.max_copy_pos}")
     print(f"no_early_stop={t.no_early_stop}\n")
+
+    cfg = _load_yaml(DEFAULT_AGENT_CONFIG) if DEFAULT_AGENT_CONFIG else {}
+    tr = cfg.get("wake_word_train", {}) if cfg else {}
+    if tr:
+        print("[TRAIN PERF]")
+        print(
+            f"batch={tr.get('batch')} num_workers={tr.get('num_workers')} amp={tr.get('amp')} "
+            f"pin_memory={tr.get('pin_memory')} prefetch={tr.get('prefetch_factor')}"
+        )
+        print("[MINING]")
+        print(
+            f"mode={tr.get('mining_mode')} subset_frac={tr.get('mining_subset_frac')} full_every={tr.get('mining_full_every')}"
+        )
+        print(
+            f"hard_k_pos={tr.get('hard_k_pos')} hard_k_neg={tr.get('hard_k_neg')} "
+            f"repeat_pos={tr.get('hard_repeat_pos')} repeat_neg={tr.get('hard_repeat_neg')}"
+        )
+        print("[CACHE]")
+        print(
+            f"enabled={tr.get('embed_cache_enabled')} dir={tr.get('embed_cache_dir')} device={tr.get('cache_device')}"
+        )
+        print()
 
     try:
         raw_thr = input(f"Новый threshold? [Enter={settings.threshold:.3f}]: ").strip()
@@ -1190,11 +1304,13 @@ def build_menu() -> str:
 13) Запись 'Adversarial' (похожих слов)
 14) FAST TEST (быстрый срез качества)
 15) Check Model Health
+16) Build/Refresh embedding cache
 0) Выход
 > """
 
 
 def main() -> None:
+    apply_best_defaults_to_config()
     settings = ConsoleSettings()
     settings = load_settings_from_agent_config(settings)
 
@@ -1296,6 +1412,9 @@ def main() -> None:
 
         elif choice == "15":
             check_model_health(settings)
+
+        elif choice == "16":
+            build_cache_only()
 
         else:
             print(_err("[ERR] Неверный пункт меню.\n"))
