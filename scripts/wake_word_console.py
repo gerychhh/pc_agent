@@ -249,6 +249,21 @@ def _score_wav_fixed_window(
     return float(scores.get(model_name, 0.0))
 
 
+def _score_wav_with_reset(
+    model: Model,
+    wav_path: Path,
+    model_name: str,
+    *,
+    total_sec: float,
+    sr: int = 16000,
+) -> float:
+    try:
+        model.reset()
+    except Exception:
+        pass
+    return _score_wav_fixed_window(model, wav_path, model_name, total_sec=total_sec, sr=sr)
+
+
 # =========================
 # Settings
 # =========================
@@ -483,6 +498,30 @@ def _metrics_from_scores(pos_scores: list[float], neg_scores: list[float], thr: 
 # =========================
 # Tests
 # =========================
+def check_model_health(settings: ConsoleSettings) -> None:
+    _ensure_oww()
+
+    if not settings.model_path.exists():
+        print(_err(f"[ERR] Модель не найдена: {settings.model_path}"))
+        return
+
+    print("\n[HEALTH] Проверяю модель на 1 секунде тишины...")
+    model = Model(wakeword_models=[str(settings.model_path)])
+
+    silence = np.zeros(int(settings.sample_rate * 1.0), dtype=np.int16)
+    try:
+        model.reset()
+    except Exception:
+        pass
+    scores = model.predict(silence)
+    score = float(scores.get(settings.model_name, 0.0))
+
+    print(f"[HEALTH] silence score={score:.3f}")
+    if score > 0.1:
+        print(_err("MODEL BROKEN OR OVERFITTED TO SILENCE"))
+    else:
+        print(_ok("MODEL OK on silence"))
+
 def dataset_test_human(settings: ConsoleSettings, *, random_show: int = 12, worst_show: int = 5) -> None:
     _ensure_oww()
 
@@ -503,14 +542,27 @@ def dataset_test_human(settings: ConsoleSettings, *, random_show: int = 12, wors
     print(f"[WINDOW] total_sec={settings.total_sec:.2f}s (как в тренировке)")
     print(f"[DATA] POS={len(pos_wavs)} | NEG={len(neg_wavs)}\n")
 
-    pos_scored = [
-        (p, _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate))
-        for p in pos_wavs
-    ]
-    neg_scored = [
-        (p, _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate))
-        for p in neg_wavs
-    ]
+    pos_scored = []
+    for p in pos_wavs:
+        score = _score_wav_with_reset(
+            model,
+            p,
+            settings.model_name,
+            total_sec=settings.total_sec,
+            sr=settings.sample_rate,
+        )
+        pos_scored.append((p, score))
+
+    neg_scored = []
+    for p in neg_wavs:
+        score = _score_wav_with_reset(
+            model,
+            p,
+            settings.model_name,
+            total_sec=settings.total_sec,
+            sr=settings.sample_rate,
+        )
+        neg_scored.append((p, score))
 
     pos_scores = [s for _, s in pos_scored]
     neg_scores = [s for _, s in neg_scored]
@@ -583,11 +635,11 @@ def fast_test(settings: ConsoleSettings) -> None:
     print(_ok(f"[OK] thr={settings.threshold:.3f} | window={settings.total_sec:.2f}s | POS={pos_n} NEG={neg_n}"))
 
     pos_scores = [
-        _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
+        _score_wav_with_reset(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
         for p in pos_sel
     ]
     neg_scores = [
-        _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
+        _score_wav_with_reset(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
         for p in neg_sel
     ]
 
@@ -606,7 +658,7 @@ def test_last_recorded(settings: ConsoleSettings) -> None:
         return
 
     model = Model(wakeword_models=[str(settings.model_path)])
-    s = _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
+    s = _score_wav_with_reset(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
 
     is_pos = p.parent.name.lower() == "positive"
     ok = (s >= settings.threshold) if is_pos else (s < settings.threshold)
@@ -638,11 +690,11 @@ def sweep_threshold(settings: ConsoleSettings, step: float = 0.05) -> None:
     print(_ok(f"[OK] model='{settings.model_name}' | window={settings.total_sec:.2f}s"))
 
     pos_scores = [
-        _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
+        _score_wav_with_reset(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
         for p in pos_wavs
     ]
     neg_scores = [
-        _score_wav_fixed_window(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
+        _score_wav_with_reset(model, p, settings.model_name, total_sec=settings.total_sec, sr=settings.sample_rate)
         for p in neg_wavs
     ]
 
@@ -1137,6 +1189,7 @@ def build_menu() -> str:
 12) TURBO NEGATIVE (длинная запись -> авто-нарезка -> быстрый тест)
 13) Запись 'Adversarial' (похожих слов)
 14) FAST TEST (быстрый срез качества)
+15) Check Model Health
 0) Выход
 > """
 
@@ -1240,6 +1293,9 @@ def main() -> None:
 
         elif choice == "14":
             fast_test(settings)
+
+        elif choice == "15":
+            check_model_health(settings)
 
         else:
             print(_err("[ERR] Неверный пункт меню.\n"))

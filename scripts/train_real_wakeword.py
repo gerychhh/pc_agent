@@ -56,6 +56,12 @@ except Exception:
 SR = 16000
 DEFAULT_TOTAL_SEC = 2.0
 RNG_SEED = 42
+ANSI_RESET = "\033[0m"
+ANSI_RED = "\033[31m"
+
+
+def _warn_red(text: str) -> str:
+    return f"{ANSI_RED}{text}{ANSI_RESET}"
 
 
 # =========================
@@ -904,6 +910,14 @@ def main(argv: List[str] | None = None) -> int:
     F = ensure_audiofeatures(feats_device, ncpu)
     input_shape = F.get_embedding_shape(total_sec)
     print(f"[FEATS] input_shape={input_shape} | ncpu={ncpu} | AudioFeatures device={getattr(F, 'device', feats_device)}")
+    model_input_sec = float(input_shape[0]) * 0.08
+    if abs(model_input_sec - total_sec) > 0.1:
+        print(
+            _warn_red(
+                f"[WARN] Config total_sec={total_sec:.2f} but model input sees only {model_input_sec:.2f} sec. "
+                f"Update config to {model_input_sec:.2f}!"
+            )
+        )
 
     # augmentation config
     aug_cfg_raw = cfg.get("aug", {}) if isinstance(cfg.get("aug", {}), dict) else {}
