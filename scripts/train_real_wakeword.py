@@ -33,6 +33,7 @@ import argparse
 import math
 import os
 import random
+import sys
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -306,12 +307,26 @@ def _print_score_stats(probs: torch.Tensor, y: torch.Tensor, name: str) -> None:
 # =========================
 # Dataset prep
 # =========================
-def list_dataset(repo: Path) -> Tuple[List[Path], List[Path]]:
+def load_dataset(
+    repo: Path,
+    val_ratio: float,
+    *,
+    extra_neg_dirs: List[Path] | None = None,
+) -> Tuple[List[Path], List[Path], List[Path], List[Path], List[Path], List[Path]]:
     pos_dir = repo / "data" / "positive"
     neg_dir = repo / "data" / "negative"
+
     pos = sorted(pos_dir.glob("*.wav"))
     neg = sorted(neg_dir.glob("*.wav"))
-    return pos, neg
+
+    if extra_neg_dirs:
+        for d in extra_neg_dirs:
+            neg.extend(sorted(d.glob("*.wav")))
+
+    rng = random.Random(RNG_SEED)
+    pos_tr, pos_val = split_items(pos, val_ratio, rng)
+    neg_tr, neg_val = split_items(neg, val_ratio, rng)
+    return pos_tr, pos_val, neg_tr, neg_val, pos, neg
 
 
 def split_items(items: List[Path], val_ratio: float, rng: random.Random) -> Tuple[List[Path], List[Path]]:
@@ -600,14 +615,17 @@ def copy_hard_files(
     hard: HardMiningResult,
     max_copy_neg: int,
     max_copy_pos: int,
+    *,
+    hard_pos_dir: Path | None = None,
+    hard_neg_dir: Path | None = None,
 ) -> Tuple[int, int]:
     """
     Физически копируем найденные hard примеры в:
       data/hard_positive
-      data/hard_negative
+      data/hard_negative (или кастомные директории)
     """
-    hard_pos_dir = repo / "data" / "hard_positive"
-    hard_neg_dir = repo / "data" / "hard_negative"
+    hard_pos_dir = hard_pos_dir or (repo / "data" / "hard_positive")
+    hard_neg_dir = hard_neg_dir or (repo / "data" / "hard_negative")
     hard_pos_dir.mkdir(parents=True, exist_ok=True)
     hard_neg_dir.mkdir(parents=True, exist_ok=True)
 
@@ -827,12 +845,16 @@ def build_argparser() -> argparse.ArgumentParser:
 
     p.add_argument("--no_early_stop", action="store_true", help="не останавливать по patience, строго epochs")
     p.add_argument("--no_aug", action="store_true", help="отключить аугментации (raw клипы)")
+    p.add_argument("--aug_active", type=int, default=1, help="включить аугментации (1/0)")
+    p.add_argument("--pos_copies", type=int, default=15, help="сколько копий POS (вкл. clean)")
+    p.add_argument("--neg_copies", type=int, default=1, help="сколько копий NEG (вкл. clean)")
     p.add_argument("--save_to_config", action="store_true", help="сохранить параметры обучения в config.yaml")
     return p
 
 
 def main(argv: List[str] | None = None) -> int:
     args = build_argparser().parse_args(argv)
+    argv_list = argv if argv is not None else sys.argv[1:]
 
     # seeds
     random.seed(RNG_SEED)
@@ -869,13 +891,6 @@ def main(argv: List[str] | None = None) -> int:
     pos_weight = float(args.pos_weight) if args.pos_weight is not None else float(cfg.get("pos_weight", 1.0))
     fpr_penalty = float(args.fpr_penalty) if args.fpr_penalty is not None else float(cfg.get("fpr_penalty", 3.0))
 
-    pos, neg = list_dataset(BASE_DIR)
-    if not pos or not neg:
-        print(f"[ERR] Нет данных: positive={len(pos)} negative={len(neg)}")
-        return 2
-
-    print(f"[DATA] positive={len(pos)} negative={len(neg)}")
-
     rng = random.Random(RNG_SEED)
 
     # split train/val ratio
@@ -883,12 +898,6 @@ def main(argv: List[str] | None = None) -> int:
         val_ratio = 0.20
     else:
         val_ratio = 0.10  # "почти весь датасет", но честный контроль
-
-    pos_tr, pos_val = split_items(pos, val_ratio, rng)
-    neg_tr, neg_val = split_items(neg, val_ratio, rng)
-
-    print(f"[SPLIT] mode={mode} val_ratio={val_ratio:.2f}")
-    print(f"        pos train={len(pos_tr)} val={len(pos_val)} | neg train={len(neg_tr)} val={len(neg_val)}")
 
     # AudioFeatures
     ncpu = max(1, (os.cpu_count() or 4) // 2)
@@ -915,58 +924,19 @@ def main(argv: List[str] | None = None) -> int:
         place_mode_val=str(aug_cfg_raw.get("place_mode_val", "center")),
     )
 
+    if "--pos_copies" in argv_list:
+        aug.pos_copies = int(args.pos_copies)
+    if "--neg_copies" in argv_list:
+        aug.neg_copies = int(args.neg_copies)
+    if "--aug_active" in argv_list:
+        aug.enabled = bool(int(args.aug_active))
+
     if args.no_aug:
         aug.enabled = False
         aug.pos_copies = 1
         aug.neg_copies = 1
 
     print(f"[AUG] enabled={aug.enabled} | pos_copies={aug.pos_copies} | neg_copies={aug.neg_copies}")
-
-    # ===============================
-    # PRECOMPUTE embeddings for TRAIN/VAL
-    # ===============================
-    print("[EMB] считаю embeddings для TRAIN (offline-aug)...")
-    X_pos_tr = (
-        embed_augmented(
-            F, pos_tr, total_len, rng, aug,
-            label=1, copies=aug.pos_copies, neg_pool=neg_tr,
-            augment_train=True, place_mode=aug.place_mode_train, batch_size=32
-        ) if pos_tr else np.zeros((0, *input_shape), dtype=np.float32)
-    )
-    X_neg_tr = (
-        embed_augmented(
-            F, neg_tr, total_len, rng, aug,
-            label=0, copies=aug.neg_copies, neg_pool=None,
-            augment_train=False, place_mode=aug.place_mode_train, batch_size=32
-        ) if neg_tr else np.zeros((0, *input_shape), dtype=np.float32)
-    )
-
-    print("[EMB] считаю embeddings для VAL (clean)...")
-    X_pos_val = (
-        embed_augmented(
-            F, pos_val, total_len, rng, aug,
-            label=1, copies=1, neg_pool=None,
-            augment_train=False, place_mode=aug.place_mode_val, batch_size=32
-        ) if pos_val else np.zeros((0, *input_shape), dtype=np.float32)
-    )
-    X_neg_val = (
-        embed_augmented(
-            F, neg_val, total_len, rng, aug,
-            label=0, copies=1, neg_pool=None,
-            augment_train=False, place_mode=aug.place_mode_val, batch_size=32
-        ) if neg_val else np.zeros((0, *input_shape), dtype=np.float32)
-    )
-
-    # Torch tensors (CPU)
-    X_train_base = torch.from_numpy(np.concatenate([X_pos_tr, X_neg_tr], axis=0)).float()
-    y_train_base = torch.from_numpy(
-        np.array([1] * len(X_pos_tr) + [0] * len(X_neg_tr), dtype=np.float32)
-    ).float().unsqueeze(1)
-
-    X_val = torch.from_numpy(np.concatenate([X_pos_val, X_neg_val], axis=0)).float()
-    y_val = torch.from_numpy(
-        np.array([1] * len(X_pos_val) + [0] * len(X_neg_val), dtype=np.float32)
-    ).float().unsqueeze(1)
 
     # devices
     if model_device_str == "cuda" and not torch.cuda.is_available():
@@ -986,21 +956,81 @@ def main(argv: List[str] | None = None) -> int:
     best_score_overall = -1e9
     best_metrics_overall = None
 
-    # FULL embeddings for hard-mining (CLEAN)
-    print("[EMB] считаю embeddings для FULL DATA (для hard-mining)...")
-    all_wavs = pos + neg
-    y_all_np = np.array([1] * len(pos) + [0] * len(neg), dtype=np.float32)
-    y_all = torch.from_numpy(y_all_np).float().unsqueeze(1)
-
-    X_all = embed_all(F, all_wavs, total_len, batch_size=32)
-    X_all_t = torch.from_numpy(X_all).float()
-
     # hard-mining pools
     hard_pos_idx_pool: List[int] = []
     hard_neg_idx_pool: List[int] = []
+    hard_dirs: List[Path] = []
 
     for r in range(1, rounds + 1):
         print(f"\n========== ROUND {r}/{rounds} ==========")
+
+        pos_tr, pos_val, neg_tr, neg_val, pos_all, neg_all = load_dataset(
+            BASE_DIR,
+            val_ratio,
+            extra_neg_dirs=hard_dirs,
+        )
+        if not pos_all or not neg_all:
+            print(f"[ERR] Нет данных: positive={len(pos_all)} negative={len(neg_all)}")
+            return 2
+
+        print(f"[DATA] positive={len(pos_all)} negative={len(neg_all)}")
+        print(f"[SPLIT] mode={mode} val_ratio={val_ratio:.2f}")
+        print(f"        pos train={len(pos_tr)} val={len(pos_val)} | neg train={len(neg_tr)} val={len(neg_val)}")
+
+        # ===============================
+        # PRECOMPUTE embeddings for TRAIN/VAL
+        # ===============================
+        print("[EMB] считаю embeddings для TRAIN (offline-aug)...")
+        X_pos_tr = (
+            embed_augmented(
+                F, pos_tr, total_len, rng, aug,
+                label=1, copies=aug.pos_copies, neg_pool=neg_tr,
+                augment_train=True, place_mode=aug.place_mode_train, batch_size=32
+            ) if pos_tr else np.zeros((0, *input_shape), dtype=np.float32)
+        )
+        X_neg_tr = (
+            embed_augmented(
+                F, neg_tr, total_len, rng, aug,
+                label=0, copies=aug.neg_copies, neg_pool=None,
+                augment_train=False, place_mode=aug.place_mode_train, batch_size=32
+            ) if neg_tr else np.zeros((0, *input_shape), dtype=np.float32)
+        )
+
+        print("[EMB] считаю embeddings для VAL (clean)...")
+        X_pos_val = (
+            embed_augmented(
+                F, pos_val, total_len, rng, aug,
+                label=1, copies=1, neg_pool=None,
+                augment_train=False, place_mode=aug.place_mode_val, batch_size=32
+            ) if pos_val else np.zeros((0, *input_shape), dtype=np.float32)
+        )
+        X_neg_val = (
+            embed_augmented(
+                F, neg_val, total_len, rng, aug,
+                label=0, copies=1, neg_pool=None,
+                augment_train=False, place_mode=aug.place_mode_val, batch_size=32
+            ) if neg_val else np.zeros((0, *input_shape), dtype=np.float32)
+        )
+
+        # Torch tensors (CPU)
+        X_train_base = torch.from_numpy(np.concatenate([X_pos_tr, X_neg_tr], axis=0)).float()
+        y_train_base = torch.from_numpy(
+            np.array([1] * len(X_pos_tr) + [0] * len(X_neg_tr), dtype=np.float32)
+        ).float().unsqueeze(1)
+
+        X_val = torch.from_numpy(np.concatenate([X_pos_val, X_neg_val], axis=0)).float()
+        y_val = torch.from_numpy(
+            np.array([1] * len(X_pos_val) + [0] * len(X_neg_val), dtype=np.float32)
+        ).float().unsqueeze(1)
+
+        # FULL embeddings for hard-mining (CLEAN)
+        print("[EMB] считаю embeddings для FULL DATA (для hard-mining)...")
+        all_wavs = pos_all + neg_all
+        y_all_np = np.array([1] * len(pos_all) + [0] * len(neg_all), dtype=np.float32)
+        y_all = torch.from_numpy(y_all_np).float().unsqueeze(1)
+
+        X_all = embed_all(F, all_wavs, total_len, batch_size=32)
+        X_all_t = torch.from_numpy(X_all).float()
 
         # TRAIN set: augmented base + hard oversample
         X_train = X_train_base
@@ -1084,14 +1114,18 @@ def main(argv: List[str] | None = None) -> int:
         hard_neg_idx_pool = hard.hard_neg_idx[: max_copy_neg]
         hard_pos_idx_pool = hard.hard_pos_idx[: max_copy_pos]
 
+        hard_neg_dir = BASE_DIR / "data" / f"hard_neg_round_{r}"
         copied_pos, copied_neg = copy_hard_files(
             BASE_DIR,
             all_wavs,
             hard,
             max_copy_neg=max_copy_neg,
             max_copy_pos=max_copy_pos,
+            hard_neg_dir=hard_neg_dir,
         )
-        print(f"[HARD SAVE] copied hard_negative={copied_neg}, hard_positive={copied_pos} (в data/hard_*)")
+        hard_dirs.append(hard_neg_dir)
+        print(f"[HARD SAVE] copied hard_negative={copied_neg} -> {hard_neg_dir}")
+        print(f"[HARD SAVE] copied hard_positive={copied_pos} (в data/hard_positive)")
 
         if hard.hard_neg_count == 0 and hard.hard_pos_count == 0:
             print("[STOP] hard примеры больше не находятся -> выходим раньше.\n")

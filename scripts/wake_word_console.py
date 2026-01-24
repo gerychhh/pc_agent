@@ -262,6 +262,11 @@ class TrainSettings:
     patience: int = 20
     rounds: int = 1
     mine_thr: float = 0.75
+    neg_weight: float = 6.0
+    pos_weight: float = 1.0
+    pos_copies: int = 15
+    neg_copies: int = 1
+    aug_active: bool = True
     feats_device: str = "cpu"  # cpu/cuda
     model_device: str = "cuda"  # cpu/cuda
     max_copy_neg: int = 500
@@ -358,11 +363,17 @@ def load_settings_from_agent_config(settings: ConsoleSettings) -> ConsoleSetting
     settings.train.patience = int(tr.get("patience", settings.train.patience))
     settings.train.rounds = int(tr.get("rounds", settings.train.rounds))
     settings.train.mine_thr = float(tr.get("mine_thr", settings.train.mine_thr))
+    settings.train.neg_weight = float(tr.get("neg_weight", settings.train.neg_weight))
+    settings.train.pos_weight = float(tr.get("pos_weight", settings.train.pos_weight))
     settings.train.feats_device = str(tr.get("feats_device", settings.train.feats_device))
     settings.train.model_device = str(tr.get("model_device", settings.train.model_device))
     settings.train.max_copy_neg = int(tr.get("max_copy_neg", settings.train.max_copy_neg))
     settings.train.max_copy_pos = int(tr.get("max_copy_pos", settings.train.max_copy_pos))
     settings.train.no_early_stop = bool(tr.get("no_early_stop", settings.train.no_early_stop))
+    aug = tr.get("aug", {}) or {}
+    settings.train.pos_copies = int(aug.get("pos_copies", settings.train.pos_copies))
+    settings.train.neg_copies = int(aug.get("neg_copies", settings.train.neg_copies))
+    settings.train.aug_active = bool(aug.get("enabled", settings.train.aug_active))
 
     return settings
 
@@ -423,11 +434,18 @@ def save_settings_to_agent_config(settings: ConsoleSettings) -> None:
     cfg["wake_word_train"]["patience"] = int(settings.train.patience)
     cfg["wake_word_train"]["rounds"] = int(settings.train.rounds)
     cfg["wake_word_train"]["mine_thr"] = float(settings.train.mine_thr)
+    cfg["wake_word_train"]["neg_weight"] = float(settings.train.neg_weight)
+    cfg["wake_word_train"]["pos_weight"] = float(settings.train.pos_weight)
     cfg["wake_word_train"]["feats_device"] = str(settings.train.feats_device)
     cfg["wake_word_train"]["model_device"] = str(settings.train.model_device)
     cfg["wake_word_train"]["max_copy_neg"] = int(settings.train.max_copy_neg)
     cfg["wake_word_train"]["max_copy_pos"] = int(settings.train.max_copy_pos)
     cfg["wake_word_train"]["no_early_stop"] = bool(settings.train.no_early_stop)
+    cfg["wake_word_train"]["aug"] = {
+        "enabled": bool(settings.train.aug_active),
+        "pos_copies": int(settings.train.pos_copies),
+        "neg_copies": int(settings.train.neg_copies),
+    }
 
     _save_yaml(DEFAULT_AGENT_CONFIG, cfg)
     print(_ok(f"[OK] сохранено в {DEFAULT_AGENT_CONFIG}\n"))
@@ -1001,7 +1019,21 @@ def train_real_model(settings: ConsoleSettings) -> None:
     # ✅ ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ = voice_agent/config.yaml
     # ВАЖНО: НЕ передаём параметры через CLI, иначе они начнут расходиться с конфигом.
     # train_real_wakeword.py сам прочитает wake_word_train / wake_word из config.yaml.
-    cmd = [sys.executable, str(script), "--save_to_config"]
+    cmd = [
+        sys.executable,
+        str(script),
+        "--save_to_config",
+        "--pos_copies",
+        str(settings.train.pos_copies),
+        "--neg_copies",
+        str(settings.train.neg_copies),
+        "--neg_weight",
+        str(settings.train.neg_weight),
+        "--mine_thr",
+        str(settings.train.mine_thr),
+        "--aug_active",
+        "1" if settings.train.aug_active else "0",
+    ]
 
     print("\n[TRAIN] запуск:")
     print(" ".join(cmd))
@@ -1054,6 +1086,8 @@ def settings_menu(settings: ConsoleSettings) -> ConsoleSettings:
     print("[TRAIN SETTINGS]")
     print(f"mode={t.mode} | epochs={t.epochs} | batch={t.batch} | lr={t.lr} | wd={t.wd}")
     print(f"patience={t.patience} | rounds={t.rounds} | mine_thr={t.mine_thr}")
+    print(f"neg_weight={t.neg_weight} | pos_weight={t.pos_weight}")
+    print(f"aug_active={t.aug_active} | pos_copies={t.pos_copies} | neg_copies={t.neg_copies}")
     print(f"feats_device={t.feats_device} | model_device={t.model_device}")
     print(f"max_copy_neg={t.max_copy_neg} | max_copy_pos={t.max_copy_pos}")
     print(f"no_early_stop={t.no_early_stop}\n")
