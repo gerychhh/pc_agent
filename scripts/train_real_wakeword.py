@@ -315,10 +315,9 @@ def _print_score_stats(probs: torch.Tensor, y: torch.Tensor, name: str) -> None:
 # =========================
 def load_dataset(
     repo: Path,
-    val_ratio: float,
     *,
     extra_neg_dirs: List[Path] | None = None,
-) -> Tuple[List[Path], List[Path], List[Path], List[Path], List[Path], List[Path]]:
+) -> Tuple[List[Path], List[Path], List[Path]]:
     pos_dir = repo / "data" / "positive"
     neg_dir = repo / "data" / "negative"
 
@@ -329,10 +328,12 @@ def load_dataset(
         for d in extra_neg_dirs:
             neg.extend(sorted(d.glob("*.wav")))
 
-    rng = random.Random(RNG_SEED)
-    pos_tr, pos_val = split_items(pos, val_ratio, rng)
-    neg_tr, neg_val = split_items(neg, val_ratio, rng)
-    return pos_tr, pos_val, neg_tr, neg_val, pos, neg
+    neg_extra: list[Path] = []
+    if extra_neg_dirs:
+        for d in extra_neg_dirs:
+            neg_extra.extend(sorted(d.glob("*.wav")))
+
+    return pos, neg, neg_extra
 
 
 def split_items(items: List[Path], val_ratio: float, rng: random.Random) -> Tuple[List[Path], List[Path]]:
@@ -897,8 +898,6 @@ def main(argv: List[str] | None = None) -> int:
     pos_weight = float(args.pos_weight) if args.pos_weight is not None else float(cfg.get("pos_weight", 1.0))
     fpr_penalty = float(args.fpr_penalty) if args.fpr_penalty is not None else float(cfg.get("fpr_penalty", 3.0))
 
-    rng = random.Random(RNG_SEED)
-
     # split train/val ratio
     if mode == "split":
         val_ratio = 0.20
@@ -970,6 +969,26 @@ def main(argv: List[str] | None = None) -> int:
     best_score_overall = -1e9
     best_metrics_overall = None
 
+    rng = random.Random(RNG_SEED)
+    pos_all, neg_base, _ = load_dataset(BASE_DIR)
+    if not pos_all or not neg_base:
+        print(f"[ERR] Нет данных: positive={len(pos_all)} negative={len(neg_base)}")
+        return 2
+
+    train_pos, val_pos = split_items(pos_all, val_ratio, rng)
+    train_neg_base, val_neg = split_items(neg_base, val_ratio, rng)
+
+    val_set = set(val_pos + val_neg)
+    train_set = set(train_pos + train_neg_base)
+    overlap = train_set & val_set
+    if overlap:
+        print(_warn_red(f"[WARN] train/val пересечение: {len(overlap)} файлов"))
+        raise AssertionError("train/val overlap detected")
+
+    print(f"[DATA] positive={len(pos_all)} negative={len(neg_base)}")
+    print(f"[SPLIT] mode={mode} val_ratio={val_ratio:.2f}")
+    print(f"        pos train={len(train_pos)} val={len(val_pos)} | neg train={len(train_neg_base)} val={len(val_neg)}")
+
     # hard-mining pools
     hard_pos_idx_pool: List[int] = []
     hard_neg_idx_pool: List[int] = []
@@ -978,18 +997,21 @@ def main(argv: List[str] | None = None) -> int:
     for r in range(1, rounds + 1):
         print(f"\n========== ROUND {r}/{rounds} ==========")
 
-        pos_tr, pos_val, neg_tr, neg_val, pos_all, neg_all = load_dataset(
+        _, _, neg_extra = load_dataset(
             BASE_DIR,
-            val_ratio,
             extra_neg_dirs=hard_dirs,
         )
-        if not pos_all or not neg_all:
-            print(f"[ERR] Нет данных: positive={len(pos_all)} negative={len(neg_all)}")
-            return 2
+        train_neg = train_neg_base + neg_extra
 
-        print(f"[DATA] positive={len(pos_all)} negative={len(neg_all)}")
-        print(f"[SPLIT] mode={mode} val_ratio={val_ratio:.2f}")
-        print(f"        pos train={len(pos_tr)} val={len(pos_val)} | neg train={len(neg_tr)} val={len(neg_val)}")
+        train_set = set(train_pos + train_neg)
+        overlap = train_set & val_set
+        if overlap:
+            print(_warn_red(f"[WARN] train/val пересечение: {len(overlap)} файлов"))
+            raise AssertionError("train/val overlap detected")
+
+        print(f"[ROUND DATA] train_pos={len(train_pos)} train_neg={len(train_neg)} val_pos={len(val_pos)} val_neg={len(val_neg)}")
+        if neg_extra:
+            print(f"[ROUND DATA] hard_neg_extra={len(neg_extra)}")
 
         # ===============================
         # PRECOMPUTE embeddings for TRAIN/VAL
@@ -997,33 +1019,33 @@ def main(argv: List[str] | None = None) -> int:
         print("[EMB] считаю embeddings для TRAIN (offline-aug)...")
         X_pos_tr = (
             embed_augmented(
-                F, pos_tr, total_len, rng, aug,
-                label=1, copies=aug.pos_copies, neg_pool=neg_tr,
+                F, train_pos, total_len, rng, aug,
+                label=1, copies=aug.pos_copies, neg_pool=train_neg,
                 augment_train=True, place_mode=aug.place_mode_train, batch_size=32
-            ) if pos_tr else np.zeros((0, *input_shape), dtype=np.float32)
+            ) if train_pos else np.zeros((0, *input_shape), dtype=np.float32)
         )
         X_neg_tr = (
             embed_augmented(
-                F, neg_tr, total_len, rng, aug,
+                F, train_neg, total_len, rng, aug,
                 label=0, copies=aug.neg_copies, neg_pool=None,
                 augment_train=False, place_mode=aug.place_mode_train, batch_size=32
-            ) if neg_tr else np.zeros((0, *input_shape), dtype=np.float32)
+            ) if train_neg else np.zeros((0, *input_shape), dtype=np.float32)
         )
 
         print("[EMB] считаю embeddings для VAL (clean)...")
         X_pos_val = (
             embed_augmented(
-                F, pos_val, total_len, rng, aug,
+                F, val_pos, total_len, rng, aug,
                 label=1, copies=1, neg_pool=None,
                 augment_train=False, place_mode=aug.place_mode_val, batch_size=32
-            ) if pos_val else np.zeros((0, *input_shape), dtype=np.float32)
+            ) if val_pos else np.zeros((0, *input_shape), dtype=np.float32)
         )
         X_neg_val = (
             embed_augmented(
-                F, neg_val, total_len, rng, aug,
+                F, val_neg, total_len, rng, aug,
                 label=0, copies=1, neg_pool=None,
                 augment_train=False, place_mode=aug.place_mode_val, batch_size=32
-            ) if neg_val else np.zeros((0, *input_shape), dtype=np.float32)
+            ) if val_neg else np.zeros((0, *input_shape), dtype=np.float32)
         )
 
         # Torch tensors (CPU)
@@ -1038,9 +1060,9 @@ def main(argv: List[str] | None = None) -> int:
         ).float().unsqueeze(1)
 
         # FULL embeddings for hard-mining (CLEAN)
-        print("[EMB] считаю embeddings для FULL DATA (для hard-mining)...")
-        all_wavs = pos_all + neg_all
-        y_all_np = np.array([1] * len(pos_all) + [0] * len(neg_all), dtype=np.float32)
+        print("[EMB] считаю embeddings для TRAIN DATA (для hard-mining)...")
+        all_wavs = train_pos + train_neg
+        y_all_np = np.array([1] * len(train_pos) + [0] * len(train_neg), dtype=np.float32)
         y_all = torch.from_numpy(y_all_np).float().unsqueeze(1)
 
         X_all = embed_all(F, all_wavs, total_len, batch_size=32)
@@ -1118,6 +1140,7 @@ def main(argv: List[str] | None = None) -> int:
         hard = mine_hard_examples(probs_all, y_all, mine_thr=mine_thr)
 
         print(f"[HARD FOUND] hard_negative(FP)={hard.hard_neg_count} | hard_positive(FN)={hard.hard_pos_count}")
+        print(f"[HARD POOL] train_size={len(all_wavs)} | hard_pos={hard.hard_pos_count} hard_neg={hard.hard_neg_count}")
 
         # сортировки: NEG по убыванию score (самые опасные), POS по возрастанию (самые провальные)
         if hard.hard_neg_idx:
@@ -1127,6 +1150,12 @@ def main(argv: List[str] | None = None) -> int:
 
         hard_neg_idx_pool = hard.hard_neg_idx[: max_copy_neg]
         hard_pos_idx_pool = hard.hard_pos_idx[: max_copy_pos]
+
+        hard_paths = [all_wavs[i] for i in hard_neg_idx_pool + hard_pos_idx_pool]
+        leaked = set(hard_paths) & val_set
+        if leaked:
+            print(_warn_red(f"[WARN] hard примеры из val: {len(leaked)} файлов"))
+            raise AssertionError("hard mining leakage detected")
 
         hard_neg_dir = BASE_DIR / "data" / f"hard_neg_round_{r}"
         copied_pos, copied_neg = copy_hard_files(

@@ -3,14 +3,25 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 from openwakeword.model import Model
+try:
+    import yaml
+except Exception:
+    yaml = None
 
 from .bus import Event, EventBus
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_CONFIG_PATH = None
+if (BASE_DIR / "voice_agent" / "config.yaml").exists():
+    DEFAULT_CONFIG_PATH = BASE_DIR / "voice_agent" / "config.yaml"
+elif (BASE_DIR / "config.yaml").exists():
+    DEFAULT_CONFIG_PATH = BASE_DIR / "config.yaml"
 
 
 @dataclass(frozen=True)
@@ -28,6 +39,16 @@ class WakeWordConfig:
     vad_threshold: float = 0.0
     base_path: Path = Path(".")
     preroll_ms: int = 450
+    total_sec: float = 2.0
+
+
+def _load_yaml(path: Path | None) -> dict:
+    if yaml is None or not path or not path.exists():
+        return {}
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
 
 
 class WakeWordDetector:
@@ -35,6 +56,8 @@ class WakeWordDetector:
         self.config = config
         self.bus = bus
         self.logger = logging.getLogger("voice_agent")
+
+        self._apply_total_sec_from_config()
 
         self._model: Model | None = None
 
@@ -52,6 +75,32 @@ class WakeWordDetector:
     @property
     def model(self) -> Model | None:
         return self._model
+
+    def _apply_total_sec_from_config(self) -> None:
+        cfg = _load_yaml(DEFAULT_CONFIG_PATH)
+        if not cfg:
+            self.logger.warning(
+                "[WAKE] Config not found, using default total_sec=%.2f",
+                self.config.total_sec,
+            )
+            return
+
+        ww = cfg.get("wake_word", {}) or {}
+        total_sec = ww.get("total_sec", None)
+        if total_sec is None:
+            return
+        try:
+            total_sec = float(total_sec)
+        except Exception:
+            return
+
+        if abs(total_sec - self.config.total_sec) > 1e-3:
+            self.logger.info(
+                "[WAKE] total_sec from config=%.2f (overriding %.2f)",
+                total_sec,
+                self.config.total_sec,
+            )
+            self.config = replace(self.config, total_sec=total_sec)
 
     def _load_backend(self) -> None:
         if self.config.backend != "openwakeword":
@@ -134,13 +183,15 @@ class WakeWordDetector:
         audio_f = chunk.astype(np.float32) / 32768.0
         rms = float(np.sqrt(np.mean(audio_f * audio_f) + 1e-12))
         if rms < self.config.min_rms:
+            self._patience_hits = 0
+            self.logger.debug("[WAKE] skip (low rms) -> reset patience")
             return False
 
         # буфер
         self._buffer.extend(chunk.tolist())
 
         sr = self.config.sample_rate
-        window_samples = int(sr * 1.0)  # 1 сек окно
+        window_samples = int(sr * self.config.total_sec)
         preroll_samples = int(sr * (self.config.preroll_ms / 1000.0))
         max_keep = window_samples + preroll_samples
 
