@@ -30,6 +30,9 @@ from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.debug import set_debug
 from core.voice import VoiceInput
 from core.state import (
+    get_assistant_name,
+    set_assistant_name,
+
     clear_state,
     get_active_app,
     get_active_file,
@@ -351,7 +354,9 @@ def ensure_app_search_paths() -> None:
 def main() -> None:
     print("PC Agent CLI. Type /help for commands.")
     print("Tip: включить голосовой ввод → /voice on (и проверь микрофон: /voice devices)")
-    voice_wake_name = input("Имя для обращения к агенту (например, 'Агент')> ").strip()
+    voice_wake_name = (os.getenv("WAKE_NAME") or get_assistant_name() or "Бивис").strip()
+    set_assistant_name(voice_wake_name)
+
     ensure_app_search_paths()
     set_debug(os.getenv("PC_AGENT_DEBUG", "0") == "1")
     orchestrator = Orchestrator()

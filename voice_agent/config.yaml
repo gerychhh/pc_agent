@@ -2,10 +2,10 @@ audio:
   sample_rate: 16000
   channels: 1
   chunk_ms: 20
-  device: null
+  device: 1
 vad:
   model: silero_vad
-  device: cpu
+  device: cuda
   threshold: 0.48
   min_speech_ms: 300
   end_silence_ms: 700
@@ -13,12 +13,12 @@ vad:
   noise_floor_alpha: 0.05
   noise_ratio: 1.5
 asr:
-  model: small
+  model: large
   device: cuda
   compute_type: float16
   beam_size: 1
   language: ru
-  max_utterance_s: 10
+  max_utterance_s: 3
   partial_interval_ms: 220
   partial_min_delta: 3
   min_partial_s: 0.5
@@ -30,30 +30,78 @@ wake_word:
   enabled: true
   backend: openwakeword
   model_paths:
-    - "models/agent.onnx"
-  model_names:
-    - "alexa"
-  threshold: 0.6
-  patience_frames: 2
-  cooldown_ms: 1200
-  min_rms: 0.01
+  - models/agent.onnx
+  model_names: []
+  threshold: 0.15000000000000002
+  patience_frames: 3
+  cooldown_ms: 900
+  min_rms: 0.0025
   inference_framework: onnx
   vad_threshold: 0.0
+  preroll_ms: 450
+  min_rms_record: 0.003
+  total_sec: 2.0
+  model_name: agent
+  agent_name: Бивис
 nlu:
   synonyms:
-    "телеграмм": "telegram"
-    "тг": "telegram"
-    "браузер": "chrome"
-    "ютуб": "youtube"
-    "ютьюб": "youtube"
-    "you tube": "youtube"
+    телеграмм: telegram
+    тг: telegram
+    браузер: chrome
+    ютуб: youtube
+    ютьюб: youtube
+    you tube: youtube
 voice:
-  agent_name: "Агент"
-  voice_name: "Microsoft Dmitry"
-  startup_voice: true
+  agent_name: Агент
+  voice_name: Microsoft Dmitry
+  startup_voice: false
 tts:
   enabled: false
   voice: male
   engine: piper
 logging:
   level: debug
+wake_word_train:
+  mode: split
+  epochs: 400
+  batch: 256
+  lr: 0.0005
+  wd: 0.0001
+  patience: 20
+  rounds: 6
+  mine_thr: 0.9
+  feats_device: cpu
+  model_device: cuda
+  max_copy_neg: 500
+  max_copy_pos: 150
+  no_early_stop: false
+  layer: 128
+  aug:
+    enabled: true
+    pos_copies: 3
+    neg_copies: 1
+    gain_db: 6.0
+    speed_min: 0.92
+    speed_max: 1.08
+    mix_neg_prob: 0.35
+    mix_snr_db_min: 8.0
+    mix_snr_db_max: 20.0
+    trim_speech: true
+    speech_rms_thr: 0.006
+    speech_pad_sec: 0.08
+    place_mode_train: random
+    place_mode_val: center
+  neg_weight: 6.0
+  pos_weight: 1.0
+  fpr_penalty: 5.0
+wake_word_recording:
+  sample_rate: 16000
+  record_sec: 0.55
+  countdown_sec: 2.0
+  interval_sec: 0.35
+wake_word_clean:
+  min_duration_clean_s: 0.25
+  min_rms_clean: 0.006
+wake_word_fast_test:
+  pos_n: 80
+  neg_n: 200

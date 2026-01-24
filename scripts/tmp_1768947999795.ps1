@@ -1,1 +1,0 @@
-﻿Get-Process explorer -ErrorAction SilentlyContinue | Out-String

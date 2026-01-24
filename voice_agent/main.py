@@ -84,6 +84,12 @@ class VoiceAgentRuntime:
                 min_rms=wake_cfg.get("min_rms", 0.01),
                 inference_framework=wake_cfg.get("inference_framework", "onnx"),
                 vad_threshold=wake_cfg.get("vad_threshold", 0.0),
+                # Optional fields for backend="vosk"
+                keyword=wake_cfg.get(
+                    "keyword",
+                    wake_cfg.get("wake_name", wake_cfg.get("name", wake_cfg.get("agent_name", "agent"))),
+                ),
+                vosk_model_path=wake_cfg.get("vosk_model_path"),
                 base_path=self.config_path.parent,
             ),
             self.bus,

@@ -2,10 +2,10 @@
   "active_file": "launched мне",
   "active_url": "https://www.youtube.com/",
   "active_app": "notepad",
-  "active_window_title": "Ножницы",
-  "active_window_process": "SnippingTool.exe",
-  "active_window_hwnd": 919920,
-  "active_window_pid": 22496,
+  "active_window_title": "Wake-word настройка ИИ - Google Chrome",
+  "active_window_process": "chrome.exe",
+  "active_window_hwnd": 132328,
+  "active_window_pid": 19348,
   "recent_files": [
     "launched мне",
     "launched мне википедия",
@@ -29,8 +29,8 @@
     "launched яндекс музыку"
   ],
   "recent_urls": [
-    "https://www.bing.com/search?q=%D0%BD%D0%B0%D1%8F%D0%B4%D0%B8",
     "https://www.youtube.com/",
+    "https://www.bing.com/search?q=%D0%BD%D0%B0%D1%8F%D0%B4%D0%B8",
     "{{url}}",
     "https://www.notion.so/",
     "https://www.blocknote.com/",
@@ -56,5 +56,7 @@
     "-W",
     "winword.exe"
   ],
-  "voice_device": 1
+  "voice_device": 1,
+  "voice_engine": "vosk",
+  "voice_model_size": "large"
 }

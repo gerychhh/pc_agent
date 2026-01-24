@@ -12,6 +12,7 @@ screenshots/
 *.log
 scripts/tmp_*.py
 models/
+data/
 
 # OS
 .DS_Store
@@ -20,3 +21,4 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+venv

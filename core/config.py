@@ -32,5 +32,9 @@ VOICE_NAME = os.getenv("VOICE_NAME", "Microsoft Dmitry")
 VOICE_RATE = int(os.getenv("VOICE_RATE", "2"))
 VOICE_VOLUME = int(os.getenv("VOICE_VOLUME", "100"))
 
+WAKE_NAME = os.getenv("WAKE_NAME", "Бивис")
+WAKE_MODE = os.getenv("WAKE_MODE", "gated_vosk").lower()
+# WAKE_MODE: "prefix" (как сейчас), "gated_vosk" (рекомендуется), "off"
+
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)

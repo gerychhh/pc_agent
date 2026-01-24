@@ -60,7 +60,18 @@ class VoiceInput:
         self.queue: queue.Queue[bytes] = queue.Queue()
 
     def _resolve_whisper_model_name(self) -> str:
-        if self.model_size in {"small", "base", "medium", "large"}:
+        # openai-whisper supports: tiny, base, small, medium, large (+ large-v2/v3)
+        # Keep an allow-list so UI dropdown values work without surprises.
+        allowed = {
+            "tiny",
+            "base",
+            "small",
+            "medium",
+            "large",
+            "large-v2",
+            "large-v3",
+        }
+        if self.model_size in allowed:
             return self.model_size
         return WHISPER_MODEL_NAME
 

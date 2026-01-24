@@ -79,6 +79,25 @@ function Get-ConfigListValues([string]$path, [string]$key) {
     return $values
 }
 
+function Get-GenerateSamplesRequiresModel([string]$path) {
+    if (-not (Test-Path $path)) {
+        return $false
+    }
+
+    $content = Get-Content -Path $path -Raw
+    $match = [regex]::Match(
+        $content,
+        "def\s+generate_samples\s*\((?<sig>[^)]*)\)",
+        [System.Text.RegularExpressions.RegexOptions]::Singleline
+    )
+    if (-not $match.Success) {
+        return $false
+    }
+
+    $signature = $match.Groups["sig"].Value
+    return $signature -match "(^|,)\s*model(\s*[:=]|,|\s*$)"
+}
+
 Write-Host "openWakeWord training doctor" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 
@@ -122,7 +141,28 @@ if ($LASTEXITCODE -eq 0) {
     $owwLocation = $null
 }
 
-# e) train.py patch guard
+# e) piper_sample_generator_path from training_config.yaml
+$configPath = ".\\configs\\training_config.yaml"
+$piperPath = Get-ConfigValue -path $configPath -key "piper_sample_generator_path"
+$generatorRequiresModel = $false
+if (-not $piperPath) {
+    Write-Fail "Missing piper_sample_generator_path in configs\\training_config.yaml" @(
+        "Edit configs\\training_config.yaml and set piper_sample_generator_path: \"external\\\\piper-sample-generator\""
+    )
+} else {
+    $generatorCheck = Join-Path -Path $piperPath -ChildPath "generate_samples.py"
+    if (Test-Path $generatorCheck) {
+        Write-Ok "piper_sample_generator_path points to generate_samples.py"
+        $generatorRequiresModel = Get-GenerateSamplesRequiresModel -path $generatorCheck
+    } else {
+        Write-Fail "generate_samples.py not found at: $generatorCheck" @(
+            "Fix piper_sample_generator_path in configs\\training_config.yaml",
+            "git clone https://github.com/rhasspy/piper-sample-generator $piperPath"
+        )
+    }
+}
+
+# f) train.py patch guard
 if ($owwLocation) {
     $trainPath = & python -c "import openwakeword.train as t; print(t.__file__)" 2>&1
     if ($LASTEXITCODE -ne 0) {
@@ -142,30 +182,25 @@ if ($owwLocation) {
                 "python .\\scripts\\patch_openwakeword_train.py"
             )
         }
+
+        if ($trainText -match "_call_generate_samples") {
+            Write-Ok "train.py has generate_samples compatibility wrapper"
+        } else {
+            if ($generatorRequiresModel) {
+                Write-Fail "train.py missing generate_samples wrapper (required for current piper-sample-generator)" @(
+                    "python .\\scripts\\patch_openwakeword_train.py"
+                )
+            } else {
+                Write-Warn "train.py missing generate_samples wrapper (may fail on new piper-sample-generator)" @(
+                    "python .\\scripts\\patch_openwakeword_train.py"
+                )
+            }
+        }
     }
 } else {
     Write-Fail "Patch check skipped (openwakeword not installed)" @(
         "python -m pip install -r requirements.txt"
     )
-}
-
-# f) piper_sample_generator_path from training_config.yaml
-$configPath = ".\\configs\\training_config.yaml"
-$piperPath = Get-ConfigValue -path $configPath -key "piper_sample_generator_path"
-if (-not $piperPath) {
-    Write-Fail "Missing piper_sample_generator_path in configs\\training_config.yaml" @(
-        "Edit configs\\training_config.yaml and set piper_sample_generator_path: \"external\\\\piper-sample-generator\""
-    )
-} else {
-    $generatorCheck = Join-Path -Path $piperPath -ChildPath "generate_samples.py"
-    if (Test-Path $generatorCheck) {
-        Write-Ok "piper_sample_generator_path points to generate_samples.py"
-    } else {
-        Write-Fail "generate_samples.py not found at: $generatorCheck" @(
-            "Fix piper_sample_generator_path in configs\\training_config.yaml",
-            "git clone https://github.com/rhasspy/piper-sample-generator $piperPath"
-        )
-    }
 }
 
 # g) rir_paths and background_paths from training_config.yaml
@@ -224,6 +259,34 @@ if ($outputDir -and $modelName) {
         Write-Warn "positive_test folder missing" @(
             "Run: python -m openwakeword.train --training_config configs\\training_config.yaml --generate_clips"
         )
+    }
+}
+
+# i) piper_model_path hint (required for newer piper-sample-generator)
+$piperModelPath = Get-ConfigValue -path $configPath -key "piper_model_path"
+if (-not $piperModelPath) {
+    if ($generatorRequiresModel) {
+        Write-Fail "piper_model_path is empty but generate_samples requires a model" @(
+            "Set piper_model_path in configs\\training_config.yaml to a Piper .onnx file"
+        )
+    } else {
+        Write-Warn "piper_model_path is empty (needed if generate_samples requires a model)" @(
+            "Set piper_model_path in configs\\training_config.yaml when using new piper-sample-generator"
+        )
+    }
+} else {
+    if (Test-Path $piperModelPath) {
+        Write-Ok "piper_model_path exists: $piperModelPath"
+    } else {
+        if ($generatorRequiresModel) {
+            Write-Fail "piper_model_path not found: $piperModelPath" @(
+                "Fix piper_model_path in configs\\training_config.yaml"
+            )
+        } else {
+            Write-Warn "piper_model_path not found: $piperModelPath" @(
+                "Fix piper_model_path in configs\\training_config.yaml"
+            )
+        }
     }
 }
 

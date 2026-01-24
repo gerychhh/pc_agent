@@ -116,8 +116,15 @@ class AgentUI:
         size_label = ttk.Label(self.settings_frame, text="Размер модели")
         size_label.grid(row=6, column=0, sticky=tk.W, pady=4)
         self.model_size_var = tk.StringVar(value=get_voice_model_size() or "small")
-        size_entry = ttk.Entry(self.settings_frame, textvariable=self.model_size_var, width=12)
-        size_entry.grid(row=6, column=1, sticky=tk.W, pady=4)
+        whisper_sizes = ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+        size_box = ttk.Combobox(
+            self.settings_frame,
+            textvariable=self.model_size_var,
+            values=whisper_sizes,
+            state="readonly",
+            width=12,
+        )
+        size_box.grid(row=6, column=1, sticky=tk.W, pady=4)
 
         device_label = ttk.Label(self.settings_frame, text="Индекс микрофона")
         device_label.grid(row=7, column=0, sticky=tk.W, pady=4)
@@ -149,73 +156,103 @@ class AgentUI:
         vad_title = ttk.Label(self.settings_frame, text="VAD (детекция речи)")
         vad_title.grid(row=11, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
 
+        # Move VAD to GPU when possible (silero_vad supports CUDA via torch)
+        self.vad_device_var = tk.StringVar(value=str(self.voice_config["vad"].get("device", "cpu")))
+        ttk.Label(self.settings_frame, text="VAD устройство").grid(row=12, column=0, sticky=tk.W, pady=2)
+        ttk.Combobox(
+            self.settings_frame,
+            textvariable=self.vad_device_var,
+            values=["cpu", "cuda"],
+            state="readonly",
+            width=12,
+        ).grid(row=12, column=1, sticky=tk.W)
+
         self.vad_threshold_var = tk.StringVar(value=str(self.voice_config["vad"].get("threshold", 0.5)))
-        ttk.Label(self.settings_frame, text="Порог").grid(row=12, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.vad_threshold_var, width=12).grid(row=12, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Порог").grid(row=13, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.vad_threshold_var, width=12).grid(row=13, column=1, sticky=tk.W)
 
         self.min_speech_var = tk.StringVar(value=str(self.voice_config["vad"].get("min_speech_ms", 200)))
-        ttk.Label(self.settings_frame, text="Мин. речь (мс)").grid(row=13, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.min_speech_var, width=12).grid(row=13, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Мин. речь (мс)").grid(row=14, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.min_speech_var, width=12).grid(row=14, column=1, sticky=tk.W)
 
         self.end_silence_var = tk.StringVar(value=str(self.voice_config["vad"].get("end_silence_ms", 500)))
-        ttk.Label(self.settings_frame, text="Конец тишины (мс)").grid(row=14, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.end_silence_var, width=12).grid(row=14, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Конец тишины (мс)").grid(row=15, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.end_silence_var, width=12).grid(row=15, column=1, sticky=tk.W)
 
         self.vad_min_rms_var = tk.StringVar(value=str(self.voice_config["vad"].get("min_rms", 0.01)))
-        ttk.Label(self.settings_frame, text="Мин. громкость (RMS)").grid(row=15, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.vad_min_rms_var, width=12).grid(row=15, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Мин. громкость (RMS)").grid(row=16, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.vad_min_rms_var, width=12).grid(row=16, column=1, sticky=tk.W)
 
         self.vad_noise_ratio_var = tk.StringVar(value=str(self.voice_config["vad"].get("noise_ratio", 1.5)))
-        ttk.Label(self.settings_frame, text="Шумовой множитель").grid(row=16, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.vad_noise_ratio_var, width=12).grid(row=16, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Шумовой множитель").grid(row=17, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.vad_noise_ratio_var, width=12).grid(row=17, column=1, sticky=tk.W)
 
         self.vad_noise_alpha_var = tk.StringVar(value=str(self.voice_config["vad"].get("noise_floor_alpha", 0.05)))
-        ttk.Label(self.settings_frame, text="Скорость оценки шума").grid(row=17, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.vad_noise_alpha_var, width=12).grid(row=17, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Скорость оценки шума").grid(row=18, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.vad_noise_alpha_var, width=12).grid(row=18, column=1, sticky=tk.W)
 
         asr_title = ttk.Label(self.settings_frame, text="ASR (faster-whisper)")
-        asr_title.grid(row=18, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
+        asr_title.grid(row=19, column=0, columnspan=2, sticky=tk.W, pady=(12, 4))
 
         self.asr_model_var = tk.StringVar(value=str(self.voice_config["asr"].get("model", "small")))
-        ttk.Label(self.settings_frame, text="Модель").grid(row=19, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.asr_model_var, width=12).grid(row=19, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Модель").grid(row=20, column=0, sticky=tk.W, pady=2)
+        fw_sizes = ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+        ttk.Combobox(
+            self.settings_frame,
+            textvariable=self.asr_model_var,
+            values=fw_sizes,
+            state="readonly",
+            width=12,
+        ).grid(row=20, column=1, sticky=tk.W)
 
         self.asr_device_var = tk.StringVar(value=str(self.voice_config["asr"].get("device", "cuda")))
-        ttk.Label(self.settings_frame, text="Устройство").grid(row=20, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.asr_device_var, width=12).grid(row=20, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Устройство").grid(row=21, column=0, sticky=tk.W, pady=2)
+        ttk.Combobox(
+            self.settings_frame,
+            textvariable=self.asr_device_var,
+            values=["cuda", "cpu"],
+            state="readonly",
+            width=12,
+        ).grid(row=21, column=1, sticky=tk.W)
 
         self.compute_type_var = tk.StringVar(value=str(self.voice_config["asr"].get("compute_type", "float16")))
-        ttk.Label(self.settings_frame, text="Тип вычислений").grid(row=21, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.compute_type_var, width=12).grid(row=21, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Тип вычислений").grid(row=22, column=0, sticky=tk.W, pady=2)
+        ttk.Combobox(
+            self.settings_frame,
+            textvariable=self.compute_type_var,
+            values=["float16", "int8", "int8_float16"],
+            state="readonly",
+            width=12,
+        ).grid(row=22, column=1, sticky=tk.W)
 
         self.beam_size_var = tk.StringVar(value=str(self.voice_config["asr"].get("beam_size", 2)))
-        ttk.Label(self.settings_frame, text="Beam size").grid(row=22, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.beam_size_var, width=12).grid(row=22, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Beam size").grid(row=23, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.beam_size_var, width=12).grid(row=23, column=1, sticky=tk.W)
 
         self.max_utterance_var = tk.StringVar(value=str(self.voice_config["asr"].get("max_utterance_s", 10)))
-        ttk.Label(self.settings_frame, text="Макс. фраза (с)").grid(row=23, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.max_utterance_var, width=12).grid(row=23, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Макс. фраза (с)").grid(row=24, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.max_utterance_var, width=12).grid(row=24, column=1, sticky=tk.W)
 
         self.partial_interval_var = tk.StringVar(value=str(self.voice_config["asr"].get("partial_interval_ms", 150)))
-        ttk.Label(self.settings_frame, text="Интервал partial (мс)").grid(row=24, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.partial_interval_var, width=12).grid(row=24, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Интервал partial (мс)").grid(row=25, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.partial_interval_var, width=12).grid(row=25, column=1, sticky=tk.W)
 
         self.no_speech_threshold_var = tk.StringVar(value=str(self.voice_config["asr"].get("no_speech_threshold", 0.8)))
-        ttk.Label(self.settings_frame, text="No-speech threshold").grid(row=25, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.no_speech_threshold_var, width=12).grid(row=25, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="No-speech threshold").grid(row=26, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.no_speech_threshold_var, width=12).grid(row=26, column=1, sticky=tk.W)
 
         self.log_prob_threshold_var = tk.StringVar(value=str(self.voice_config["asr"].get("log_prob_threshold", -1.0)))
-        ttk.Label(self.settings_frame, text="Log prob threshold").grid(row=26, column=0, sticky=tk.W, pady=2)
-        ttk.Entry(self.settings_frame, textvariable=self.log_prob_threshold_var, width=12).grid(row=26, column=1, sticky=tk.W)
+        ttk.Label(self.settings_frame, text="Log prob threshold").grid(row=27, column=0, sticky=tk.W, pady=2)
+        ttk.Entry(self.settings_frame, textvariable=self.log_prob_threshold_var, width=12).grid(row=27, column=1, sticky=tk.W)
 
         self.voice_status = ttk.Label(self.settings_frame, text="Модель голоса: не загружена")
-        self.voice_status.grid(row=27, column=0, columnspan=2, sticky=tk.W, pady=(8, 2))
+        self.voice_status.grid(row=28, column=0, columnspan=2, sticky=tk.W, pady=(8, 2))
 
         self.recognition_status = ttk.Label(self.settings_frame, text="Распознавание: выключено")
-        self.recognition_status.grid(row=28, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        self.recognition_status.grid(row=29, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         self.noise_label = ttk.Label(self.settings_frame, text="Индикатор шума: --")
-        self.noise_label.grid(row=29, column=0, columnspan=2, sticky=tk.W, pady=(0, 4))
+        self.noise_label.grid(row=30, column=0, columnspan=2, sticky=tk.W, pady=(0, 4))
         self.noise_bar = ttk.Progressbar(
             self.settings_frame,
             orient=tk.HORIZONTAL,
@@ -223,19 +260,19 @@ class AgentUI:
             mode="determinate",
             maximum=100,
         )
-        self.noise_bar.grid(row=30, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        self.noise_bar.grid(row=31, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         load_button = ttk.Button(self.settings_frame, text="Загрузить модель", command=self._load_voice_model)
-        load_button.grid(row=31, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        load_button.grid(row=32, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         test_voice_button = ttk.Button(self.settings_frame, text="Проверить голос", command=self._test_voice)
-        test_voice_button.grid(row=32, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
+        test_voice_button.grid(row=33, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
         save_button = ttk.Button(self.settings_frame, text="Сохранить настройки", command=self._save_settings)
-        save_button.grid(row=33, column=0, columnspan=2, sticky=tk.W, pady=8)
+        save_button.grid(row=34, column=0, columnspan=2, sticky=tk.W, pady=8)
 
         self.settings_status = ttk.Label(self.settings_frame, text="")
-        self.settings_status.grid(row=34, column=0, columnspan=2, sticky=tk.W)
+        self.settings_status.grid(row=35, column=0, columnspan=2, sticky=tk.W)
 
         self.settings_frame.columnconfigure(1, weight=1)
 
@@ -280,6 +317,14 @@ class AgentUI:
         self.root.after(100, self._poll_results)
 
     def _save_settings(self) -> None:
+        # Save + APPLY: if model/device changed, we restart voice runtime
+        prev_engine = get_voice_engine() or "whisper"
+        prev_model_size = get_voice_model_size() or "small"
+        prev_device_index = get_voice_device()
+        prev_asr = dict(self.voice_config.get("asr", {}))
+        prev_audio = dict(self.voice_config.get("audio", {}))
+        prev_vad = dict(self.voice_config.get("vad", {}))
+
         engine = self.engine_var.get().strip().lower()
         model_size = self.model_size_var.get().strip().lower()
         device_index = self._selected_device_index()
@@ -293,6 +338,7 @@ class AgentUI:
         self.voice_config["audio"]["sample_rate"] = int(self.sample_rate_var.get() or 16000)
         self.voice_config["audio"]["chunk_ms"] = int(self.chunk_ms_var.get() or 20)
         self.voice_config["audio"]["device"] = device_index
+        self.voice_config["vad"]["device"] = (self.vad_device_var.get() or "cpu").strip().lower()
         self.voice_config["vad"]["threshold"] = float(self.vad_threshold_var.get() or 0.5)
         self.voice_config["vad"]["min_speech_ms"] = int(self.min_speech_var.get() or 200)
         self.voice_config["vad"]["end_silence_ms"] = int(self.end_silence_var.get() or 500)
@@ -300,8 +346,11 @@ class AgentUI:
         self.voice_config["vad"]["noise_ratio"] = float(self.vad_noise_ratio_var.get() or 1.5)
         self.voice_config["vad"]["noise_floor_alpha"] = float(self.vad_noise_alpha_var.get() or 0.05)
         self.voice_config["asr"]["model"] = self.asr_model_var.get() or "small"
-        self.voice_config["asr"]["device"] = self.asr_device_var.get() or "cuda"
-        self.voice_config["asr"]["compute_type"] = self.compute_type_var.get() or "float16"
+        asr_device = (self.asr_device_var.get() or "cuda").strip().lower()
+        self.voice_config["asr"]["device"] = asr_device
+        # sensible defaults: GPU -> float16, CPU -> int8
+        compute_type = (self.compute_type_var.get() or ("float16" if asr_device == "cuda" else "int8")).strip()
+        self.voice_config["asr"]["compute_type"] = compute_type
         self.voice_config["asr"]["beam_size"] = int(self.beam_size_var.get() or 2)
         self.voice_config["asr"]["max_utterance_s"] = int(self.max_utterance_var.get() or 10)
         self.voice_config["asr"]["partial_interval_ms"] = int(self.partial_interval_var.get() or 150)
@@ -311,7 +360,34 @@ class AgentUI:
         self.voice_config["voice"]["voice_name"] = self.voice_name_var.get() or "Microsoft Dmitry"
         self.voice_config["voice"]["startup_voice"] = bool(self.startup_voice_var.get())
         self._save_voice_config(self.voice_config)
-        self.settings_status.configure(text="Настройки сохранены.")
+
+        # Apply changes immediately
+        needs_reload_core = (engine != prev_engine) or (model_size != prev_model_size) or (device_index != prev_device_index)
+
+        new_asr = dict(self.voice_config.get("asr", {}))
+        new_audio = dict(self.voice_config.get("audio", {}))
+        new_vad = dict(self.voice_config.get("vad", {}))
+        needs_restart_runtime = (new_asr != prev_asr) or (new_audio != prev_audio) or (new_vad != prev_vad)
+
+        if needs_reload_core:
+            self._load_voice_model()
+
+        if needs_restart_runtime:
+            self._restart_voice_runtime()
+
+        self.settings_status.configure(text="Настройки сохранены и применены.")
+
+    def _restart_voice_runtime(self) -> None:
+        # stop -> start with fresh config
+        try:
+            if self.voice_runtime:
+                self.voice_runtime.stop()
+                self.voice_runtime = None
+        except Exception:
+            self.voice_runtime = None
+
+        # start again
+        self._start_voice_recognition()
 
     def _load_voice_config(self) -> dict[str, dict[str, object]]:
         if CONFIG_PATH.exists():
@@ -468,3 +544,19 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# --- Safety: ensure AgentUI has _set_label_safe even if a patch removed it ---
+def _agentui_set_label_safe(self, widget, text: str) -> None:
+    try:
+        widget.after(0, lambda: widget.configure(text=text))
+    except Exception:
+        try:
+            widget.configure(text=text)
+        except Exception:
+            pass
+
+try:
+    if "AgentUI" in globals() and not hasattr(AgentUI, "_set_label_safe"):
+        AgentUI._set_label_safe = _agentui_set_label_safe  # type: ignore[attr-defined]
+except Exception:
+    pass

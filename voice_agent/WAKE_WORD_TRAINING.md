@@ -21,6 +21,10 @@ cd C:\\gerychhh_\\pc_agent
 python scripts\\wake_word_console.py
 ```
 
+При запуске обучения через меню скрипт автоматически применяет
+`scripts\\patch_openwakeword_train.py`, чтобы обеспечить совместимость
+с `false_positive_validation_data_path` и новыми версиями piper-sample-generator.
+
 ## 2) Обучите модель в openWakeWord
 
 Используйте официальный инструментарий openWakeWord для обучения кастомного слова.
@@ -32,6 +36,7 @@ python scripts\\wake_word_console.py
 Перед запуском **обязательно** обновите пути:
 
 - `piper_sample_generator_path` — путь к каталогу, где лежит `generate_samples.py`.
+- `piper_model_path` — путь к модели Piper (.onnx), если генератор требует параметр `model`.
 - `rir_paths` и `background_paths` — директории с аудио файлами (если нет RIR, можно указать `data\\negative`).
 
 Также можете изменить `target_phrase` под своё ключевое слово.
@@ -48,6 +53,7 @@ Get-Content .\\configs\\training_config.yaml
 Пример запуска обучения:
 
 ```bash
+python scripts/patch_openwakeword_train.py
 python -m openwakeword.train --training_config configs/training_config.yaml --generate_clips --overwrite --augment_clips --train_model
 ```
 
@@ -72,7 +78,8 @@ python scripts/patch_openwakeword_train.py
 ```
 
 Патч делает `false_positive_validation_data_path` опциональным и пропускает
-FP-validation, если путь не задан.
+FP-validation, если путь не задан. Также добавляет совместимость с
+`piper_model_path` для новых версий piper-sample-generator.
 
 ### Типовые ошибки
 
@@ -82,6 +89,8 @@ FP-validation, если путь не задан.
   или не обновлены `rir_paths`/`background_paths`.
 - `TypeError: expected str, bytes or os.PathLike object, not NoneType` —
   не применён патч для `false_positive_validation_data_path`.
+- `TypeError: generate_samples() missing 1 required positional argument: 'model'` —
+  для вашей версии piper-sample-generator нужен `piper_model_path` и патч.
 
 ## 3) Подключите модель в агенте
 

@@ -165,6 +165,19 @@ def set_voice_engine(engine: str | None) -> None:
     save_state(state)
 
 
+
+def set_assistant_name(name: str | None) -> None:
+    state = load_state()
+    state["assistant_name"] = (name or "").strip() or None
+    save_state(state)
+
+
+def get_assistant_name() -> str | None:
+    state = load_state()
+    value = state.get("assistant_name")
+    return str(value) if value else None
+
+
 def get_voice_engine() -> str | None:
     state = load_state()
     value = state.get("voice_engine")

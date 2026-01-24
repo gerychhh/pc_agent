@@ -1,1 +1,0 @@
-﻿Start-Process -FilePath 'startmenuexperiencehost.exe'
