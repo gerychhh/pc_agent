@@ -32,7 +32,7 @@ wake_word:
   model_paths:
   - models/agent.onnx
   model_names: []
-  threshold: 0.15000000000000002
+  threshold: 0.5900000000000001
   patience_frames: 3
   cooldown_ms: 900
   min_rms: 0.0025
@@ -40,7 +40,7 @@ wake_word:
   vad_threshold: 0.0
   preroll_ms: 450
   min_rms_record: 0.003
-  total_sec: 2.0
+  total_sec: 0.56
   model_name: agent
   agent_name: Бивис
 nlu:
@@ -80,20 +80,41 @@ wake_word_train:
     enabled: true
     pos_copies: 3
     neg_copies: 1
-    gain_db: 6.0
-    speed_min: 0.92
-    speed_max: 1.08
-    mix_neg_prob: 0.35
-    mix_snr_db_min: 8.0
-    mix_snr_db_max: 20.0
-    trim_speech: true
-    speech_rms_thr: 0.006
-    speech_pad_sec: 0.08
-    place_mode_train: random
-    place_mode_val: center
   neg_weight: 6.0
   pos_weight: 1.0
   fpr_penalty: 5.0
+  window_mode_train: random
+  window_mode_eval: center
+  seed: 42
+  mining_mode: scheduled
+  mining_subset_frac: 0.25
+  mining_full_every: 3
+  hard_k_pos: 200
+  hard_k_neg: 800
+  hard_repeat_pos: 3
+  hard_repeat_neg: 10
+  eval_each_round: true
+  full_eval_each_round: false
+  full_eval_every: 3
+  threshold_sweep_enabled: false
+  threshold_sweep_every: 3
+  amp: true
+  cudnn_benchmark: true
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: true
+  num_workers: auto
+  grad_accum_steps: 1
+  embed_cache_enabled: true
+  embed_cache_dir: cache/embeddings
+  cache_format: pt
+  cache_rebuild: false
+  cache_num_workers: auto
+  cache_device: cpu
+  embed_aug_mode: on_the_fly
+  cache_aug_k: 0
+  cache_max_gb: 30
+  cache_prune: true
 wake_word_recording:
   sample_rate: 16000
   record_sec: 0.55
