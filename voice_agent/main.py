@@ -175,7 +175,8 @@ class VoiceAgentRuntime:
                     self.asr.reset()
                     return
             self.vad.process_chunk(data, ts)
-            self.asr.accept_audio(data, ts)
+            if self.state.name == "LISTENING":
+                self.asr.accept_audio(data, ts)
 
     def _on_audio_level(self, event: Event) -> None:
         rms = event.payload["rms"]
