@@ -53,6 +53,44 @@ PC_AGENT_DEBUG=1 python app.py
 pip install vosk sounddevice numpy
 ```
 
+### Wake-word (openWakeWord/Vosk)
+В проекте уже встроен wake-word пайплайн: сначала детектор wake-word, затем VAD, затем Whisper/Vosk. Настройки лежат в `voice_agent/config.yaml` в секции `wake_word`. Минимальная конфигурация для `openwakeword`:
+
+```yaml
+wake_word:
+  enabled: true
+  backend: openwakeword
+  model_paths:
+    - models/agent.onnx
+  threshold: 0.6
+  patience_frames: 2
+  cooldown_ms: 900
+  armed_timeout_ms: 6000
+```
+
+1. Скопируйте вашу модель wake-word (например `beavis.onnx`) в папку `models/`.
+2. Укажите путь в `model_paths` (относительно `voice_agent/config.yaml`).
+3. Запустите агент в голосовом режиме: `VOICE=1 python app.py`.
+
+Дополнительно для openWakeWord:
+
+```bash
+pip install openwakeword onnxruntime
+```
+
+Если хотите использовать Vosk-ключевик вместо openWakeWord, укажите:
+
+```yaml
+wake_word:
+  enabled: true
+  backend: vosk
+  keyword: "бивис"
+  vosk_model_path: models/vosk-model-small-ru-0.22
+```
+
+После срабатывания wake-word агент автоматически:
+1) ждёт начало речи по VAD, 2) обрезает тишину, 3) отправляет аудио в Whisper/Vosk и передаёт текст агенту.
+
 Если используете Whisper/VAD и появляется ошибка `torchaudio`:
 
 1. Установите Python 3.10–3.12 (не 3.13).

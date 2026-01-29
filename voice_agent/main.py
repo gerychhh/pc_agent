@@ -54,6 +54,8 @@ class VoiceAgentRuntime:
         self._on_partial_cb = on_partial
         self._on_audio_level_cb = on_audio_level
         self._enable_actions = enable_actions
+        self._armed_since: float | None = None
+        self._armed_timeout_ms = 0
 
         audio_cfg = self.cfg.get("audio", {})
         vad_cfg = self.cfg.get("vad", {})
@@ -61,6 +63,7 @@ class VoiceAgentRuntime:
         tts_cfg = self.cfg.get("tts", {})
         nlu_cfg = self.cfg.get("nlu", {})
         wake_cfg = self.cfg.get("wake_word", {})
+        self._armed_timeout_ms = int(wake_cfg.get("armed_timeout_ms", 6000))
 
         self.audio = AudioCapture(
             AudioConfig(
@@ -154,6 +157,14 @@ class VoiceAgentRuntime:
             self.wake_word.process_chunk(data, ts)
             return
         if self.state.name in {"ARMED", "LISTENING"}:
+            if self.state.name == "ARMED" and self._armed_since and self._armed_timeout_ms > 0:
+                if (ts - self._armed_since) * 1000.0 >= self._armed_timeout_ms:
+                    self.logger.info("Wake-word timed out, returning to idle.")
+                    self.state.name = "IDLE"
+                    self._armed_since = None
+                    self.vad.reset()
+                    self.asr.reset()
+                    return
             self.vad.process_chunk(data, ts)
             self.asr.accept_audio(data, ts)
 
@@ -166,6 +177,7 @@ class VoiceAgentRuntime:
     def _on_vad_start(self, _event: Event) -> None:
         self.logger.info("VAD speech_start")
         self.state.name = "LISTENING"
+        self._armed_since = None
         self.asr.speech_start()
         self.tts.stop()
 
@@ -174,6 +186,7 @@ class VoiceAgentRuntime:
         self.state.name = "DECODING"
         self.asr.speech_end(event.payload["ts"])
         self.state.name = "IDLE"
+        self.vad.reset()
 
     def _on_partial(self, event: Event) -> None:
         text = event.payload["text"]
@@ -200,11 +213,13 @@ class VoiceAgentRuntime:
                 self.logger.info("Intent: not understood (normalized=%s)", normalized)
         self.state.name = "IDLE"
 
-    def _on_wake_word(self, _event: Event) -> None:
+    def _on_wake_word(self, event: Event) -> None:
         if self.state.name != "IDLE":
             return
         self.logger.info("Wake-word detected")
         self.state.name = "ARMED"
+        self._armed_since = float(event.payload.get("ts", time.monotonic()))
+        self.vad.reset()
 
     def start(self) -> None:
         if self._running.is_set():

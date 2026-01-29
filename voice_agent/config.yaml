@@ -35,6 +35,7 @@ wake_word:
   threshold: 0.5900000000000001
   patience_frames: 3
   cooldown_ms: 900
+  armed_timeout_ms: 6000
   min_rms: 0.0025
   inference_framework: onnx
   vad_threshold: 0.0

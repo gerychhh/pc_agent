@@ -38,6 +38,14 @@ class SileroVAD:
         self._min_samples = int(self.config.sample_rate / 31.25)
         self._noise_floor_rms: float | None = None
 
+    def reset(self) -> None:
+        self._state = None
+        self._speaking = False
+        self._speech_started_at = None
+        self._last_voice_at = None
+        self._audio_buffer = np.zeros(0, dtype=np.float32)
+        self._noise_floor_rms = None
+
     def process_chunk(self, chunk: np.ndarray, ts: float) -> None:
         if chunk.size == 0:
             return
