@@ -107,6 +107,8 @@ print(hasattr(torchaudio, "list_audio_backends"))
 PY
 ```
 
+Если в DEBUG логах видите сообщения `torio` про отсутствие FFmpeg (`libtorio_ffmpeg*.pyd`) — это предупреждение о расширении torchaudio. Обычно оно не мешает распознаванию с микрофона. Чтобы убрать его, переустановите `torchaudio` в сборке с FFmpeg или поставьте системный FFmpeg, затем переустановите `torchaudio` под вашу версию Python/CUDA.
+
 Для Whisper дополнительно:
 
 ```bash

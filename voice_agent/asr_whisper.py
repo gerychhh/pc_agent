@@ -53,6 +53,7 @@ class FasterWhisperASR:
                 compute_type=compute_type,
             )
             self.logger.info("ASR model loaded on %s (%s).", device, compute_type)
+            self.logger.info("ASR model=%s language=%s beam=%s", self.config.model, self.config.language, self.config.beam_size)
         except (RuntimeError, OSError) as exc:
             message = str(exc).lower()
             if device == "cuda" and ("cublas" in message or "cuda" in message):

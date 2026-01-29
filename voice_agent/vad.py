@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 
@@ -25,6 +26,7 @@ class SileroVAD:
     def __init__(self, config: VadConfig, bus: EventBus) -> None:
         self.config = config
         self.bus = bus
+        self.logger = logging.getLogger("voice_agent")
         self.device = torch.device(config.device)
         model, utils = torch.hub.load(repo_or_dir="snakers4/silero-vad", model="silero_vad")
         model.to(self.device)
@@ -37,6 +39,13 @@ class SileroVAD:
         self._audio_buffer = np.zeros(0, dtype=np.float32)
         self._min_samples = int(self.config.sample_rate / 31.25)
         self._noise_floor_rms: float | None = None
+        self.logger.info(
+            "VAD loaded device=%s threshold=%.2f min_speech_ms=%d end_silence_ms=%d",
+            self.config.device,
+            self.config.threshold,
+            self.config.min_speech_ms,
+            self.config.end_silence_ms,
+        )
 
     def reset(self) -> None:
         self._state = None

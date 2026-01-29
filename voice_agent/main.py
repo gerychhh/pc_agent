@@ -150,6 +150,15 @@ class VoiceAgentRuntime:
         self.bus.subscribe("action.run", lambda e: self.logger.info("Action run: %s", e.payload))
         self.bus.subscribe("agent.intent", lambda e: self.logger.info("Intent: %s", e.payload))
 
+        self.logger.info(
+            "Runtime config: wake_word=%s backend=%s vad_device=%s asr_model=%s asr_device=%s",
+            wake_cfg.get("enabled", True),
+            wake_cfg.get("backend", "openwakeword"),
+            vad_cfg.get("device", "cpu"),
+            asr_cfg.get("model", "small"),
+            asr_cfg.get("device", "cuda"),
+        )
+
     def _on_audio(self, event: Event) -> None:
         data = event.payload["data"]
         ts = event.payload["ts"]
@@ -216,7 +225,8 @@ class VoiceAgentRuntime:
     def _on_wake_word(self, event: Event) -> None:
         if self.state.name != "IDLE":
             return
-        self.logger.info("Wake-word detected")
+        scores = event.payload.get("scores")
+        self.logger.info("Wake-word detected (scores=%s)", scores)
         self.state.name = "ARMED"
         self._armed_since = float(event.payload.get("ts", time.monotonic()))
         self.vad.reset()
