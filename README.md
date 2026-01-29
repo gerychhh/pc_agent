@@ -54,7 +54,7 @@ pip install vosk sounddevice numpy
 ```
 
 ### Wake-word (openWakeWord/Vosk)
-В проекте уже встроен wake-word пайплайн: сначала детектор wake-word, затем VAD, затем Whisper/Vosk. Настройки лежат в `voice_agent/config.yaml` в секции `wake_word`. Минимальная конфигурация для `openwakeword`:
+В проекте уже встроен wake-word пайплайн: сначала детектор wake-word, затем VAD, затем Whisper/Vosk. По умолчанию wake-word включён (`wake_word.enabled: true`). Настройки лежат в `voice_agent/config.yaml` в секции `wake_word`. Минимальная конфигурация для `openwakeword`:
 
 ```yaml
 wake_word:
