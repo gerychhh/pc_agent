@@ -374,6 +374,7 @@ def _python_type_in_notepad(text: str) -> str:
         "import time\n"
         "import pyautogui\n"
         "import pygetwindow\n"
+        "from core.window_manager import paste_text\n"
         "\n"
         "def focus():\n"
         "    for window in pygetwindow.getAllWindows():\n"
@@ -388,5 +389,6 @@ def _python_type_in_notepad(text: str) -> str:
         "\n"
         "if not focus():\n"
         "    raise RuntimeError(\"Не найдено окно блокнота. Открой блокнот сначала.\")\n"
-        "pyautogui.typewrite(\"" + safe + "\", interval=0.01)\n"
+        # Use clipboard paste to support Cyrillic regardless of current keyboard layout.
+        "paste_text(\"" + safe + "\")\n"
     )

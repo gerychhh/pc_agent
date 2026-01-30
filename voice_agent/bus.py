@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import logging
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -37,4 +38,11 @@ class EventBus:
             handlers = list(self._subscribers.get(event.type, []))
             handlers += self._subscribers.get("*", [])
         for handler in handlers:
-            handler(event)
+            try:
+                handler(event)
+            except Exception:
+                logging.getLogger("voice_agent.bus").exception(
+                    "Unhandled exception in handler for event=%s handler=%s",
+                    event.type,
+                    getattr(handler, "__name__", str(handler)),
+                )

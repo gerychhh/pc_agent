@@ -1,0 +1,1 @@
+﻿Stop-Process -Name notepad -ErrorAction SilentlyContinue

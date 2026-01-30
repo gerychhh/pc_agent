@@ -791,10 +791,12 @@ commands:
     script: |
       import time
       import pyautogui
+      from core.window_manager import paste_text
       text="{{text}}"
       pyautogui.hotkey("ctrl","f")
       time.sleep(0.1)
-      pyautogui.typewrite(text, interval=0.01)
+      # Clipboard paste is layout-independent (works for Cyrillic too)
+      paste_text(text)
       pyautogui.press("enter")
       print("OK: find on page")
   verify: {lang: python, script: "print('OK')"}

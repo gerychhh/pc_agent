@@ -1,0 +1,1 @@
+﻿Start-Process 'https://www.youtube.com/results?search_query=два+икс+два'

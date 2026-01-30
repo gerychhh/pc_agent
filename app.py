@@ -7,6 +7,8 @@ import subprocess
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import sounddevice as sd
 
@@ -28,7 +30,7 @@ from core.config import (
 )
 from core.orchestrator import Orchestrator, sanitize_assistant_text
 from core.debug import set_debug
-from core.voice import VoiceInput
+from voice_agent.main import VoiceAgentRuntime
 from core.state import (
     get_assistant_name,
     set_assistant_name,
@@ -70,16 +72,28 @@ Commands:
 
 
 class InputManager:
+    """Collects text input (stdin) and voice input (wake-word pipeline).
+
+    Voice pipeline uses voice_agent.main.VoiceAgentRuntime:
+      wake-word -> silero VAD -> ASR (whisper/vosk) -> final text
+    """
+
     def __init__(self, voice_enabled: bool) -> None:
         self.text_queue: queue.Queue[str | None] = queue.Queue()
-        self.voice_queue: queue.Queue[dict[str, str]] = queue.Queue()
+        self.voice_queue: queue.Queue[dict[str, Any]] = queue.Queue()
+
         self._text_thread = threading.Thread(target=self._text_loop, daemon=True)
         self._text_thread.start()
+
         self._voice_thread: threading.Thread | None = None
         self._voice_stop = threading.Event()
         self._voice_pause = threading.Event()
+
         self.voice_enabled = False
-        self.voice_input: VoiceInput | None = None
+        self.voice_runtime: VoiceAgentRuntime | None = None
+        self.voice_config_path = Path(__file__).resolve().parent / "voice_agent" / "config.yaml"
+
+        self._last_wake_print = 0.0
         self.set_voice_enabled(voice_enabled)
 
     def _text_loop(self) -> None:
@@ -91,42 +105,60 @@ class InputManager:
                 break
             self.text_queue.put(line)
 
-    def _init_voice_input(self) -> VoiceInput:
-        device_idx = get_voice_device()
-        engine = get_voice_engine() or VOICE_ENGINE
-        model_size = get_voice_model_size()
-        return VoiceInput(device=device_idx, engine=engine, model_size=model_size)
-
     def _voice_loop(self) -> None:
-        while not self._voice_stop.is_set():
-            if self._voice_pause.is_set():
-                time.sleep(0.1)
-                continue
-            try:
-                if self.voice_input is None:
-                    self.voice_input = self._init_voice_input()
-                text = self.voice_input.listen_once()
-            except Exception as exc:
-                self.voice_queue.put({"type": "voice_error", "error": str(exc)})
-                time.sleep(0.2)
-                continue
-            if self._voice_stop.is_set():
-                break
-            if text:
+        """Starts VoiceAgentRuntime once and relays events into voice_queue."""
+        def on_final(text: str) -> None:
+            if text and not self._voice_stop.is_set():
                 self.voice_queue.put({"type": "voice", "text": text})
-            else:
-                time.sleep(0.1)
+
+        def on_status(kind: str, payload: dict[str, Any]) -> None:
+            # Throttle wake.scores spam a bit
+            if kind == "wake.scores":
+                now = time.monotonic()
+                if now - self._last_wake_print < 0.35:
+                    return
+                self._last_wake_print = now
+            self.voice_queue.put({"type": "voice_status", "kind": kind, "payload": payload})
+
+        try:
+            self.voice_runtime = VoiceAgentRuntime(
+                self.voice_config_path,
+                on_final=on_final,
+                on_status=on_status,
+                enable_actions=False,
+            )
+            self.voice_runtime.start()
+            self.voice_queue.put({"type": "voice_status", "kind": "runtime.started", "payload": {"config": str(self.voice_config_path)}})
+        except Exception as exc:
+            self.voice_queue.put({"type": "voice_error", "error": str(exc)})
+            return
+
+        while not self._voice_stop.is_set():
+            if self._voice_pause.is_set() and self.voice_runtime:
+                self.voice_runtime.set_muted(True)
+            elif self.voice_runtime:
+                self.voice_runtime.set_muted(False)
+            time.sleep(0.2)
+
+        # stopping
+        try:
+            if self.voice_runtime:
+                self.voice_runtime.stop()
+        except Exception:
+            pass
+        self.voice_runtime = None
 
     def set_voice_enabled(self, enabled: bool) -> None:
         if enabled and not self.voice_enabled:
             self._voice_stop.clear()
+            self._voice_pause.clear()
             self.voice_enabled = True
             self._voice_thread = threading.Thread(target=self._voice_loop, daemon=True)
             self._voice_thread.start()
         elif not enabled and self.voice_enabled:
             self._voice_stop.set()
             self.voice_enabled = False
-            self.voice_input = None
+            self.voice_runtime = None
             self._voice_thread = None
 
     def pause_voice(self, paused: bool) -> None:
@@ -136,9 +168,12 @@ class InputManager:
             self._voice_pause.clear()
 
     def reset_voice_input(self) -> None:
-        self.voice_input = None
+        # Force restart runtime
+        if self.voice_enabled:
+            self.set_voice_enabled(False)
+            self.set_voice_enabled(True)
 
-    def get_event(self, timeout: float = 0.1) -> dict[str, str] | None:
+    def get_event(self, timeout: float = 0.1) -> dict[str, Any] | None:
         try:
             event = self.voice_queue.get_nowait()
             return event
@@ -151,6 +186,8 @@ class InputManager:
         if line is None:
             return {"type": "eof"}
         return {"type": "text", "text": line}
+
+
 
 
 @dataclass
@@ -186,6 +223,38 @@ def _escape_powershell(text: str) -> str:
     return text.replace("'", "''")
 
 
+def _print_voice_status(kind: str, payload: dict[str, Any]) -> None:
+    # Human-readable voice pipeline logs for app.py
+    if kind == "state":
+        print(f"[VOICE][STATE] {payload.get('from')} -> {payload.get('to')}")
+        return
+    if kind == "wake.scores":
+        best = payload.get("best", 0.0)
+        best_name = payload.get("best_name", "")
+        timeline = payload.get("timeline", "")
+        print(f"[VOICE][WAKE] {best_name}={best:.2f}  {timeline}")
+        return
+    if kind == "wake.detected":
+        print(f"[VOICE][WAKE] DETECTED {payload.get('best_name')} score={payload.get('best')}")
+        return
+    if kind == "vad.score":
+        print(f"[VOICE][VAD] prob={payload.get('prob', 0.0):.2f} speaking={'YES' if payload.get('speaking') else 'no'}")
+        return
+    if kind == "vad.speech_start":
+        print("[VOICE][VAD] speech_start")
+        return
+    if kind == "vad.speech_end":
+        print("[VOICE][VAD] speech_end -> decoding")
+        return
+    if kind == "asr.final":
+        print(f"[VOICE][ASR] FINAL: {payload.get('text','')}")
+        return
+    if kind == "asr.timeout":
+        print(f"[VOICE][ASR] timeout: {payload}")
+        return
+    if kind in {"runtime.started", "runtime.stopped"}:
+        print(f"[VOICE] {kind}: {payload}")
+        return
 def _handle_debug_command(raw: str) -> None:
     parts = raw.split()
     if len(parts) == 1:
@@ -474,6 +543,9 @@ def main() -> None:
                 voice_enabled = False
                 prompt_shown = False
                 prompt_spoken = False
+                continue
+            if event["type"] == "voice_status":
+                _print_voice_status(str(event.get("kind","")), event.get("payload", {}) or {})
                 continue
             if event["type"] == "voice":
                 voice_text = event.get("text", "")

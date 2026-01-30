@@ -1,0 +1,1 @@
+﻿if (Get-Process notepad -ErrorAction SilentlyContinue) { exit 1 } else { 'OK' }

@@ -18,3 +18,7 @@ sounddevice
 numpy
 openwakeword
 onnxruntime
+PyYAML>=6.0
+PyAudio
+
+packaging>=23.0

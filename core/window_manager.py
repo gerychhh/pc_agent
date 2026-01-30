@@ -117,16 +117,68 @@ def press_key(key: str) -> None:
 
 def type_text(text: str, interval: float = 0.01) -> None:
     log_active_window("WIN_BEFORE")
+    # NOTE: pyautogui.typewrite() on Windows depends on the current keyboard layout.
+    # If the layout is EN, typing Cyrillic will fail or produce garbage.
+    # For any non-ASCII text, we fall back to clipboard paste (layout-independent).
+    if any(ord(ch) > 127 for ch in text):
+        paste_text(text)
+        debug_event("WIN_KEY", "key=type_text->paste_text")
+        log_active_window("WIN_AFTER")
+        return
+
     pyautogui.typewrite(text, interval=interval)
     debug_event("WIN_KEY", "key=type_text")
     log_active_window("WIN_AFTER")
 
 
-def paste_text(text: str) -> None:
+def _release_stuck_modifiers() -> None:
+    """Best-effort to avoid stuck keys breaking paste/typing."""
+    try:
+        for k in ("win", "ctrl", "shift", "alt"):
+            pyautogui.keyUp(k)
+    except Exception:
+        pass
+
+
+def paste_text(text: str, *, method: str = "ctrlv", restore_clipboard: bool = True) -> None:
+    """Paste text into the active window.
+
+    Why this exists:
+    - It's layout-independent (unlike typewrite for Cyrillic).
+    - We preserve the user's clipboard by default.
+
+    method:
+      - "ctrlv" (default)
+      - "shift_insert" (works in many Windows apps; used in Start menu fix)
+    """
     log_active_window("WIN_BEFORE")
-    pyperclip.copy(text)
-    pyautogui.hotkey("ctrl", "v")
-    debug_event("WIN_KEY", "key=ctrl+v")
+
+    old_clip: str | None = None
+    if restore_clipboard:
+        try:
+            old_clip = pyperclip.paste()
+        except Exception:
+            old_clip = None
+
+    try:
+        pyperclip.copy(text)
+        _release_stuck_modifiers()
+
+        if method == "shift_insert":
+            pyautogui.keyDown("shift")
+            pyautogui.press("insert")
+            pyautogui.keyUp("shift")
+            debug_event("WIN_KEY", "key=shift+insert")
+        else:
+            pyautogui.hotkey("ctrl", "v")
+            debug_event("WIN_KEY", "key=ctrl+v")
+    finally:
+        if restore_clipboard and old_clip is not None:
+            try:
+                pyperclip.copy(old_clip)
+            except Exception:
+                pass
+
     log_active_window("WIN_AFTER")
 
 

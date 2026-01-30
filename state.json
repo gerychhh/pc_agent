@@ -57,6 +57,6 @@
     "winword.exe"
   ],
   "voice_device": 1,
-  "voice_engine": "vosk",
-  "voice_model_size": "large"
+  "voice_engine": "whisper",
+  "voice_model_size": "tiny"
 }
