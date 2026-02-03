@@ -13,8 +13,8 @@ vad:
   noise_floor_alpha: 0.05
   noise_ratio: 1.5
 asr:
-  model: large
-  device: cuda
+  model: tiny
+  device: auto
   compute_type: float16
   beam_size: 1
   language: ru
@@ -26,15 +26,19 @@ asr:
   no_speech_threshold: 0.8
   log_prob_threshold: -1.0
   compression_ratio_threshold: 2.4
+  backend: whisper
+  vosk_model_path: ''
+  decode_timeout_ms: 2500
 wake_word:
   enabled: true
   backend: openwakeword
   model_paths:
-  - models/agent.onnx
+  - C:\gerychhh_\pc_agent\voice_agent\models\beavis.onnx
   model_names: []
   threshold: 0.5900000000000001
   patience_frames: 3
   cooldown_ms: 900
+  armed_timeout_ms: 6000
   min_rms: 0.0025
   inference_framework: onnx
   vad_threshold: 0.0
@@ -43,6 +47,7 @@ wake_word:
   total_sec: 0.56
   model_name: agent
   agent_name: Бивис
+  history_size: 40
 nlu:
   synonyms:
     телеграмм: telegram
